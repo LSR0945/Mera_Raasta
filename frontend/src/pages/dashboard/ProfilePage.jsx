@@ -10,28 +10,52 @@ function PhotoUpload({ currentAvatar, onUpload, role }) {
   const inputRef = useRef(null);
 
   const ROLE_GRADIENT = { student: 'from-blue-500 to-indigo-500', parent: 'from-emerald-500 to-teal-500', mentor: 'from-violet-500 to-purple-500' };
+  const MAX_SIZE = 2 * 1024 * 1024;
+
+  const compressImage = (file) => new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      const maxDim = 800;
+      if (width > maxDim || height > maxDim) {
+        const scale = maxDim / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (!blob) return reject(new Error('Compression failed'));
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', 0.7);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
 
   const processFile = async (file) => {
     if (!file) return;
+    if (file.size > MAX_SIZE) return toast.error('Image too large! Max 2MB.');
     setUploading(true);
     try {
-      const base64 = await fileToBase64(file);
+      const base64 = await compressImage(file);
       setPreview(base64);
       await onUpload(base64);
       toast.success('Photo updated!');
-    } catch {
-      toast.error('Failed to upload photo');
+    } catch (err) {
+      toast.error('Failed to upload photo: ' + (err.message || ''));
     } finally {
       setUploading(false);
     }
   };
-
-  const fileToBase64 = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 
   const handleDrop = (e) => {
     e.preventDefault();

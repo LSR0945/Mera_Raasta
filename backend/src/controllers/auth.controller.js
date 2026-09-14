@@ -12,26 +12,11 @@ export const register = async (req, res, next) => {
     const { accessToken, refreshToken } = generateTokens(user._id);
     await User.findByIdAndUpdate(user._id, { refreshToken });
 
-    // Send welcome email
-    let emailSent = false;
-    console.log('📧 Registering:', name, '| Email:', email, '| Role:', role);
-    try {
-      console.log('📧 Sending email TO:', email);
-      const emailResult = await sendEmail({
-        to: email,
-        subject: `Welcome to Mera Raasta, ${name}! 🎉`,
-        html: welcomeEmail(name, role),
-      });
-      if (emailResult) {
-        emailSent = true;
-        console.log('✅ Email SENT to:', email);
-      } else {
-        console.log('❌ Email returned null for:', email);
-      }
-    } catch (err) {
-      console.error('❌ Email FAILED for', email + ':', err.message);
-      resetTransporter();
-    }
+    // Send welcome email in background (non-blocking)
+    const html = welcomeEmail(name, role);
+    sendEmail({ to: email, subject: `Welcome to Mera Raasta, ${name}!`, html })
+      .then(() => console.log('Email sent to:', email))
+      .catch(() => { console.log('Email failed for:', email); resetTransporter(); });
 
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
     res.status(201).json({
@@ -40,7 +25,6 @@ export const register = async (req, res, next) => {
       data: {
         user: { id: user._id, name: user.name, email: user.email, role: user.role },
         accessToken,
-        emailSent,
       },
     });
   } catch (error) { next(error); }

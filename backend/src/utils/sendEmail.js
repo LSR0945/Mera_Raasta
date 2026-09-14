@@ -18,6 +18,9 @@ const getTransporter = async () => {
         user: config.smtpUser,
         pass: config.smtpPass,
       },
+      connectionTimeout: 8000,
+      greetingTimeout: 5000,
+      socketTimeout: 10000,
     });
   } else {
     transporter = nodemailer.createTransport({
@@ -28,6 +31,9 @@ const getTransporter = async () => {
         user: config.smtpUser,
         pass: config.smtpPass,
       },
+      connectionTimeout: 8000,
+      greetingTimeout: 5000,
+      socketTimeout: 10000,
     });
   }
 

@@ -3,17 +3,21 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import Logo from '../../components/common/Logo';
+import Captcha from '../../components/common/Captcha';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setSubmitting(true);
+    e.preventDefault();
+    if (!captchaVerified) return toast.error('Please verify you are human!');
+    setSubmitting(true);
     try { await login(email, password); toast.success('Welcome back!'); navigate('/dashboard'); }
     catch (err) { toast.error(err.response?.data?.message || 'Login failed'); }
     finally { setSubmitting(false); }
@@ -111,7 +115,8 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <button type="submit" disabled={submitting}
+            <Captcha onVerify={setCaptchaVerified} />
+            <button type="submit" disabled={submitting || !captchaVerified}
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 rounded-2xl font-bold text-sm hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl flex items-center justify-center gap-2">
               {submitting ? (<><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Signing In...</>) : 'Sign In'}
             </button>

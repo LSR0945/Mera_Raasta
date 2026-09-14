@@ -1,0 +1,14 @@
+{
+  "name": "education-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "stop": "taskkill /F /IM node.exe /T",
+    "build": "npx vite build",
+    "seed": "node backend/src/utils/runSeed.js"
+  },
+  "devDependencies": {
+    "tree-kill": "^1.2.2"
+  }
+}

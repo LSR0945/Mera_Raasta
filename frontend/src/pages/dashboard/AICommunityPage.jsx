@@ -22,8 +22,8 @@ export default function AICommunityPage() {
     setIsTyping(true);
     setTypingText('');
     let i = 0;
-    const speed = 12;
-    const chunkSize = 3;
+    const speed = 10;
+    const chunkSize = 4;
 
     typingRef.current = setInterval(() => {
       if (i < text.length) {
@@ -32,6 +32,7 @@ export default function AICommunityPage() {
         i += chunkSize;
       } else {
         clearInterval(typingRef.current);
+        typingRef.current = null;
         setIsTyping(false);
         setTypingText('');
         onComplete(text);
@@ -55,14 +56,40 @@ export default function AICommunityPage() {
 
     try {
       const { data } = await aiAPI.chat({ type: 'counselor', message: msg });
-      const aiResponse = data.data?.response || t('aiResponseDefault');
 
-      typeMessage(aiResponse, (fullText) => {
-        setMessages(prev => [...prev, { role: 'ai', content: fullText, id: Date.now() + 1 }]);
-        setLoading(false);
-      });
-    } catch {
-      typeMessage(t('serviceUnavailable'), (fullText) => {
+      if (data.success && data.data?.response) {
+        typeMessage(data.data.response, (fullText) => {
+          setMessages(prev => [...prev, { role: 'ai', content: fullText, id: Date.now() + 1 }]);
+          setLoading(false);
+        });
+      } else {
+        const errMsg = lang === 'hi'
+          ? 'माफ़ कीजिए, कुछ गलत हो गया। कृपया दोबारा try करें।'
+          : 'Sorry, something went wrong. Please try again.';
+        typeMessage(errMsg, (fullText) => {
+          setMessages(prev => [...prev, { role: 'ai', content: fullText, id: Date.now() + 1 }]);
+          setLoading(false);
+        });
+      }
+    } catch (err) {
+      console.error('AI Chat error:', err);
+      let errMsg;
+      if (err.response?.status === 401) {
+        errMsg = lang === 'hi'
+          ? 'आपका session खत्म हो गया है। कृपया दोबारा login करें।'
+          : 'Your session has expired. Please login again.';
+      } else if (err.response?.status === 429) {
+        errMsg = lang === 'hi'
+          ? 'बहुत ज़्यादा requests भेज दीं। कुछ देर रुककर दोबारा try करें।'
+          : 'Too many requests. Please wait a moment and try again.';
+      } else if (err.response?.data?.message) {
+        errMsg = err.response.data.message;
+      } else {
+        errMsg = lang === 'hi'
+          ? 'सर्वर से जुड़ नहीं पा रहे। कृपया server check करें और दोबारा try करें।'
+          : 'Cannot connect to server. Please check if the server is running and try again.';
+      }
+      typeMessage(errMsg, (fullText) => {
         setMessages(prev => [...prev, { role: 'ai', content: fullText, id: Date.now() + 1 }]);
         setLoading(false);
       });
@@ -71,6 +98,7 @@ export default function AICommunityPage() {
 
   const newChat = async () => {
     if (typingRef.current) clearInterval(typingRef.current);
+    typingRef.current = null;
     setIsTyping(false);
     setTypingText('');
     setLoading(false);
@@ -91,16 +119,13 @@ export default function AICommunityPage() {
       <style>{`
         @keyframes msgSlideIn { 0%{opacity:0;transform:translateY(8px)} 100%{opacity:1;transform:translateY(0)} }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-        @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
         @keyframes orbFloat { 0%,100%{transform:translate(0,0)} 33%{transform:translate(12px,-8px)} 66%{transform:translate(-8px,12px)} }
         @keyframes fadeUp { 0%{opacity:0;transform:translateY(12px)} 100%{opacity:1;transform:translateY(0)} }
-        @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
         @keyframes dotBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
       `}</style>
 
       <BackButton to="/dashboard" label={t('back')} />
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-6" style={{ animation: 'fadeUp 0.5s ease' }}>
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-violet-500/20 relative">
@@ -123,16 +148,12 @@ export default function AICommunityPage() {
         )}
       </div>
 
-      {/* Chat Container */}
       <div className="relative bg-white/[0.02] border border-white/[0.04] rounded-3xl overflow-hidden" style={{ animation: 'fadeUp 0.6s ease 0.1s both' }}>
-        {/* Ambient orbs */}
         <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/5 rounded-full blur-3xl pointer-events-none" style={{ animation: 'orbFloat 14s ease-in-out infinite' }} />
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" style={{ animation: 'orbFloat 12s ease-in-out 4s infinite' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-purple-500/3 rounded-full blur-3xl pointer-events-none" style={{ animation: 'orbFloat 10s ease-in-out 2s infinite' }} />
 
-        {/* Messages */}
         <div className="min-h-[420px] max-h-[520px] overflow-y-auto p-6 space-y-5 relative z-10 scroll-smooth">
-          {messages.length === 0 && !isTyping && (
+          {messages.length === 0 && !isTyping && !loading && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-24 h-24 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-500/10 rounded-3xl flex items-center justify-center text-5xl mb-6 relative" style={{ animation: 'fadeUp 0.5s ease' }}>
                 🤖
@@ -142,7 +163,6 @@ export default function AICommunityPage() {
               <p className="text-sm text-white/25 text-center max-w-md mb-8 leading-relaxed">
                 {lang === 'hi' ? 'मैं करियर, कौशल, शिक्षा और भविष्य के बारे में आपकी मदद कर सकता हूँ। नीचे किसी भी सवाल पर क्लिक करें या अपना सवाल टाइप करें।' : 'I can help you with careers, skills, education, and your future. Click any question below or type your own.'}
               </p>
-
               <div className="w-full max-w-lg space-y-2.5">
                 <p className="text-[10px] font-bold text-white/15 uppercase tracking-[0.2em] mb-4">{t('quickQuestions')}</p>
                 {quickPrompts.map((q, i) => (
@@ -175,8 +195,7 @@ export default function AICommunityPage() {
             </div>
           ))}
 
-          {/* Typing indicator */}
-          {(loading && !isTyping) && (
+          {loading && !isTyping && (
             <div className="flex items-start" style={{ animation: 'msgSlideIn 0.3s ease' }}>
               <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center mr-2.5 shrink-0 shadow-lg shadow-violet-500/20">
                 <span className="text-white text-[9px] font-bold">AI</span>
@@ -191,7 +210,6 @@ export default function AICommunityPage() {
             </div>
           )}
 
-          {/* Typing text */}
           {isTyping && (
             <div className="flex items-start" style={{ animation: 'msgSlideIn 0.3s ease' }}>
               <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center mr-2.5 shrink-0 shadow-lg shadow-violet-500/20 mt-0.5">
@@ -207,7 +225,6 @@ export default function AICommunityPage() {
           <div ref={chatEndRef} />
         </div>
 
-        {/* Input */}
         <div className="border-t border-white/[0.04] p-4 bg-white/[0.01] relative z-10">
           <div className="flex items-center gap-3">
             <div className="flex-1 relative">

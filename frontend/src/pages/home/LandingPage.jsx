@@ -83,24 +83,13 @@ function MagicButton({ children, to, className = '', variant = 'primary' }) {
   );
 }
 
-/* ─── FLOATING ORB (decorative) ─── */
+/* ─── FLOATING ORB ─── */
 function Orb({ color, size, x, y, delay, duration }) {
   return (
     <div className="absolute rounded-full pointer-events-none" style={{
       width: size, height: size, left: x, top: y, background: color,
       filter: 'blur(80px)', animation: `orbFloat ${duration}s ease-in-out ${delay}s infinite`,
     }} />
-  );
-}
-
-/* ─── GLOW RING AVATAR ─── */
-function GlowAvatar({ letter, gradient, size = 56, delay = 0 }) {
-  return (
-    <div className="relative group" style={{ animation: `popIn 0.6s ease ${delay}s both` }}>
-      <div className={`absolute -inset-1 bg-gradient-to-br ${gradient} rounded-full opacity-60 blur-md group-hover:opacity-100 group-hover:blur-lg transition-all duration-500`} style={{ animation: `glowPulse 3s ease-in-out ${delay}s infinite` }} />
-      <div className={`relative w-14 h-14 bg-gradient-to-br ${gradient} rounded-full flex items-center justify-center text-white font-extrabold text-lg border-2 border-white/20 shadow-xl`}
-        style={{ width: size, height: size }}>{letter}</div>
-    </div>
   );
 }
 
@@ -144,7 +133,29 @@ function TypeWriter({ words, speed = 80, pause = 2000 }) {
   return <span>{text}<span className="inline-block w-[3px] h-[1em] bg-indigo-400 ml-0.5 align-middle" style={{ animation: 'blink 1s step-end infinite' }} /></span>;
 }
 
-/* ─── MAIN COMPONENT ─── */
+/* ─── STUDENT PHOTO CARD (for hero background) ─── */
+function StudentPhoto({ src, name, role, style, delay }) {
+  return (
+    <div className="absolute group/photo" style={{ ...style, animation: `photoFloat ${7 + delay}s ease-in-out ${delay}s infinite, popIn 0.8s ease ${delay + 0.3}s both` }}>
+      <div className="relative w-[120px] sm:w-[150px] lg:w-[180px] rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/40 hover:scale-105 hover:border-white/20 transition-all duration-500"
+        style={{ transform: `rotate(${style?.rotate || 0}deg)` }}>
+        <img src={src} alt={name} className="w-full aspect-[3/4] object-cover" loading="lazy" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 p-3">
+          <p className="text-white text-[10px] sm:text-xs font-bold leading-tight">{name}</p>
+          <p className="text-white/50 text-[8px] sm:text-[9px]">{role}</p>
+        </div>
+        {/* Glow border on hover */}
+        <div className="absolute -inset-[1px] rounded-2xl opacity-0 group-hover/photo:opacity-100 transition-opacity duration-500 pointer-events-none"
+          style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.3), rgba(6,182,212,0.3))' }} />
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* MAIN COMPONENT                                                */
+/* ═══════════════════════════════════════════════════════════════ */
 export default function LandingPage() {
   const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
@@ -160,10 +171,21 @@ export default function LandingPage() {
     return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('mousemove', onMouse); };
   }, []);
 
+  /* Real student photos — free Unsplash images */
+  const studentPhotos = [
+    { src: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=400&h=500&fit=crop&auto=format', name: 'Priya Sharma', role: 'Engineering Student', rotate: -6, x: '3%', y: '12%', delay: 0 },
+    { src: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=500&fit=crop&auto=format', name: 'Rahul Verma', role: 'BCA Student', rotate: 4, x: '18%', y: '55%', delay: 0.8 },
+    { src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop&auto=format', name: 'Arjun Patel', role: 'MBA Aspirant', rotate: -3, x: '82%', y: '10%', delay: 0.4 },
+    { src: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=500&fit=crop&auto=format', name: 'Sneha Reddy', role: 'Medical Student', rotate: 5, x: '75%', y: '52%', delay: 1.2 },
+    { src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=500&fit=crop&auto=format', name: 'Vikram Singh', role: 'IIT Aspirant', rotate: -4, x: '48%', y: '78%', delay: 0.6 },
+    { src: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop&auto=format', name: 'Kavya Nair', role: 'Design Student', rotate: 3, x: '38%', y: '5%', delay: 1.0 },
+    { src: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=500&fit=crop&auto=format', name: 'Amit Kumar', role: 'Data Science', rotate: -5, x: '60%', y: '70%', delay: 1.4 },
+    { src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=500&fit=crop&auto=format', name: 'Neha Gupta', role: 'Law Student', rotate: 6, x: '8%', y: '75%', delay: 0.2 },
+  ];
+
   return (
     <div className="min-h-screen bg-[#050510] overflow-hidden">
       <style>{`
-        /* ── keyframes ── */
         @keyframes orbFloat { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(50px,-40px) scale(1.1)} 66%{transform:translate(-40px,50px) scale(0.9)} }
         @keyframes particleDrift { 0%,100%{transform:translateY(0) translateX(0);opacity:var(--o,0.3)} 25%{transform:translateY(-35px) translateX(15px);opacity:calc(var(--o,0.3) + 0.2)} 50%{transform:translateY(-20px) translateX(-20px);opacity:var(--o,0.3)} 75%{transform:translateY(-50px) translateX(10px);opacity:calc(var(--o,0.3) + 0.15)} }
         @keyframes heroGradient { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
@@ -174,25 +196,20 @@ export default function LandingPage() {
         @keyframes glowPulse { 0%,100%{opacity:0.4;transform:scale(1)} 50%{opacity:0.7;transform:scale(1.15)} }
         @keyframes cardSlideUp { 0%{opacity:0;transform:translateY(80px) scale(0.92)} 100%{opacity:1;transform:translateY(0) scale(1)} }
         @keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
-        @keyframes borderGlow { 0%,100%{border-color:rgba(99,102,241,0.2)} 50%{border-color:rgba(139,92,246,0.5)} }
         @keyframes morphBlob { 0%,100%{border-radius:60% 40% 30% 70%/60% 30% 70% 40%} 50%{border-radius:30% 60% 70% 40%/50% 60% 30% 60%} }
         @keyframes floatSlow { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
+        @keyframes photoFloat { 0%,100%{transform:translateY(0) rotate(var(--r,0deg))} 50%{transform:translateY(-18px) rotate(calc(var(--r,0deg) + 1.5deg))} }
         @keyframes shimmerLine { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }
         @keyframes fadeSlideUp { 0%{opacity:0;transform:translateY(30px)} 100%{opacity:1;transform:translateY(0)} }
-        @keyframes rotateSlow { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
-        @keyframes scaleIn { 0%{transform:scale(0.8);opacity:0} 100%{transform:scale(1);opacity:1} }
-        @keyframes dashLine { to { stroke-dashoffset: 0; } }
-        @keyframes dotPulse { 0%,100%{r:3;opacity:1} 50%{r:6;opacity:0.4} }
-        @keyframes ripple { 0%{transform:scale(0);opacity:0.6} 100%{transform:scale(4);opacity:0} }
-        @keyframes slideRight { 0%{width:0} 100%{width:100%} }
         @keyframes heroTextIn { 0%{opacity:0;transform:translateY(40px) skewY(2deg)} 100%{opacity:1;transform:translateY(0) skewY(0)} }
         @keyframes gridPulse { 0%,100%{opacity:0.03} 50%{opacity:0.06} }
         @keyframes starTwinkle { 0%,100%{opacity:0.2;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
+        @keyframes slideRight { 0%{width:0} 100%{width:100%} }
+        @keyframes slideRight { 0%{width:0} 100%{width:100%} }
+        @keyframes borderShimmer { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
       `}</style>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* NAVBAR                                                 */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ═══ NAVBAR ═══ */}
       <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-700 ${scrolled ? 'bg-[#0a0a1a]/80 backdrop-blur-3xl shadow-2xl shadow-black/40 border-b border-white/[0.04]' : 'bg-transparent'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-[76px]">
@@ -237,16 +254,16 @@ export default function LandingPage() {
       </nav>
 
       {/* ═══════════════════════════════════════════════════════ */}
-      {/* HERO — Full viewport cinematic section                 */}
+      {/* HERO — Full viewport with real student photos           */}
       {/* ═══════════════════════════════════════════════════════ */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Deep dark base */}
         <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #050510 0%, #0a0a2e 30%, #0f0f3a 50%, #080820 70%, #050510 100%)' }} />
 
         {/* Morphing blobs */}
-        <div className="absolute w-[700px] h-[700px] -top-60 -left-60 opacity-30" style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)', animation: 'morphBlob 20s ease-in-out infinite, orbFloat 15s ease-in-out infinite', filter: 'blur(60px)' }} />
-        <div className="absolute w-[500px] h-[500px] top-1/3 -right-40 opacity-20" style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 70%)', animation: 'morphBlob 18s ease-in-out 5s infinite, orbFloat 12s ease-in-out 3s infinite', filter: 'blur(50px)' }} />
-        <div className="absolute w-[400px] h-[400px] bottom-0 left-1/3 opacity-15" style={{ background: 'radial-gradient(circle, #06b6d4 0%, transparent 70%)', animation: 'morphBlob 16s ease-in-out 8s infinite, orbFloat 14s ease-in-out 6s infinite', filter: 'blur(50px)' }} />
+        <div className="absolute w-[700px] h-[700px] -top-60 -left-60 opacity-25" style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)', animation: 'morphBlob 20s ease-in-out infinite, orbFloat 15s ease-in-out infinite', filter: 'blur(60px)' }} />
+        <div className="absolute w-[500px] h-[500px] top-1/3 -right-40 opacity-18" style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 70%)', animation: 'morphBlob 18s ease-in-out 5s infinite, orbFloat 12s ease-in-out 3s infinite', filter: 'blur(50px)' }} />
+        <div className="absolute w-[400px] h-[400px] bottom-0 left-1/3 opacity-12" style={{ background: 'radial-gradient(circle, #06b6d4 0%, transparent 70%)', animation: 'morphBlob 16s ease-in-out 8s infinite, orbFloat 14s ease-in-out 6s infinite', filter: 'blur(50px)' }} />
 
         {/* Animated grid */}
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.8) 1px, transparent 0)', backgroundSize: '48px 48px', animation: 'gridPulse 6s ease-in-out infinite' }} />
@@ -255,30 +272,29 @@ export default function LandingPage() {
         <ParticleField count={50} />
 
         {/* Stars */}
-        {[...Array(12)].map((_, i) => (
+        {[...Array(15)].map((_, i) => (
           <div key={i} className="absolute w-1 h-1 bg-white rounded-full" style={{
-            left: `${8 + Math.random() * 84}%`, top: `${5 + Math.random() * 90}%`,
+            left: `${5 + Math.random() * 90}%`, top: `${5 + Math.random() * 90}%`,
             animation: `starTwinkle ${2 + Math.random() * 3}s ease-in-out ${Math.random() * 3}s infinite`,
           }} />
         ))}
 
-        {/* Parallax student avatars */}
-        <div className="absolute inset-0 hidden lg:block" style={{ transform: `translate(${(mousePos.x - 0.5) * -20}px, ${(mousePos.y - 0.5) * -20}px)` }}>
-          {[
-            { l: 'P', g: 'from-blue-400 to-blue-600', x: 7, y: 18, d: 0.3 },
-            { l: 'R', g: 'from-violet-400 to-purple-600', x: 88, y: 22, d: 0.6 },
-            { l: 'S', g: 'from-emerald-400 to-emerald-600', x: 12, y: 72, d: 0.9 },
-            { l: 'A', g: 'from-amber-400 to-orange-500', x: 82, y: 68, d: 0.4 },
-            { l: 'K', g: 'from-pink-400 to-rose-500', x: 52, y: 8, d: 1.2 },
-            { l: 'V', g: 'from-cyan-400 to-blue-500', x: 32, y: 82, d: 0.8 },
-            { l: 'N', g: 'from-indigo-400 to-violet-500', x: 72, y: 42, d: 1.5 },
-            { l: 'M', g: 'from-teal-400 to-green-500', x: 4, y: 45, d: 1.0 },
-          ].map((a, i) => (
-            <div key={i} className="absolute" style={{ left: `${a.x}%`, top: `${a.y}%`, animation: `floatSlow ${5 + i * 0.7}s ease-in-out ${a.d}s infinite` }}>
-              <GlowAvatar letter={a.l} gradient={a.g} size={44 + (i % 3) * 6} delay={a.d} />
-            </div>
+        {/* ═══ REAL STUDENT PHOTOS — scattered across hero ═══ */}
+        <div className="absolute inset-0 hidden lg:block" style={{ transform: `translate(${(mousePos.x - 0.5) * -12}px, ${(mousePos.y - 0.5) * -12}px)` }}>
+          {studentPhotos.map((photo, i) => (
+            <StudentPhoto key={i} {...photo} style={{ left: photo.x, top: photo.y, '--r': `${photo.rotate}deg` }} />
           ))}
         </div>
+
+        {/* Mobile: show 2 photos only */}
+        <div className="absolute inset-0 lg:hidden">
+          <StudentPhoto {...studentPhotos[0]} style={{ left: '-5%', top: '8%', '--r': '-4deg' }} />
+          <StudentPhoto {...studentPhotos[3]} style={{ left: '72%', top: '60%', '--r': '3deg' }} />
+        </div>
+
+        {/* Dark overlay on photos for readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#050510]/60 via-[#050510]/40 to-[#050510]/80 pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,#050510_70%)] pointer-events-none" />
 
         {/* Hero content */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20 text-center">
@@ -362,14 +378,14 @@ export default function LandingPage() {
             </div>
           </Reveal>
 
-          {/* Social proof */}
+          {/* Social proof — real photo avatars */}
           <Reveal delay={750}>
             <div className="flex items-center justify-center gap-4 sm:gap-6">
               <div className="flex -space-x-3">
-                {['from-blue-400 to-blue-600', 'from-violet-400 to-violet-600', 'from-emerald-400 to-emerald-600', 'from-amber-400 to-amber-500', 'from-pink-400 to-pink-600'].map((c, i) => (
-                  <div key={i} className={`w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br ${c} rounded-full border-[3px] border-[#0a0a2e] flex items-center justify-center text-white text-xs font-bold shadow-xl`}
+                {studentPhotos.slice(0, 5).map((p, i) => (
+                  <div key={i} className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-full border-[3px] border-[#0a0a2e] overflow-hidden shadow-xl"
                     style={{ animation: `popIn 0.5s ease ${0.8 + i * 0.1}s both` }}>
-                    {['P', 'R', 'A', 'S', 'K'][i]}
+                    <img src={p.src} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
                   </div>
                 ))}
               </div>
@@ -388,9 +404,7 @@ export default function LandingPage() {
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#070718] to-transparent" />
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* TRUSTED BY — Dark marquee                              */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ═══ TRUSTED BY ═══ */}
       <section className="py-10 bg-[#070718] border-y border-white/[0.03] overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-r from-[#070718] via-transparent to-[#070718] z-10 pointer-events-none" />
         <Reveal>
@@ -407,9 +421,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* FEATURES — 3D tilt cards                                */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ═══ FEATURES ═══ */}
       <section id="features" className="py-24 sm:py-32 lg:py-40 bg-[#070718] relative">
         <Orb color="rgba(99,102,241,0.12)" size="500px" x="-10%" y="20%" delay={0} duration={18} />
         <Orb color="rgba(139,92,246,0.08)" size="400px" x="80%" y="60%" delay={5} duration={15} />
@@ -430,10 +442,9 @@ export default function LandingPage() {
             ].map((f, i) => (
               <Reveal key={i} delay={i * 100}>
                 <TiltCard intensity={12}>
-                  <div className="relative p-6 sm:p-7 rounded-3xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.12] transition-all duration-500 hover:shadow-2xl overflow-hidden group cursor-default h-full"
-                    style={{ '--accent': f.accent }}>
+                  <div className="relative p-6 sm:p-7 rounded-3xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.12] transition-all duration-500 hover:shadow-2xl overflow-hidden group cursor-default h-full">
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" style={{ background: `radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), ${f.accent}08, transparent 40%)` }} />
-                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ backgroundImage: `linear-gradient(90deg, transparent, ${f.accent}40, transparent)` }} />
+                    <div className="absolute top-0 left-0 w-full h-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ backgroundImage: `linear-gradient(90deg, transparent, ${f.accent}40, transparent)` }} />
                     <div className={`w-14 h-14 bg-gradient-to-br ${f.gradient} rounded-2xl flex items-center justify-center text-2xl mb-5 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}>{f.icon}</div>
                     <h3 className="text-lg font-extrabold text-white mb-2">{f.title}</h3>
                     <p className="text-sm text-white/35 leading-relaxed">{f.desc}</p>
@@ -445,9 +456,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* HOW IT WORKS — Animated timeline                        */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ═══ HOW IT WORKS ═══ */}
       <section id="how-it-works" className="py-24 sm:py-32 lg:py-40 bg-[#050510] relative overflow-hidden">
         <Orb color="rgba(168,85,247,0.1)" size="500px" x="60%" y="10%" delay={2} duration={20} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -457,7 +466,6 @@ export default function LandingPage() {
             <p className="text-white/30 max-w-2xl mx-auto text-base sm:text-lg">Start your career journey in minutes.</p>
           </Reveal>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 relative">
-            {/* Connection line */}
             <div className="hidden lg:block absolute top-24 left-[12%] right-[12%] h-[2px] overflow-hidden">
               <div className="w-full h-full bg-white/[0.04]" />
               <div className="absolute top-0 left-0 h-full w-1/4 bg-gradient-to-r from-violet-500 via-blue-500 to-emerald-500 opacity-40" style={{ animation: 'shimmerLine 4s ease-in-out infinite' }} />
@@ -484,9 +492,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* ROLES — Glass cards with magnetic feel                  */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ═══ ROLES ═══ */}
       <section id="roles" className="py-24 sm:py-32 lg:py-40 bg-[#070718] relative">
         <Orb color="rgba(16,185,129,0.08)" size="400px" x="10%" y="30%" delay={0} duration={16} />
         <Orb color="rgba(236,72,153,0.06)" size="350px" x="75%" y="50%" delay={4} duration={14} />
@@ -528,9 +534,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* TESTIMONIALS — Glowing cards                             */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ═══ TESTIMONIALS ═══ */}
       <section id="testimonials" className="py-24 sm:py-32 lg:py-40 bg-[#050510] relative">
         <Orb color="rgba(245,158,11,0.08)" size="400px" x="50%" y="20%" delay={3} duration={17} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -541,9 +545,9 @@ export default function LandingPage() {
           </Reveal>
           <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
             {[
-              { name: 'Priya Sharma', role: 'Class 12 Student', text: 'Mera Raasta helped me discover my passion for Data Science. The personalized roadmap made everything so clear and actionable!', rating: 5, color: 'from-blue-500 to-indigo-500', glow: 'rgba(99,102,241,0.12)' },
-              { name: 'Rajesh Kumar', role: 'Parent', text: "As a parent, I can finally track my daughter's career progress. The parent dashboard is incredibly useful and easy to use.", rating: 5, color: 'from-emerald-500 to-teal-500', glow: 'rgba(16,185,129,0.12)' },
-              { name: 'Anita Devi', role: 'Career Mentor', text: 'The mentor tools help me guide multiple students effectively. I can track their progress and provide timely advice.', rating: 5, color: 'from-violet-500 to-purple-500', glow: 'rgba(139,92,246,0.12)' },
+              { name: 'Priya Sharma', role: 'Class 12 Student', text: 'Mera Raasta helped me discover my passion for Data Science. The personalized roadmap made everything so clear and actionable!', rating: 5, color: 'from-blue-500 to-indigo-500', glow: 'rgba(99,102,241,0.12)', img: studentPhotos[0].src },
+              { name: 'Rajesh Kumar', role: 'Parent', text: "As a parent, I can finally track my daughter's career progress. The parent dashboard is incredibly useful and easy to use.", rating: 5, color: 'from-emerald-500 to-teal-500', glow: 'rgba(16,185,129,0.12)', img: studentPhotos[2].src },
+              { name: 'Anita Devi', role: 'Career Mentor', text: 'The mentor tools help me guide multiple students effectively. I can track their progress and provide timely advice.', rating: 5, color: 'from-violet-500 to-purple-500', glow: 'rgba(139,92,246,0.12)', img: studentPhotos[5].src },
             ].map((t, i) => (
               <Reveal key={i} delay={i * 180}>
                 <TiltCard intensity={8}>
@@ -555,7 +559,9 @@ export default function LandingPage() {
                       </div>
                       <p className="text-white/50 text-sm leading-relaxed mb-6">"{t.text}"</p>
                       <div className="flex items-center gap-3 pt-5 border-t border-white/[0.05]">
-                        <div className={`w-11 h-11 bg-gradient-to-br ${t.color} rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg group-hover:scale-110 transition-transform duration-500`}>{t.name[0]}</div>
+                        <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-500">
+                          <img src={t.img} alt={t.name} className="w-full h-full object-cover" loading="lazy" />
+                        </div>
                         <div><p className="text-sm font-bold text-white">{t.name}</p><p className="text-xs text-white/30">{t.role}</p></div>
                       </div>
                     </div>
@@ -567,9 +573,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* CTA — Dramatic gradient section                          */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ═══ CTA ═══ */}
       <section className="py-24 sm:py-32 lg:py-40 bg-[#070718] relative overflow-hidden">
         <Orb color="rgba(99,102,241,0.15)" size="600px" x="20%" y="30%" delay={0} duration={18} />
         <Orb color="rgba(139,92,246,0.1)" size="500px" x="60%" y="50%" delay={6} duration={15} />
@@ -600,9 +604,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* FOOTER                                                  */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ═══ FOOTER ═══ */}
       <footer className="bg-[#050510] border-t border-white/[0.04]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-12">

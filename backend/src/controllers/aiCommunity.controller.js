@@ -140,23 +140,32 @@ const codeResponses = {
 function detectTopic(msg) {
   const l = msg.toLowerCase().trim();
 
-  // Name / Identity
+  // Name / Identity — check FIRST (specific)
   if (l.match(/\b(tera naam|tumhara naam|your name|naam kya|who are you|kaun ho|kya ho tum|tu kaun|name batao|apna naam)\b/)) return 'name';
   if (l.match(/\b(my name is|mera naam|main .* hoon|I am |I'm )\b/)) return 'myname';
 
-  // Greeting
-  if (l.match(/^(hi|hello|hey|namaste|नमस्ते|namaskar|sup|kaise ho|kaisa hai|kya haal|good morning|good evening|good night|yo|helloji|heyji)/)) return 'greeting';
-
-  // Code requests
-  if (l.match(/\b(code|program|likh|print|hello world|coding)\b/) && l.match(/\b(java|python|javascript|js|c\+\+|c language|php|ruby|swift|kotlin)\b/)) return 'code';
+  // Code requests — check BEFORE greeting (because "hello world" starts with "hello")
+  if (l.match(/\b(code|program|likh|print|coding)\b/) && l.match(/\b(java|python|javascript|js|c\+\+|c language|php|ruby|swift|kotlin)\b/)) return 'code';
   if (l.match(/\b(hello world|hello.*world|first code|pehla code|basic code|start.*code)\b/)) return 'code_generic';
   if (l.match(/\b(code|program|likh kar de|bana ke de|write.*code|coding.*help|code.*help)\b/)) return 'code_generic';
+
+  // Learning requests — "java seekni hai", "python seekhna hai", "coding kaise seekhe"
+  if (l.match(/\b(java|python|javascript|js|c\+\+|c language|php|ruby|swift|kotlin|coding|programming|web development|data science|ai|machine learning)\b.*\b(seekh|seekni|seekna|seekhna|seekhe|seekhunga|sikhna|sikh|learn|kaise|kaise milega|kahan se|where|how)\b/)) return 'skill';
+  if (l.match(/\b(seekh|seekni|seekna|seekhna|seekhe|seekhunga|sikhna|sikh|learn)\b.*\b(java|python|javascript|js|c\+\+|c language|coding|programming|web development|data science|ai|machine learning)\b/)) return 'skill';
+  if (l.match(/\b(kya seekhu|kya seekhe|kaise seekhe|what to learn|konsa course|which course|course batao|course suggest)\b/)) return 'skill';
+
+  // Greeting — only if message is SHORT and starts with greeting word (no other specific keywords)
+  if (l.match(/^(hi|hello|hey|namaste|नमस्ते|namaskar|sup|yo|helloji|heyji)\b/) && l.length < 30) return 'greeting';
+  if (l.match(/^(good morning|good evening|good night|good afternoon)\b/)) return 'greeting';
+
+  // How are you
+  if (l.match(/\b(kaise ho|kaisa hai|kya haal|how are you|how.*you|what.*up|kya chal raha)\b/)) return 'howareyou';
 
   // Career
   if (l.match(/\b(career|करियर|job|नौकरी|profession|क्षेत्र|field|become|बनना|after 12th|12th ke baad|after 10th|10th ke baad|what should i|kya karna|kya karun|best career|future|مستقبل)\b/)) return 'career';
 
   // Skills
-  if (l.match(/\b(skill|कौशल|learn|सीख|course|कोर्स|coding|programming|python|javascript|tech|तकनीक|certification|seekhna|kaise seekhe)\b/)) return 'skill';
+  if (l.match(/\b(skill|कौशल|learn|सीख|course|कोर्स|coding|programming|python|javascript|tech|तकनीक|certification|seekhna|kaise seekhe|kya seekhu)\b/)) return 'skill';
 
   // Resume
   if (l.match(/\b(resume|cv|बायोडाटा|portfolio|biodata|resume.*banao|resume.*tips)\b/)) return 'resume';
@@ -182,9 +191,6 @@ function detectTopic(msg) {
   // Thanks
   if (l.match(/\b(thanks|thank you|shukriya|धन्यवाद|bahut achha|great|awesome|amazing|perfect|best|wah|zabardast)\b/)) return 'thanks';
 
-  // How are you
-  if (l.match(/\b(kaise ho|kaisa hai|kya haal|how are you|how.*you|what.*up|kya chal raha)\b/)) return 'howareyou';
-
   // Age / Personal
   if (l.match(/\b(age|umr|kitne saal|how old|birthday|janamdin)\b/)) return 'age';
 
@@ -202,6 +208,9 @@ function detectTopic(msg) {
 
   // Money / Scholarship
   if (l.match(/\b(scholarship|छात्रवृत्ति|fee|fees|paisa|loan|education loan|financial)\b/)) return 'scholarship';
+
+  // Frustrated / Complaints
+  if (l.match(/\b(ulta pulta|galat|wrong|kya bata raha|kya bol raha|nahi samajh|nonsense|bakwas|faltu|bekar)\b/)) return 'frustrated';
 
   return 'default';
 }
@@ -251,60 +260,20 @@ function getEnglishResponse(topic, name, interests, level, message) {
       `Great question! 🎯\n\n${level ? `Since you're at ${level} level, ` : ''}here are the hottest careers in India (2025-26):\n\n🔥 **High Salary (₹8-30 LPA):**\n1. AI/ML Engineer\n2. Full Stack Developer\n3. Data Scientist\n4. Cloud Architect\n5. Cyber Security Expert\n\n💼 **Stable & Respectable:**\n1. Doctor (MBBS)\n2. IAS/IPS (UPSC)\n3. Bank PO (IBPS)\n4. Chartered Accountant\n\n${interests.length ? `Since you're interested in ${interests.join(', ')}, I'd suggest exploring that area first!` : 'Which field excites you the most?'}`,
       `Yeh dekho — 2025-26 mein sabse zyada demand: 🎯\n\n**Tech (₹6-30 LPA):**\n• AI/ML Engineer — Sabse zyada demand\n• Web Developer — Har company ko chahiye\n• Data Analyst — Growing fast\n\n**Non-Tech (₹4-15 LPA):**\n• Digital Marketing — Creative + Good salary\n• Product Management — Leadership role\n• UX Design — Design lovers ke liye\n\n**Government:**\n• UPSC — IAS/IPS\n• Banking — PO, Clerk\n• SSC — CGL, CHSL\n\nKonsa field interesting lagta hai? 🤔`,
     ]);
-    case 'skill': return pick([
-      `Top skills to learn in 2025-26: 🧠\n\n**💻 Tech Skills (High Salary):**\n1. Python — AI/Data Science ke liye #1\n2. JavaScript/React — Web Dev ke liye\n3. SQL — Har data job mein chahiye\n4. Cloud (AWS/Azure) — ₹10-30 LPA\n\n**🤝 Soft Skills (Interview cracking):**\n1. English Communication — Global opportunities\n2. Problem Solving — Har interview mein\n3. Presentation Skills — Management roles\n\n**📝 Action Plan:**\n1. Ek skill choose karo\n2. YouTube/NPTEL se free mein seekho\n3. 1 ghanta daily practice karo\n4. 1 project banao\n5. LinkedIn pe share karo\n\nKaunsa skill seekhna hai? 🚀`,
-      `Dekho, skills = salary 💰\n\n**Beginner-friendly Skills:**\n1. **Excel** — 1 week mein seekho, har job mein chahiye\n2. **Canva** — Designing seekho free mein\n3. **Python** — Easy to learn, high paying\n\n**Intermediate Skills:**\n1. **React.js** — Web Development\n2. **Digital Marketing** — Creative + money\n3. **Data Analysis** — Excel + SQL + Python\n\n**Pro Tip:** Skill seekho → Project banao → Portfolio banao → Job lagao! 💪\n\nKya interest hai tujhe?`,
-    ]);
-    case 'resume': return pick([
-      `Resume tips jo **actually** kaam karti hain: 📄\n\n**Formula:**\n1. **Header** — Name | Phone | Email | LinkedIn\n2. **Objective** — 2 lines: kya la sakta hoon\n3. **Education** — Degree, College, Year, CGPA\n4. **Skills** — Technical + Tools\n5. **Projects** — 2-3 with NUMBERS\n6. **Achievements** — Awards, Certifications\n\n**Magic Words:**\n✅ "Increased efficiency by 30%"\n✅ "Led a team of 5"\n✅ "Built a website using React"\n❌ "Hard working" (sab likhte hain)\n❌ "References available" (hata do)\n\n**Format:** 1 page for freshers | Clean layout | No photo unless asked\n\nBata tera background — main review karke tips deta hoon! 📝`,
-      `Resume banane ka shortcut: 📄\n\n**Step 1:** LinkedIn pe profile banao\n**Step 2:** Wahi content resume mein daalo\n**Step 3:** Numbers use karo ("managed 10 people", "scored 95%")\n**Step 4:** 1 page rakho (freshers ke liye)\n**Step 5:** PDF mein save karo (Word mat bhejo)\n\n**Red Flags (Ye MAT karo):**\n❌ Photo (unless asked)\n❌ "Objective: To learn" (boring)\n❌ Spelling mistakes\n❌ Fancy fonts\n\nChal, main tera resume review karta hoon — bata kya likha hai tere resume mein! ✍️`,
-    ]);
-    case 'interview': return pick([
-      `Interview cracking guide! 🎤\n\n**1 Week Before:**\n✅ Company ke baare mein research karo\n✅ "Tell me about yourself" prepare karo (2 min story)\n✅ Resume ke har point ka example ready rakho\n\n**Day Before:**\n✅ 2 set kapde ready rakho\n✅ Resume ki 3 copies print karo\n✅ Route plan karo (15 min pehle pahuncho)\n\n**During Interview:**\n✅ Smile karo, handshake karo\n✅ Eye contact rakho\n✅ STAR method use karo (Situation-Task-Action-Result)\n\n**Common Questions:**\n• "Why this company?" → Research dikhao\n• "Weakness?" → Honest raho, improvement dikhao\n• "Salary expectation?" → Market rate batao\n\n**Pro Tip:** Confident raho — nervous mat dikhna! 💪`,
-      `Interview = Confidence + Preparation 🎯\n\n**Secret Formula:**\n1. **Research** — Company ka mission, products, competitors\n2. **Story** — "Tell me about yourself" = Your journey in 2 min\n3. **Examples** — Har skill ka ek example ready rakho\n4. **Questions** — Last mein 2-3 questions pucho (shows interest)\n\n**Body Language:**\n✅ Sit straight\n✅ Smile naturally\n✅ Nod when they speak\n❌ Don't fidget\n❌ Don't cross arms\n\n**After Interview:**\n✅ Thank you email bhejo (same day)\n✅ LinkedIn pe connect karo\n\nKitne interviews de liye ab tak? 🤔`,
-    ]);
-    case 'study': return pick([
-      `Study smarter, not harder! 📖\n\n**The Pomodoro Technique:**\n1. 25 min padho (phone silent!)\n2. 5 min break\n3. Repeat 4 times\n4. 20 min long break\n\n**Memory Hacks:**\n🧠 Spaced Repetition — Revise after 1 day, 3 days, 7 days\n📝 Active Recall — Kitab band karke likho jo yaad hai\n🗺️ Mind Maps — Topics ko connect karo\n👨‍🏫 Teaching — Kisi ko padhao = best learning\n\n**Free Resources:**\n📚 NPTEL — IIT courses (FREE!)\n📚 Khan Academy — All subjects\n📚 Unacademy — Competitive exams\n📚 YouTube — Unlimited learning\n\nKya padh raha hai? Board exam ya competitive? 📚`,
-      `Padhai ka smart plan: 📖\n\n**Daily Routine:**\n🌅 Subah 6-8 baje: Difficult subjects (brain fresh hota hai)\n🌞 Dopahar: Practice problems\n🌙 Raat: Light revision\n\n**Weekly Plan:**\n📅 Monday-Friday: New topics\n📅 Saturday: Revision + Mock test\n📅 Sunday: Rest + Light study\n\n**Exam Strategy:**\n1. Previous year papers — MUST DO!\n2. Mock tests weekly\n3. Weak areas pe zyada time do\n4. Exam hall mein — panic mat karo\n\nKis exam ki taiyari hai? JEE, NEET, Board, ya kuch aur? 🎯`,
-    ]);
-    case 'college': return pick([
-      `College selection guide! 🎓\n\n**Top Engineering:**\n1. IITs — JEE Advanced se admission\n2. NITs — JEE Main se admission\n3. BITS Pilani — BITSAT\n4. VIT — VITEEE\n5. DTU/NSUT — JAC Delhi\n\n**Top Medical:**\n1. AIIMS — NEET\n2. JIPMER — NEET\n3. State Medical Colleges — NEET\n\n**Top Commerce:**\n1. SRCC (Delhi)\n2. St. Xavier's (Mumbai)\n3. Christ University (Bangalore)\n\n**Pro Tip:** College ranking dekho, but campus culture aur placements bhi dekho!\n\nTere level ke hisaab se kaun sa best rahega? 🤔`,
-      `Konsa college choose karein? 🎓\n\n**Decision Factors:**\n1. **Ranking** — NIRF ranking check karo\n2. **Placements** — Average package dekho\n3. **Location** — Ghar se ddoor ya paas?\n4. **Fees** — Budget ke hisaab se\n5. **Campus Life** — Clubs, events, facilities\n\n**Engineering (Top 10):**\nIIT Bombay > IIT Delhi > IIT Madras > IIT Kanpur > NIT Trichy > BITS Pilani > IIT Roorkee > NIT Warangal > IIT Guwahati > IIT Hyderabad\n\nKaun sa exam de raha hai? JEE, NEET, ya CUET? 📝`,
-    ]);
-    case 'govtjob': return pick([
-      `Sarkari Naukri guide! 🏛️\n\n**Top Govt Exams:**\n1. **UPSC** — IAS/IPS/IFS (Salary: ₹56,000+ starting)\n2. **SSC CGL** — Group B posts (₹44,000+ starting)\n3. **IBPS PO** — Bank Officer (₹36,000+ starting)\n4. **RRB NTPC** — Railway jobs\n5. **SSC CHSL** — 12th level posts\n\n**Preparation Tips:**\n📚 Static GK — Lucent GK padho\n📰 Current Affairs — Daily newspaper\n📝 Quant — Rakesh Yadav ya RS Aggarwal\n🧠 Reasoning — M.K. Pandey\n\n**Timeline:**\n• 12th ke baad: CHSL, NTPC\n• Graduation ke baad: CGL, PO, UPSC\n\nKonsa exam target kar raha hai? 🎯`,
-      `Govt job = Security + Respect! 🏛️\n\n**Quick Guide:**\n\n**After 12th:**\n• SSC CHSL — Clerk/DEO\n• RRB Group D — Railway\n• Indian Army/Navy/Airforce\n\n**After Graduation:**\n• UPSC Civil Services — IAS/IPS\n• SSC CGL — Income Tax, Excise, CBI\n• IBPS PO — Bank Officer\n• SBI PO — Bank Officer\n\n**Salary Range:**\n💰 Bank PO: ₹36,000-60,000\n💰 SSC CGL: ₹44,000-80,000\n💰 IAS: ₹56,000-2,50,000\n\nPreparation kaise kar raha hai? Koi specific exam? 📚`,
-    ]);
-    case 'salary': return pick([
-      `Salary guide for Indian students! 💰\n\n**Fresher Salaries (2025-26):**\n\n**Tech:**\n💻 Software Developer: ₹4-12 LPA\n🤖 AI/ML Engineer: ₹8-25 LPA\n📊 Data Scientist: ₹6-18 LPA\n☁️ Cloud Engineer: ₹6-20 LPA\n\n**Non-Tech:**\n📈 Marketing: ₹3-8 LPA\n💼 MBA: ₹8-20 LPA\n🏥 Doctor: ₹5-15 LPA (starting)\n\n**Govt Jobs:**\n🏛️ Bank PO: ₹36,000/month\n🏛️ SSC CGL: ₹44,000/month\n🏛️ IAS: ₹56,000/month\n\n**Pro Tip:** Skills badhao = Salary badhegi! 🚀\nKaunsa field mein jaana hai?`,
-      `Paisa kamao — but smartly! 💰\n\n**Highest Paying (India):**\n1. 💻 AI/ML Engineer — ₹15-50 LPA\n2. ☁️ Cloud Architect — ₹20-40 LPA\n3. 📊 Data Scientist — ₹10-30 LPA\n4. 🔒 Cyber Security — ₹10-25 LPA\n5. 📱 Product Manager — ₹15-35 LPA\n\n**How to reach there:**\nStep 1: Skill seekho (6-12 months)\nStep 2: Projects banao\nStep 3: Portfolio banao\nStep 4: Apply karo\nStep 5: Negotiate karo!\n\n**Remember:** Starting salary mat dekho — 5 years baad kitna hoga wo dekho! 📈`,
-    ]);
-    case 'motivation': return pick([
-      `Hey, sun! 🫂\n\nLife mein kabhi kabhi lagta hai ki kuch nahi ho raha — ye bilkul normal hai.\n\n**Yaad rakh:**\n🌟 Har successful insaan ne struggle kiya hai\n🌟 Failure = Learning, not the end\n🌟 Tera time aayega — bas consistent raho\n🌟 1% daily improvement = 37x better in 1 year\n\n**Aaj se 3 cheezein karo:**\n1. Ek chhota goal set karo (aaj ka)\n2. 1 ghanta kuch productive karo\n3. Kal ka plan banao\n\nTu kar sakta hai! 💪 Main hoon na teri help ke liye.\n\nBata kya ho raha hai? Kya problem hai? 🤔`,
-      `Ruk! 🛑\n\nAgar tu demotivated hai, toh ye padh:\n\n**Facts:**\n• Steve Jobs ne college chhoda → Apple banaya\n• Shah Rukh Khan ke paas kuch nahi tha → King of Bollywood\n• APJ Abdul Kalam garib the → President banе\n\n**Tu kya hai?**\n• Young hai ✅\n• Internet hai ✅\n• AI tools hai ✅\n• MeraRaasta AI hai ✅\n\n**Aaj ek kaam kar:**\n1. Phone rakho\n2. 30 min padho ya kuch seekho\n3. Kal same time repeat karo\n\nChhota start karo — bada banega! 🚀\n\nBata kya struggle hai?`,
-    ]);
-    case 'thanks': return pick([
-      `You're welcome! 😊\n\nYe meri job hai — teri help karna! 💪\n\nAur kuch poochna ho toh bata. Main hamesha yahan hoon! 🚀`,
-      `Arre koi baat nahi! 🤗\n\nTu succeed kare — yahi mera goal hai!\n\nAur kuch help chahiye toh bata — career, study, resume, kuch bhi! 😄`,
-      `Glad I could help! 🎉\n\nYaad rakh — main hamesha available hoon.\n\nKabhi bhi pooch — koi question ho, koi confusion ho! 💪`,
-    ]);
-    case 'age': return `Haha, main toh AI hoon — meri koi age nahi! 😄\n\nMain hamesha young aur fresh hoon — teri help ke liye hamesha ready! 🤖✨\n\nTu bata — kitne saal ka hai? Kya padh raha hai? 🤔`;
-    case 'joke': return pick([
-      `Okay, here's one! 😄\n\nStudent: "Sir, I have a question."\nTeacher: "Ask."\nStudent: "Can I go to washroom?"\nTeacher: "No."\nStudent: "Then I have TWO questions!" 😂\n\nHaha! Chal ab career ke baare mein kuch pooch — woh zyada important hai! 🎯`,
-      `Here's a coder joke! 😂\n\nWhy do programmers prefer dark mode?\n\nBecause light attracts bugs! 🐛😄\n\nOkay okay, back to serious — kya poochna hai career ke baare mein? 🚀`,
-      `Sun ye wala! 😂\n\nWhy did the student bring a ladder to school?\n\nBecause he wanted to reach "high" marks! 📚😄\n\nAb bata — padhai ka kya scene hai? 🤔`,
-    ]);
-    case 'datetime': return `Main AI hoon — mere liye time aur date ka koi matlab nahi! 😄\n\nMain hamesha online hoon, 24/7, 365 days! 🤖\n\nTu bata — kya poochna hai? Career, study, ya kuch bhi? 💪`;
-    case 'health': return `Health = Wealth! 💪\n\n**Student Health Tips:**\n🏃 Exercise — 30 min daily walk\n🥗 Diet — Fruits, vegetables, dry fruits\n😴 Sleep — 7-8 hours zaroori\n💧 Water — 3-4 litre daily\n🧘 Meditation — 10 min daily (stress kam karta hai)\n\n**Study + Health:**\n• Har 1 ghanta baad uth ke ghoomo\n• Eye exercise — 20-20-20 rule (every 20 min, look 20 feet away for 20 sec)\n• Stand-up desk try karo\n\nPadhai ke saath health mat bhoolo! 🏃‍♂️`;
-    case 'love': return `Haha, love! ❤️\n\nDekho, career aur love dono important hain — but **priority** set karo:\n\n**Rule:** Pehle career banao, pyaar apne aap aayega! 🎯\n\n**Reality check:**\n• Jab stable ho jaoge, sab easy hoga\n• 10th/12th mein focus padhai pe karo\n• College mein dekho — time milega\n\n**Famous quote:** "Love yourself first, everything else falls into line." 💕\n\nAb chalo, career ke baare mein kuch productive pooch! 🚀`;
-    case 'scholarship': return pick([
-      `Scholarships = Free Education! 🎓\n\n**Top Scholarships (India):**\n1. **INSPIRE** — ₹80,000/year (Top 1% in board)\n2. **NMMS** — ₹12,000/year (Class 9-12)\n3. **AICTE Scholarship** — ₹50,000/year (Engineering)\n4. **Post Matric SC/ST** — Full fees\n5. **中央 Sector Scholarship** — ₹10,000-20,000/year\n\n**How to Apply:**\n1. scholarship.gov.in pe jaao\n2. Apna category check karo\n3. Documents ready karo (Aadhaar, marksheets, bank passbook)\n4. Online apply karo\n\n**Pro Tip:** State scholarships bhi check karo — kam log apply karte hain!\n\nKaun si class mein hai? 🤔`,
-      `Free mein padho! 🎓\n\n**Scholarship Finder:**\n1. **scholarship.gov.in** — Government scholarships\n2. **Buddy4Study** — Private scholarships\n3. **Vidyasaarathi** — Corporate scholarships\n\n**Popular Scholarships:**\n• 10th/12th Board toppers: ₹5,000-50,000\n• Engineering students: AICTE, Prime Minister Scholarship\n• Medical students: AIIMS, State scholarships\n• Girls: Beti Bachao, AICTE special schemes\n\n**Documents Needed:**\n✅ Aadhaar Card\n✅ 10th/12th Marksheet\n✅ Income Certificate\n✅ Bank Passbook\n\nKya tu scholarship ke liye eligible hai? Bata apni class/category! 📋`,
+    case 'skill': {
+      const msg = message.toLowerCase();
+      if (msg.match(/java/)) return `Java seekhna hai? Best choice! ☕\n\n**Java Learning Roadmap:**\n\n**Step 1: Basics (2 weeks)**\n• Variables, Data Types, Operators\n• if-else, Loops (for, while)\n• Arrays, Strings\n\n**Step 2: OOP (2 weeks)**\n• Classes, Objects\n• Inheritance, Polymorphism\n• Abstraction, Encapsulation\n\n**Step 3: Advanced (1 month)**\n• Collections (ArrayList, HashMap)\n• Exception Handling\n• File I/O\n• JDBC (Database connectivity)\n\n**Free Resources:**\n📚 Apna College (YouTube) — Best Hindi Java course\n📚 W3Schools — Quick reference\n📚 LeetCode — Practice problems\n\n**Project Ideas:**\n1. Calculator App\n2. Student Management System\n3. Bank Account Simulation\n\nRoz 1-2 ghanta practice kar — 3 months mein Java master! 💪`;
+      if (msg.match(/python/)) return `Python seekhna hai? Sabse easy aur powerful! 🐍\n\n**Python Learning Roadmap:**\n\n**Step 1: Basics (1 week)**\n• Variables, Strings, Lists\n• if-else, Loops\n• Functions\n\n**Step 2: Intermediate (2 weeks)**\n• Dictionary, Sets\n• File Handling\n• Error Handling\n• OOP (Classes, Objects)\n\n**Step 3: Projects (1 month)**\n• Web Scraping (BeautifulSoup)\n• Automation scripts\n• Data Analysis (Pandas)\n\n**Free Resources:**\n📚 Apna College (YouTube)\n📚 Kaggle Learn\n📚 Automate the Boring Stuff (book)\n\nPython = Data Science + AI + Web Dev + Automation! 🚀`;
+      if (msg.match(/javascript|js/)) return `JavaScript seekhna hai? Web ka king! 🌐\n\n**JavaScript Roadmap:**\n\n**Step 1: Basics (2 weeks)**\n• Variables (let, const)\n• Functions, Arrays, Objects\n• DOM Manipulation\n\n**Step 2: Modern JS (2 weeks)**\n• ES6+ (Arrow functions, Destructuring)\n• Promises, Async/Await\n• Fetch API\n\n**Step 3: Framework (1 month)**\n• React.js — Frontend\n• Node.js — Backend\n• Express.js — Server\n\n**Free Resources:**\n📚 JavaScript.info — Best tutorial\n📚 FreeCodeCamp — Interactive\n📚 Traversy Media (YouTube)\n\nJavaScript = Frontend + Backend + Mobile Apps! 🚀`;
+      return `Skills seekho — salary badhegi! 🧠\n\n**Top Skills 2025-26:**\n\n💻 **Tech (High Salary):**\n1. Python — AI/Data Science\n2. JavaScript/React — Web Dev\n3. SQL — Har data job\n4. Cloud (AWS) — ₹10-30 LPA\n\n🤝 **Soft Skills:**\n1. English Communication\n2. Problem Solving\n3. Presentation\n\n📝 **Action Plan:**\n1. Ek skill choose karo\n2. YouTube/NPTEL se seekho\n3. 1 ghanta daily practice\n4. Project banao\n\nKya specific skill seekhni hai? Java, Python, ya kuch aur? 🚀`;
+    }
+    case 'frustrated': return pick([
+      `Arre, sorry! 😅 Kya galat bata raha tha?\n\nBata clearly — main ab sahi jawab deta hoon!\n\n🎯 Career, 📚 Padhai, 💼 Resume, 🧠 Skills, 📝 Code — kya chahiye?\n\nBas ek word mein bata — main fix karunga! 💪`,
+      `Maafi chahta hoon! 🙏\n\nLagta hai main galat samajh gaya.\n\nTu bata clearly — kya poochna hai?\n• "Java ka code de"\n• "Resume kaise banaun"\n• "12th ke baad kya karun"\n\nBas ye likh de — main sahi answer dunga! 😊`,
     ]);
     default: return pick([
       `Interesting question! 🤔\n\nMain MeraRaasta AI hoon — career guidance ke liye banaaya gaya hoon.\n\n**Main kya kar sakta hoon:**\n🎯 Career planning — konsa stream, konsa college\n📚 Study tips — JEE, NEET, Board exams\n💼 Resume & Interview — job lagane mein madad\n🧠 Skills — kya seekhein, kaise seekhein\n🗺️ Roadmap — step-by-step career plan\n💰 Salary info — kitna kama sakte ho\n📝 Code — Java, Python, JavaScript\n\nBas mujhse pucho! Main help karunga! 😊`,
       `Hmm, interesting! 🤔\n\nMain zyada tar career guidance mein expert hoon, but kuch bhi pooch sakte ho!\n\n**Popular questions:**\n• "12th ke baad kya karun?"\n• "JEE/NEET ki taiyari kaise karun?"\n• "Resume kaise banaun?"\n• "Interview ki taiyari kaise karun?"\n• "Best skills kaun si hain?"\n\nBas pucho — main answer dunga! 💪`,
-      `Hey! 🙋\n\nMain samajh gaya — tu kuch poochna chahta hai.\n\nBata clearly — career ke baare mein hai, padhai ke baare mein, ya kuch aur?\n\nJitna clear poochoge, utna achha answer milega! 😊`,
     ]);
   }
 }
@@ -340,30 +309,16 @@ function getHindiResponse(topic, name, interests, level, message) {
     case 'career': return pick([
       `Bahut achha sawaal! 🎯\n\n${level ? `Tere ${level} level ke hisaab se ` : ''}2025-26 mein India mein sabse zyada demand:\n\n🔥 **High Salary (₹8-30 LPA):**\n1. AI/ML Engineer\n2. Full Stack Developer\n3. Data Scientist\n4. Cloud Architect\n5. Cyber Security Expert\n\n💼 **Stable Careers:**\n1. Doctor (MBBS)\n2. IAS/IPS (UPSC)\n3. Bank PO\n4. Chartered Accountant\n\n${interests.length ? `Tere interests (${interests.join(', ')}) ke hisaab se — ye field best rahega!` : 'Kaun sa field interesting lagta hai?'}`,
     ]);
-    case 'skill': return pick([
-      `2025-26 mein ye skills seekho: 🧠\n\n**💻 Tech (High Salary):**\n1. Python — AI/Data Science ke liye #1\n2. JavaScript/React — Web Dev\n3. SQL — Har data job\n4. Cloud (AWS) — ₹10-30 LPA\n\n**🤝 Soft Skills:**\n1. English Communication\n2. Problem Solving\n3. Presentation\n\n**📝 Plan:**\n1. Ek skill choose karo\n2. YouTube/NPTEL se seekho\n3. 1 ghanta daily practice\n4. Project banao\n5. LinkedIn pe dikhao\n\nKya seekhna hai? 🚀`,
-    ]);
-    case 'resume': return pick([
-      `Resume tips jo kaam karti hain: 📄\n\n**Banane ka tarika:**\n1. **Header** — Naam | Phone | Email | LinkedIn\n2. **Objective** — 2 lines\n3. **Education** — Degree, College, CGPA\n4. **Skills** — Technical + Tools\n5. **Projects** — Numbers ke saath!\n\n**Magic Words:**\n✅ "30% efficiency badhayi"\n✅ "5 logo ki team lead ki"\n❌ "Mehnat karne wala" (sab likhte hain)\n\n**Format:** Freshers = 1 page\n\nBata tera background — review karke tips deta hoon! ✍️`,
-    ]);
-    case 'interview': return pick([
-      `Interview cracking guide! 🎤\n\n**1 Hafta Pehle:**\n✅ Company ke baare mein research\n✅ "Tell me about yourself" ready karo\n✅ Resume ke har point ka example\n\n**Interview Mein:**\n✅ Smile karo, eye contact rakho\n✅ STAR method use karo\n✅ Confident raho!\n\n**Common Questions:**\n• "Why this company?" → Research dikhao\n• "Weakness?" → Honest raho\n• "Salary?" → Market rate batao\n\n**Pro Tip:** 15 min pehle pahuncho! 💪`,
-    ]);
-    case 'study': return pick([
-      `Padhai ka smart plan: 📖\n\n**Pomodoro Technique:**\n1. 25 min padho (phone silent!)\n2. 5 min break\n3. 4 baad repeat\n\n**Yaad rakhne ke tarike:**\n🧠 Spaced Repetition — 1, 3, 7 din baad revise\n📝 Active Recall — Kitab band karke likho\n👨‍🏫 Teaching — Kisi ko padhao\n\n**Free Resources:**\n📚 NPTEL — IIT courses (FREE!)\n📚 Khan Academy\n📚 YouTube\n\nKya padh raha hai? Board ya competitive? 📚`,
-    ]);
-    case 'college': return pick([
-      `College guide! 🎓\n\n**Top Engineering:**\n1. IITs — JEE Advanced\n2. NITs — JEE Main\n3. BITS Pilani — BITSAT\n\n**Top Medical:**\n1. AIIMS — NEET\n2. State Colleges — NEET\n\n**Pro Tip:** Ranking + Placements + Campus Life sab dekho!\n\nKonsa exam de raha hai? 🤔`,
-    ]);
-    case 'govtjob': return pick([
-      `Sarkari Naukri guide! 🏛️\n\n**Top Exams:**\n1. UPSC — IAS/IPS (₹56,000+ starting)\n2. SSC CGL — Group B (₹44,000+)\n3. IBPS PO — Bank Officer (₹36,000+)\n4. RRB — Railway\n\n**After 12th:** CHSL, NTPC, Army\n**After Graduation:** CGL, PO, UPSC\n\nKonsa exam target hai? 🎯`,
-    ]);
-    case 'salary': return pick([
-      `Salary guide! 💰\n\n**Fresher Salaries:**\n💻 Developer: ₹4-12 LPA\n🤖 AI Engineer: ₹8-25 LPA\n📊 Data Scientist: ₹6-18 LPA\n🏛️ Bank PO: ₹36,000/month\n🏛️ IAS: ₹56,000/month\n\nSkills badhao = Salary badhegi! 🚀`,
-    ]);
-    case 'motivation': return pick([
-      `Sun! 🫂\n\nYe normal hai — har successful insaan ne struggle kiya hai.\n\n**Aaj se 3 cheezein:**\n1. Chhota goal set karo\n2. 1 ghanta productive karo\n3. Kal ka plan banao\n\nTu kar sakta hai! 💪 Bata kya problem hai?`,
-      `Ruk! 🛑\n\nYe padh:\n• Steve Jobs — College chhoda → Apple banaya\n• SRK — Garib the → King of Bollywood\n• APJ Abdul Kalam — Garib the → President\n\nTu young hai, internet hai, tools hai — SAB hai!\n\nChhota start kar — bada banega! 🚀`,
+    case 'skill': {
+      const msg = message.toLowerCase();
+      if (msg.match(/java/)) return `Java seekhna hai? Best choice! ☕\n\n**Java Learning Roadmap:**\n\n**Step 1: Basics (2 hafte)**\n• Variables, Data Types\n• if-else, Loops\n• Arrays, Strings\n\n**Step 2: OOP (2 hafte)**\n• Classes, Objects\n• Inheritance, Polymorphism\n\n**Step 3: Advanced (1 month)**\n• Collections\n• Exception Handling\n• JDBC\n\n**Free Resources:**\n📚 Apna College (YouTube) — Best Hindi Java course\n📚 W3Schools — Quick reference\n\nRoz 1-2 ghanta practice kar — 3 months mein Java master! 💪`;
+      if (msg.match(/python/)) return `Python seekhna hai? Sabse easy! 🐍\n\n**Python Roadmap:**\n\n**Step 1: Basics (1 hafta)**\n• Variables, Lists, Dicts\n• if-else, Loops, Functions\n\n**Step 2: Intermediate (2 hafte)**\n• File Handling\n• OOP\n• Error Handling\n\n**Step 3: Projects (1 month)**\n• Web Scraping\n• Automation\n• Data Analysis (Pandas)\n\n📚 Apna College (YouTube) se seekho!\n\nPython = Data Science + AI + Web Dev! 🚀`;
+      if (msg.match(/javascript|js/)) return `JavaScript seekhna hai? Web ka king! 🌐\n\n**JS Roadmap:**\n\n**Step 1: Basics (2 hafte)**\n• Variables, Functions\n• DOM Manipulation\n\n**Step 2: Modern JS (2 hafte)**\n• ES6+, Async/Await\n• Fetch API\n\n**Step 3: Framework (1 month)**\n• React.js — Frontend\n• Node.js — Backend\n\n📚 JavaScript.info, FreeCodeCamp se seekho!\n\nJS = Frontend + Backend + Mobile! 🚀`;
+      return `Skills seekho — salary badhegi! 🧠\n\n**Top Skills 2025-26:**\n💻 Python — AI/Data Science\n🌐 JavaScript/React — Web Dev\n📊 SQL — Har data job\n☁️ Cloud (AWS) — ₹10-30 LPA\n\n**Plan:**\n1. Ek skill choose karo\n2. YouTube se seekho\n3. Daily 1 ghanta practice\n4. Project banao\n\nKya specific skill seekhni hai? 🚀`;
+    }
+    case 'frustrated': return pick([
+      `Arre, sorry! 😅 Kya galat bata raha tha?\n\nBata clearly — main ab sahi jawab deta hoon!\n\n🎯 Career, 📚 Padhai, 💼 Resume, 🧠 Skills, 📝 Code — kya chahiye? 💪`,
+      `Maafi chahta hoon! 🙏\n\nTu bata clearly — kya poochna hai?\n• "Java ka code de"\n• "Resume kaise banaun"\n• "12th ke baad kya karun"\n\nBas ye likh de — sahi answer dunga! 😊`,
     ]);
     case 'thanks': return pick([
       `You're welcome! 😊 Meri job hai teri help karna! 💪\n\nAur kuch poochna ho toh bata! 🚀`,

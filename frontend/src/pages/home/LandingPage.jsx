@@ -290,10 +290,10 @@ export default function LandingPage() {
           <Reveal delay={250}>
             <div className="text-[15px] sm:text-base text-white/30 mb-3 h-6">
               <Typer words={[
+                'Learn coding with AI — Python, Java, Deep Learning & more.',
                 'AI-powered career recommendations just for you.',
                 'Personalized roadmaps to your dream career.',
-                'Expert mentorship at every step.',
-                'Track progress — parents & mentors included.',
+                'Master Machine Learning, Neural Networks & AI.',
               ]} />
             </div>
           </Reveal>
@@ -377,36 +377,189 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ FEATURES ═══ */}
-      <section id="features" className="py-24 sm:py-32 lg:py-36 bg-[#080818] relative">
-        <div className="absolute w-[400px] h-[400px] -top-20 -left-40 opacity-10" style={{ background: 'radial-gradient(circle, #6366f1, transparent 70%)', filter: 'blur(60px)', animation: 'orbMove 16s ease-in-out infinite' }} />
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* ALL FEATURES — Complete platform capabilities                  */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <section id="features" className="py-20 sm:py-28 lg:py-36 bg-[#080818] relative">
+        <div className="absolute w-[500px] h-[500px] -top-40 -left-40 opacity-10" style={{ background: 'radial-gradient(circle, #6366f1, transparent 70%)', filter: 'blur(80px)', animation: 'orbMove 18s ease-in-out infinite' }} />
+        <div className="absolute w-[400px] h-[400px] bottom-0 right-0 opacity-8" style={{ background: 'radial-gradient(circle, #8b5cf6, transparent 70%)', filter: 'blur(70px)', animation: 'orbMove 15s ease-in-out 5s infinite' }} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <Reveal className="text-center mb-14 sm:mb-16">
-            <span className="inline-flex items-center gap-1.5 text-[9px] font-bold text-indigo-400/80 uppercase tracking-[0.25em] bg-indigo-500/[0.06] border border-indigo-500/15 px-3 py-1 rounded-full mb-4">Why Mera Raasta</span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-3 tracking-tight">Everything You Need</h2>
-            <p className="text-white/25 max-w-lg mx-auto text-sm">From career discovery to job readiness — beautifully crafted.</p>
+
+          {/* Header */}
+          <Reveal className="text-center mb-16 sm:mb-20">
+            <span className="inline-flex items-center gap-1.5 text-[9px] font-bold text-indigo-400/80 uppercase tracking-[0.25em] bg-indigo-500/[0.06] border border-indigo-500/15 px-3 py-1 rounded-full mb-4">Platform Features</span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-3 tracking-tight">Everything You Can Do</h2>
+            <p className="text-white/25 max-w-2xl mx-auto text-sm sm:text-base">From AI-powered career guidance to deep learning — one platform for your entire career journey.</p>
           </Reveal>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { icon: '🎯', t: 'AI Career Matching', d: 'Smart algorithms analyze your skills, interests & goals to suggest the perfect career path.', g: 'from-blue-500 to-cyan-400', a: '#3b82f6' },
-              { icon: '🗺️', t: 'Personalized Roadmaps', d: 'Step-by-step career roadmaps with milestones, deadlines & actionable tasks.', g: 'from-violet-500 to-purple-400', a: '#8b5cf6' },
-              { icon: '📚', t: 'Education Hub', d: 'Explore courses, colleges, scholarships & government schemes — all in one place.', g: 'from-emerald-500 to-teal-400', a: '#10b981' },
-              { icon: '🤖', t: 'AI Career Coach', d: 'Chat with AI for instant career guidance, resume tips & interview prep.', g: 'from-amber-500 to-orange-400', a: '#f59e0b' },
-              { icon: '📄', t: 'Resume Builder', d: 'Create professional resumes with AI-powered suggestions & ATS-friendly templates.', g: 'from-pink-500 to-rose-400', a: '#ec4899' },
-              { icon: '👨‍👩‍👧', t: 'Parent Dashboard', d: 'Parents can track their child\'s career journey, progress & milestones in real-time.', g: 'from-indigo-500 to-violet-400', a: '#6366f1' },
-            ].map((f, i) => (
-              <Reveal key={i} delay={i * 80}>
-                <Tilt intensity={10}>
-                  <div className="relative p-5 rounded-2xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full cursor-default">
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(500px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
-                    <div className={`w-11 h-11 bg-gradient-to-br ${f.g} rounded-xl flex items-center justify-center text-xl mb-4 shadow-lg group-hover:scale-110 transition-transform duration-500`}>{f.icon}</div>
-                    <h3 className="text-[15px] font-bold text-white mb-1.5">{f.t}</h3>
-                    <p className="text-[13px] text-white/30 leading-relaxed">{f.d}</p>
-                  </div>
-                </Tilt>
-              </Reveal>
-            ))}
-          </div>
+
+          {/* ═══ AI & DEEP LEARNING ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-indigo-500/20">🧠</div>
+              <h3 className="text-lg font-bold text-white">AI & Deep Learning</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '🎯', t: 'AI Career Matching', d: 'Deep learning algorithms analyze 50+ data points to find your perfect career match.', a: '#6366f1' },
+                { icon: '🤖', t: 'AI Career Coach', d: 'Chat with our AI counselor for instant guidance, resume tips & interview prep.', a: '#8b5cf6' },
+                { icon: '🧠', t: 'Smart Recommendations', d: 'AI generates 3 personalized career plans with fit scores & reasoning.', a: '#a855f7' },
+                { icon: '⚡', t: 'Next Best Action', d: 'AI suggests exactly what you should do next to advance your career.', a: '#7c3aed' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ LEARN & BUILD — Coding, Courses, Quizzes ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-emerald-500/20">💻</div>
+              <h3 className="text-lg font-bold text-white">Learn & Build</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '🐍', t: 'Learn Coding with AI', d: 'AI-powered coding lessons — Python, Java, C++, Web Development & more.', a: '#10b981' },
+                { icon: '📊', t: 'Deep Learning Courses', d: 'Machine Learning, Neural Networks, NLP, Computer Vision — structured learning paths.', a: '#14b8a6' },
+                { icon: '📝', t: 'LMS Quizzes & Tests', d: 'Test your knowledge with interactive quizzes. Track scores & improve.', a: '#06b6d4' },
+                { icon: '🔧', t: 'Hands-on Projects', d: 'Real-world projects to build your portfolio — from beginner to advanced.', a: '#0ea5e9' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ CAREER GROWTH ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-amber-500/20">🚀</div>
+              <h3 className="text-lg font-bold text-white">Career Growth</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '🗺️', t: 'Personalized Roadmaps', d: 'Step-by-step career roadmaps with milestones, deadlines & progress tracking.', a: '#f59e0b' },
+                { icon: '📄', t: 'AI Resume Builder', d: 'Create ATS-friendly resumes with AI suggestions. Stand out from the crowd.', a: '#f97316' },
+                { icon: '💼', t: 'Internship Finder', d: 'Curated internships matched to your skills, interests & career goals.', a: '#ef4444' },
+                { icon: '🎤', t: 'Interview Preparation', d: 'AI-powered interview quizzes, common questions & mock interview practice.', a: '#dc2626' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ EDUCATION HUB ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-blue-500/20">📚</div>
+              <h3 className="text-lg font-bold text-white">Education Hub</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '🎓', t: 'Online Courses', d: 'Curated courses from top platforms — Udemy, Coursera, NPTEL & more.', a: '#3b82f6' },
+                { icon: '🏛️', t: 'College Directory', d: 'Explore top colleges across India — IITs, NITs, BITS, state colleges.', a: '#2563eb' },
+                { icon: '🏆', t: 'Scholarships', d: '100+ scholarships — merit-based, need-based, government & private.', a: '#1d4ed8' },
+                { icon: '🇮🇳', t: 'Government Schemes', d: 'PM schemes, state scholarships, skill development programs — all listed.', a: '#1e40af' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ FOR FAMILIES ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-pink-500/20">👨‍👩‍👧</div>
+              <h3 className="text-lg font-bold text-white">For Families</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '📊', t: 'Parent Dashboard', d: 'Track your child\'s career journey, progress & milestones in real-time.', a: '#ec4899' },
+                { icon: '📈', t: 'Progress Reports', d: 'Detailed progress reports — roadmap completion, activity logs, achievements.', a: '#db2777' },
+                { icon: '🧑‍🏫', t: 'Mentor System', d: 'Connect with experienced mentors. Get guidance, notes & reviews.', a: '#be185d' },
+                { icon: '🔔', t: 'Activity Monitoring', d: 'Real-time activity tracking — what your child is learning and exploring.', a: '#9d174d' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ YOUR PROFILE ═══ */}
+          <Reveal>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-violet-500/20">👤</div>
+              <h3 className="text-lg font-bold text-white">Your Profile</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '📋', t: '6-Section Profile', d: 'Personal, education, interests, skills, career goals & preferences — complete profile.', a: '#8b5cf6' },
+                { icon: '🎯', t: 'Interest Mapping', d: '12 interest categories mapped to careers — Technology, Science, Arts & more.', a: '#7c3aed' },
+                { icon: '🏅', t: 'Achievement Badges', d: '8 achievement badges — First Login, Profile Done, Career Pick, Champion & more.', a: '#6d28d9' },
+                { icon: '🔥', t: 'Weekly Streaks', d: 'Track your learning streak. Stay consistent, climb the leaderboard.', a: '#5b21b6' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
         </div>
       </section>
 

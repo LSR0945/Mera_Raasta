@@ -69,41 +69,13 @@ function detectLanguage(text) {
 }
 
 async function getGeminiResponse(message, history, profile) {
-  if (!genAI) {
-    console.log('Gemini not initialized');
-    return null;
-  }
+  if (!genAI) return null;
 
   try {
-    // Try multiple model names
-    const modelNames = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
-    let model = null;
-    let lastError = null;
-
-    for (const modelName of modelNames) {
-      try {
-        model = genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: SYSTEM_PROMPT,
-        });
-        // Test with a simple call
-        const testResult = await model.generateContent('hi');
-        const testText = testResult.response.text();
-        if (testText) {
-          console.log(`✅ Using model: ${modelName}`);
-          break;
-        }
-      } catch (e) {
-        lastError = e;
-        console.log(`Model ${modelName} failed: ${e.message?.substring(0, 100)}`);
-        model = null;
-      }
-    }
-
-    if (!model) {
-      console.error('All Gemini models failed:', lastError?.message?.substring(0, 200));
-      return null;
-    }
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      systemInstruction: SYSTEM_PROMPT,
+    });
 
     let contextInfo = '';
     if (profile) {
@@ -125,7 +97,7 @@ async function getGeminiResponse(message, history, profile) {
     const chat = model.startChat({
       history: [
         { role: 'user', parts: [{ text: `Hello! I need your help.${contextInfo}` }] },
-        { role: 'model', parts: [{ text: `Namaste${profile?.user?.name ? ' ' + profile.user.name : ''}! 🙏 I am MeraRaasta AI — your personal AI assistant. I can help you with anything — career guidance, coding, studies, general knowledge, or just casual conversation. Ask me anything!` }] },
+        { role: 'model', parts: [{ text: `Namaste${profile?.user?.name ? ' ' + profile.user.name : ''}! I am MeraRaasta AI. Ask me anything!` }] },
         ...chatHistory
       ],
       generationConfig: {
@@ -136,13 +108,18 @@ async function getGeminiResponse(message, history, profile) {
       },
     });
 
+    console.log(`[Gemini] Sending: "${message.substring(0, 50)}..."`);
     const result = await chat.sendMessage(message);
     const response = result.response;
     const text = response.text();
-    if (text && text.trim().length > 0) return text;
-    return null;
+    console.log(`[Gemini] Got response: ${text.substring(0, 100)}...`);
+    return text;
   } catch (error) {
-    console.error('Gemini FULL error:', JSON.stringify(error, null, 2)?.substring(0, 500));
+    console.error('[Gemini] Error:', error.message);
+    console.error('[Gemini] Error details:', error.status, error.statusText);
+    if (error.response) {
+      console.error('[Gemini] Response error:', JSON.stringify(error.response).substring(0, 300));
+    }
     return null;
   }
 }

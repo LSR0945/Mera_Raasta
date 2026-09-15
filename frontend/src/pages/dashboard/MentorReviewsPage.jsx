@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import BackButton from '../../components/common/BackButton';
 
 export default function MentorReviewsPage() {
   const [reviews, setReviews] = useState([]);
@@ -13,6 +14,7 @@ export default function MentorReviewsPage() {
 
   return (
     <div className="space-y-6 max-w-[1200px]">
+      <BackButton to="/dashboard" label="Back to Dashboard" />
       <h1 className="text-2xl font-extrabold text-gray-900">Reviews ⭐</h1>
 
       {reviews.length === 0 ? (

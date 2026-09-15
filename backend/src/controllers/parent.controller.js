@@ -6,7 +6,9 @@ import Career from '../models/Career.js';
 
 export const getChildren = async (req, res, next) => {
   try {
-    const children = await User.find({ parent: req.user._id }).select('-password -refreshToken');
+    const profiles = await StudentProfile.find({ parent: req.user._id });
+    const childIds = profiles.map(p => p.user);
+    const children = await User.find({ _id: { $in: childIds } }).select('-password -refreshToken');
     res.status(200).json({ success: true, data: { children } });
   } catch (error) { next(error); }
 };
@@ -27,10 +29,10 @@ export const addChild = async (req, res, next) => {
 
 export const getChild = async (req, res, next) => {
   try {
-    const child = await User.findOne({ _id: req.params.childId, parent: req.user._id }).select('-password -refreshToken');
-    if (!child) return next(new AppError('Child not found', 404));
+    const profile = await StudentProfile.findOne({ user: req.params.childId, parent: req.user._id });
+    if (!profile) return next(new AppError('Child not found', 404));
 
-    const profile = await StudentProfile.findOne({ user: child._id });
+    const child = await User.findOne({ _id: req.params.childId }).select('-password -refreshToken');
     const roadmap = await Roadmap.findOne({ student: child._id });
 
     res.status(200).json({ success: true, data: { child, profile, roadmap } });
@@ -53,7 +55,9 @@ export const getChildProfile = async (req, res, next) => {
 
 export const getParentStats = async (req, res, next) => {
   try {
-    const children = await User.find({ parent: req.user._id }).select('_id name email class isActive lastLogin createdAt');
+    const profiles = await StudentProfile.find({ parent: req.user._id });
+    const childIds = profiles.map(p => p.user);
+    const children = await User.find({ _id: { $in: childIds } }).select('_id name email class isActive lastLogin createdAt');
 
     const stats = await Promise.all(children.map(async (child) => {
       const profile = await StudentProfile.findOne({ user: child._id });

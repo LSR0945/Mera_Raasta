@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { educationAPI } from '../../api/education';
+import BackButton from '../../components/common/BackButton';
 
 export default function EducationDetailPage() {
   const { type, slug } = useParams();
@@ -12,6 +13,7 @@ export default function EducationDetailPage() {
   if (!item) return <div className="flex justify-center py-20"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" /></div>;
   return (
     <div className="max-w-3xl mx-auto bg-white rounded-2xl border p-8">
+      <BackButton to="/dashboard/education" label="Back to Education" />
       <h1 className="text-3xl font-extrabold text-gray-900 mb-4">{item.title || item.name}</h1>
       <p className="text-gray-600 mb-6">{item.description}</p>
       {item.fee && <p className="text-sm text-gray-500">Fee: ₹{item.fee.min?.toLocaleString()} - ₹{item.fee.max?.toLocaleString()}</p>}

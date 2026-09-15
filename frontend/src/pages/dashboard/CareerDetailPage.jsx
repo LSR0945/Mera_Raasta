@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { careerAPI } from '../../api/career';
+import BackButton from '../../components/common/BackButton';
 
 export default function CareerDetailPage() {
   const { slug } = useParams();
@@ -9,6 +10,7 @@ export default function CareerDetailPage() {
   if (!career) return <div className="flex justify-center py-20"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" /></div>;
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <BackButton to="/dashboard/careers" label="Back to Careers" />
       <div className="bg-white rounded-2xl border p-8">
         <p className="text-xs font-bold text-primary-600 uppercase mb-2">{career.category}</p>
         <h1 className="text-3xl font-extrabold text-gray-900 mb-4">{career.title}</h1>

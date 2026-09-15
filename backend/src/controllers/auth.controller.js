@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import { AppError, generateTokens, verifyRefreshToken } from '../utils/helpers.js';
 import { sendEmail, welcomeEmail, resetTransporter } from '../utils/sendEmail.js';
 import { config } from '../config/env.js';
+import { logActivity } from '../controllers/activity.controller.js';
 
 export const register = async (req, res, next) => {
   try {
@@ -11,6 +12,8 @@ export const register = async (req, res, next) => {
     const user = await User.create({ name, email, password, role });
     const { accessToken, refreshToken } = generateTokens(user._id);
     await User.findByIdAndUpdate(user._id, { refreshToken });
+
+    logActivity(user._id, 'Account created', 'system', { role, name });
 
     // Send welcome email in background (non-blocking)
     const html = welcomeEmail(name, role);
@@ -38,6 +41,7 @@ export const login = async (req, res, next) => {
     if (!user.isActive) return next(new AppError('Account deactivated', 403));
     const { accessToken, refreshToken } = generateTokens(user._id);
     await User.findByIdAndUpdate(user._id, { refreshToken, lastLogin: new Date() });
+    logActivity(user._id, 'Logged in', 'login', { email });
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
     res.status(200).json({ success: true, message: 'Login successful', data: { user: { id: user._id, name: user.name, email: user.email, role: user.role }, accessToken } });
   } catch (error) { next(error); }

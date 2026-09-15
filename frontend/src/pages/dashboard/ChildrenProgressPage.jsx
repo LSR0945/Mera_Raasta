@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios';
+import BackButton from '../../components/common/BackButton';
 
 export default function ChildrenProgressPage() {
   const [children, setChildren] = useState([]);
@@ -14,6 +15,7 @@ export default function ChildrenProgressPage() {
 
   return (
     <div className="space-y-6 max-w-[1200px]">
+      <BackButton to="/dashboard" label="Back to Dashboard" />
       <h1 className="text-2xl font-extrabold text-gray-900">Progress Reports 📊</h1>
 
       {children.length === 0 ? (

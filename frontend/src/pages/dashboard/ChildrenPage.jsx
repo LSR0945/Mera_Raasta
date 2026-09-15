@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import BackButton from '../../components/common/BackButton';
 
 export default function ChildrenPage() {
   const [children, setChildren] = useState([]);
@@ -23,6 +24,7 @@ export default function ChildrenPage() {
 
   return (
     <div className="space-y-6 max-w-[1200px]">
+      <BackButton to="/dashboard" label="Back to Dashboard" />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-extrabold text-gray-900">My Children 👶</h1>
         <button onClick={() => setShowAdd(!showAdd)} className="bg-primary-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-primary-700">

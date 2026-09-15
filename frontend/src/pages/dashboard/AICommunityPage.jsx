@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { aiAPI } from '../../api/aiCommunity';
+import BackButton from '../../components/common/BackButton';
 
 export default function AICommunityPage() {
   const [msg, setMsg] = useState('');
@@ -19,7 +20,8 @@ export default function AICommunityPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto"><h1 className="text-2xl font-bold mb-6">AI Career Coach</h1>
+    <div className="max-w-3xl mx-auto"><BackButton to="/dashboard" label="Back to Dashboard" />
+      <h1 className="text-2xl font-bold mb-6">AI Career Coach</h1>
       <div className="bg-white rounded-2xl border p-6">
         <div className="min-h-[300px] max-h-[400px] overflow-y-auto space-y-3 mb-4">
           {chat.length === 0 && <div className="space-y-2">{['What should I learn next?', 'Which career suits my profile?', 'How can I improve my resume?'].map(q => (

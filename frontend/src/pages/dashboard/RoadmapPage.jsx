@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { roadmapAPI } from '../../api/roadmap';
 import { careerAPI } from '../../api/career';
 import toast from 'react-hot-toast';
+import BackButton from '../../components/common/BackButton';
 
 const STEP_ICONS = { profile: '👤', education: '📖', course: '🎓', project: '🔨', skill: '⚡', interview: '🎤', resume: '📄', internship: '💼', job: '🚀' };
 
@@ -88,6 +89,7 @@ export default function RoadmapPage() {
   // ═══ NO ROADMAP — Career Selection ═══
   if (!roadmap) return (
     <div className="max-w-4xl mx-auto space-y-8">
+      <BackButton to="/dashboard" label="Back to Dashboard" />
       <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 rounded-3xl p-8 lg:p-12 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -top-20 -right-20 w-80 h-80 bg-white rounded-full blur-3xl" />
@@ -153,6 +155,7 @@ export default function RoadmapPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
+      <BackButton to="/dashboard" label="Back to Dashboard" />
       {/* Header */}
       <div className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-fuchsia-600 rounded-3xl p-8 lg:p-10 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">

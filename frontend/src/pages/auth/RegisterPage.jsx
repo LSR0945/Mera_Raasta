@@ -37,9 +37,13 @@ export default function RegisterPage() {
       toast.success('Account created! Welcome to Mera Raasta!');
       navigate('/dashboard');
     } catch (err) {
-      console.error('Registration error:', err);
-      const msg = err.response?.data?.message || err.message || 'Registration failed. Please try again.';
-      toast.error(msg);
+      const msg = err.response?.data?.message || 'Registration failed';
+      if (msg.includes('already in use')) {
+        toast.error('Email already registered! Redirecting to login...');
+        setTimeout(() => navigate('/login'), 1500);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios';
+import BackButton from '../../components/common/BackButton';
 
 export default function MentorStudentsPage() {
   const [students, setStudents] = useState([]);
@@ -17,6 +18,7 @@ export default function MentorStudentsPage() {
 
   return (
     <div className="space-y-6 max-w-[1200px]">
+      <BackButton to="/dashboard" label="Back to Dashboard" />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-extrabold text-gray-900">My Students 🎓</h1>
         <div className="text-sm text-gray-500">{students.length} student{students.length !== 1 ? 's' : ''}</div>

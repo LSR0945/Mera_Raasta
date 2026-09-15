@@ -2,6 +2,7 @@ import Career from '../models/Career.js';
 import CareerRecommendation from '../models/CareerRecommendation.js';
 import StudentProfile from '../models/StudentProfile.js';
 import { AppError } from '../utils/helpers.js';
+import { logActivity } from './activity.controller.js';
 
 export const getAllCareers = async (req, res, next) => {
   try {
@@ -28,6 +29,7 @@ export const getCareerBySlug = async (req, res, next) => {
   try {
     const career = await Career.findOne({ slug: req.params.slug, isActive: true });
     if (!career) return next(new AppError('Career not found', 404));
+    if (req.user) logActivity(req.user._id, `Viewed career: ${career.title}`, 'career', { career: career.title, category: career.category });
     res.status(200).json({ success: true, data: { career } });
   } catch (error) { next(error); }
 };

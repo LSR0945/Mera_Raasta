@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { educationAPI } from '../../api/education';
+import BackButton from '../../components/common/BackButton';
 
 export default function EducationPage() {
   const [tab, setTab] = useState('courses');
@@ -14,7 +15,8 @@ export default function EducationPage() {
     }).catch(() => setItems([])).finally(() => setLoading(false));
   }, [tab]);
   return (
-    <div><h1 className="text-2xl font-bold mb-6">Education & Opportunities</h1>
+    <div><BackButton to="/dashboard" label="Back to Dashboard" />
+      <h1 className="text-2xl font-bold mb-6">Education & Opportunities</h1>
       <div className="flex gap-2 mb-6">{['courses', 'colleges', 'scholarships', 'government'].map((t) => (
         <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-all ${tab === t ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{t}</button>
       ))}</div>

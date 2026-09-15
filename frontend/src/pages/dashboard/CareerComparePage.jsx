@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { careerAPI } from '../../api/career';
+import BackButton from '../../components/common/BackButton';
 
 export default function CareerComparePage() {
   const [careers, setCareers] = useState([]);
@@ -8,7 +9,8 @@ export default function CareerComparePage() {
   useEffect(() => { careerAPI.getAll().then(({ data }) => setCareers(data.data.careers)).catch(() => {}); }, []);
   const handleCompare = async () => { if (selected.length < 2) return; const { data } = await careerAPI.compare(selected.join(',')); setResult(data.data.careers); };
   return (
-    <div className="space-y-6"><h1 className="text-2xl font-bold">Compare Careers</h1>
+    <div className="space-y-6"><BackButton to="/dashboard/careers" label="Back to Careers" />
+      <h1 className="text-2xl font-bold">Compare Careers</h1>
       <div className="bg-white rounded-2xl border p-6"><p className="text-sm text-gray-500 mb-4">Select at least 2 careers to compare</p>
         <div className="flex flex-wrap gap-2 mb-4">{careers.map((c) => (
           <button key={c._id} onClick={() => setSelected(prev => prev.includes(c._id) ? prev.filter(id => id !== c._id) : [...prev, c._id])} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selected.includes(c._id) ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600'}`}>{c.title}</button>

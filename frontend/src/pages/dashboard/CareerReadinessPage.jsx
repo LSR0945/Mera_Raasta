@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import BackButton from '../../components/common/BackButton';
 
 export default function CareerReadinessPage() {
   const [tab, setTab] = useState('projects');
   const [items, setItems] = useState([]);
   useEffect(() => { api.get(`/${tab}`).then(({ data }) => setItems(data.data[tab] || [])).catch(() => setItems([])); }, [tab]);
   return (
-    <div><h1 className="text-2xl font-bold mb-6">Career Readiness</h1>
+    <div><BackButton to="/dashboard" label="Back to Dashboard" />
+      <h1 className="text-2xl font-bold mb-6">Career Readiness</h1>
       <div className="flex gap-2 mb-6">{['projects', 'internships', 'jobs'].map((t) => (
         <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize ${tab === t ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600'}`}>{t}</button>
       ))}</div>

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Roadmap from '../models/Roadmap.js';
 import Career from '../models/Career.js';
+import { logActivity } from './activity.controller.js';
 
 export const getMyRoadmap = async (req, res, next) => {
   try {
@@ -48,6 +49,8 @@ export const createRoadmap = async (req, res, next) => {
       overallProgress: 0,
     });
 
+    logActivity(req.user._id, 'Created roadmap', 'roadmap', { career: career.title, steps: nodes.length });
+
     res.status(201).json({ success: true, message: 'Roadmap created', data: { roadmap } });
   } catch (error) { next(error); }
 };
@@ -64,6 +67,8 @@ export const updateNodeProgress = async (req, res, next) => {
 
     node.status = status || node.status;
     node.progress = progress !== undefined ? progress : node.progress;
+
+    logActivity(req.user._id, `Updated step: ${node.title}`, 'roadmap', { step: node.title, status: node.status, progress: node.progress });
 
     const completed = roadmap.nodes.filter(n => n.status === 'completed').length;
     roadmap.overallProgress = Math.round((completed / roadmap.nodes.length) * 100);

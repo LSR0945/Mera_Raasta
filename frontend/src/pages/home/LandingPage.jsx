@@ -128,7 +128,6 @@ export default function LandingPage() {
     return () => { window.removeEventListener('scroll', s); window.removeEventListener('mousemove', m); };
   }, []);
 
-  /* Student photos — clear, high-quality */
   const photos = [
     { src: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=500&h=650&fit=crop&auto=format', name: 'Priya Sharma', sub: 'IIT Delhi • Computer Science', w: 'w-[200px] lg:w-[240px]', h: 'h-[260px] lg:h-[310px]', pos: 'left-[4%] top-[8%]', rotate: '-3deg', delay: 0 },
     { src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=650&fit=crop&auto=format', name: 'Arjun Patel', sub: 'BITS Pilani • MBA', w: 'w-[180px] lg:w-[220px]', h: 'h-[230px] lg:h-[280px]', pos: 'right-[6%] top-[6%]', rotate: '2deg', delay: 0.6 },
@@ -158,6 +157,8 @@ export default function LandingPage() {
         @keyframes gridFade { 0%,100%{opacity:0.025} 50%{opacity:0.05} }
         @keyframes badgeIn { 0%{opacity:0;transform:scale(0.9)} 100%{opacity:1;transform:scale(1)} }
         @keyframes starPulse { 0%,100%{opacity:0.15;transform:scale(1)} 50%{opacity:0.8;transform:scale(1.4)} }
+        @keyframes photoGlow { 0%,100%{box-shadow:0 0 30px rgba(99,102,241,0.15), 0 0 60px rgba(99,102,241,0.05)} 50%{box-shadow:0 0 50px rgba(99,102,241,0.25), 0 0 80px rgba(99,102,241,0.1)} }
+        @keyframes bgPulse { 0%,100%{opacity:0.15} 50%{opacity:0.25} }
       `}</style>
 
       {/* ═══ NAVBAR ═══ */}
@@ -199,37 +200,38 @@ export default function LandingPage() {
       </nav>
 
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* HERO — Clear student photos + premium content                  */}
+      {/* HERO — PREMIUM: Student photos VERY visible, expensive UI     */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Base gradient */}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #06060f 0%, #0c0c24 40%, #0f0f32 60%, #08081a 80%, #06060f 100%)' }} />
+        {/* Base gradient — deep luxury dark */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #06060f 0%, #0c0c24 30%, #12103a 50%, #0c0c24 70%, #06060f 100%)' }} />
 
-        {/* Subtle orbs */}
-        <div className="absolute w-[600px] h-[600px] -top-40 -left-40 opacity-20" style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)', filter: 'blur(80px)', animation: 'orbMove 18s ease-in-out infinite' }} />
-        <div className="absolute w-[500px] h-[500px] top-1/4 -right-32 opacity-15" style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 70%)', filter: 'blur(70px)', animation: 'orbMove 14s ease-in-out 4s infinite' }} />
-        <div className="absolute w-[400px] h-[400px] bottom-0 left-1/3 opacity-10" style={{ background: 'radial-gradient(circle, #06b6d4 0%, transparent 70%)', filter: 'blur(60px)', animation: 'orbMove 16s ease-in-out 8s infinite' }} />
+        {/* Rich orbs — multiple colors */}
+        <div className="absolute w-[700px] h-[700px] -top-40 -left-40 opacity-25" style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)', filter: 'blur(90px)', animation: 'orbMove 18s ease-in-out infinite' }} />
+        <div className="absolute w-[600px] h-[600px] top-1/4 -right-32 opacity-20" style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 70%)', filter: 'blur(80px)', animation: 'orbMove 14s ease-in-out 4s infinite' }} />
+        <div className="absolute w-[500px] h-[500px] bottom-0 left-1/3 opacity-15" style={{ background: 'radial-gradient(circle, #06b6d4 0%, transparent 70%)', filter: 'blur(70px)', animation: 'orbMove 16s ease-in-out 8s infinite' }} />
+        <div className="absolute w-[400px] h-[400px] top-1/2 left-1/4 opacity-12" style={{ background: 'radial-gradient(circle, #ec4899 0%, transparent 70%)', filter: 'blur(60px)', animation: 'orbMove 20s ease-in-out 6s infinite' }} />
 
-        {/* Grid dots */}
-        <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.6) 1px, transparent 0)', backgroundSize: '40px 40px', animation: 'gridFade 8s ease-in-out infinite' }} />
+        {/* Grid dots — subtle texture */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.7) 1px, transparent 0)', backgroundSize: '36px 36px', animation: 'gridFade 8s ease-in-out infinite' }} />
 
-        <Particles count={30} />
+        <Particles count={40} />
 
-        {/* ═══ STUDENT PHOTOS — CLEAR & VISIBLE ═══ */}
-        <div className="absolute inset-0 hidden lg:block" style={{ transform: `translate(${(mouse.x - 0.5) * -8}px, ${(mouse.y - 0.5) * -8}px)` }}>
+        {/* ═══ STUDENT PHOTOS — LARGE, CLEAR, PROMINENT ═══ */}
+        <div className="absolute inset-0 hidden lg:block" style={{ transform: `translate(${(mouse.x - 0.5) * -12}px, ${(mouse.y - 0.5) * -12}px)` }}>
           {photos.map((p, i) => (
-            <div key={i} className={`absolute ${p.pos} ${p.w}`} style={{ '--r': p.rotate, animation: `photoIn 1s ease ${0.3 + p.delay}s both, photoFloat ${6 + i * 0.5}s ease-in-out ${p.delay + 1}s infinite` }}>
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-black/50 border border-white/[0.08] hover:border-white/[0.2] transition-all duration-500 hover:scale-105 hover:shadow-[0_0_40px_rgba(99,102,241,0.15)] group"
-                style={{ transform: `rotate(${p.rotate})` }}>
+            <div key={i} className={`absolute ${p.pos} ${p.w}`} style={{ '--r': p.rotate, animation: `photoIn 1.2s ease ${0.3 + p.delay}s both, photoFloat ${6 + i * 0.5}s ease-in-out ${p.delay + 1}s infinite` }}>
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-black/50 border border-white/[0.1] hover:border-indigo-400/30 transition-all duration-500 hover:scale-105 group"
+                style={{ transform: `rotate(${p.rotate})`, animation: `photoGlow ${8 + i}s ease-in-out ${p.delay}s infinite` }}>
                 <img src={p.src} alt={p.name} className={`${p.h} w-full object-cover`} loading="lazy" />
-                {/* Bottom gradient for name */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-10 pb-3 px-3">
-                  <p className="text-white text-xs font-bold leading-tight">{p.name}</p>
-                  <p className="text-white/50 text-[9px] mt-0.5">{p.sub}</p>
+                {/* Bottom gradient for name — more visible */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent pt-12 pb-4 px-4">
+                  <p className="text-white text-sm font-bold leading-tight">{p.name}</p>
+                  <p className="text-white/60 text-[10px] mt-1">{p.sub}</p>
                 </div>
                 {/* Top corner badge */}
-                <div className="absolute top-2 right-2 bg-white/10 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/[0.08]">
-                  <span className="text-[8px] font-bold text-white/70">STUDENT</span>
+                <div className="absolute top-3 right-3 bg-white/15 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/[0.1]">
+                  <span className="text-[9px] font-bold text-white/80">STUDENT</span>
                 </div>
               </div>
             </div>
@@ -239,7 +241,7 @@ export default function LandingPage() {
         {/* Mobile: 2 clear photos */}
         <div className="absolute inset-0 lg:hidden">
           <div className="absolute left-[-8%] top-[12%] w-[140px]" style={{ animation: 'photoIn 0.8s ease 0.5s both' }}>
-            <div className="rounded-xl overflow-hidden shadow-2xl shadow-black/60 border border-white/[0.08]" style={{ transform: 'rotate(-3deg)' }}>
+            <div className="rounded-xl overflow-hidden shadow-2xl shadow-black/60 border border-white/[0.1]" style={{ transform: 'rotate(-3deg)' }}>
               <img src={photos[0].src} alt="" className="h-[180px] w-full object-cover" loading="lazy" />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                 <p className="text-white text-[10px] font-bold">{photos[0].name}</p>
@@ -247,7 +249,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="absolute right-[-5%] bottom-[22%] w-[130px]" style={{ animation: 'photoIn 0.8s ease 0.8s both' }}>
-            <div className="rounded-xl overflow-hidden shadow-2xl shadow-black/60 border border-white/[0.08]" style={{ transform: 'rotate(2deg)' }}>
+            <div className="rounded-xl overflow-hidden shadow-2xl shadow-black/60 border border-white/[0.1]" style={{ transform: 'rotate(2deg)' }}>
               <img src={photos[2].src} alt="" className="h-[170px] w-full object-cover" loading="lazy" />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                 <p className="text-white text-[10px] font-bold">{photos[2].name}</p>
@@ -256,27 +258,27 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Content gradient overlay — light, lets photos show */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#06060f]/80 via-[#06060f]/40 to-[#06060f]/80 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#06060f]/60 via-transparent to-[#06060f]/90 pointer-events-none" />
+        {/* Content gradient overlay — lighter, lets photos show through */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#06060f]/60 via-[#06060f]/30 to-[#06060f]/60 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#06060f]/50 via-transparent to-[#06060f]/80 pointer-events-none" />
 
         {/* ═══ HERO CONTENT ═══ */}
         <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-24 text-center">
           {/* Badge */}
           <Reveal delay={0}>
             <div className="flex justify-center mb-8" style={{ animation: 'badgeIn 0.8s ease 0.2s both' }}>
-              <div className="inline-flex items-center gap-2 bg-white/[0.04] backdrop-blur-xl border border-white/[0.06] rounded-full px-4 py-2">
-                <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" /></span>
-                <span className="text-[11px] font-semibold text-white/60">India's #1 AI-Powered Career Platform</span>
-                <span className="text-white/10">|</span>
-                <span className="text-[11px] font-bold text-indigo-400/80">10,000+ Students</span>
+              <div className="inline-flex items-center gap-2.5 bg-white/[0.06] backdrop-blur-2xl border border-white/[0.08] rounded-full px-5 py-2.5 shadow-lg shadow-indigo-500/5">
+                <span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400" /></span>
+                <span className="text-[12px] font-semibold text-white/70">India's #1 AI-Powered Career Platform</span>
+                <span className="text-white/15">|</span>
+                <span className="text-[12px] font-bold text-indigo-400">10,000+ Students</span>
               </div>
             </div>
           </Reveal>
 
-          {/* Heading */}
+          {/* Heading — bolder, premium */}
           <Reveal delay={100}>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[5.5rem] font-black text-white mb-5 leading-[1.05] tracking-tight" style={{ animation: 'heroIn 1s ease 0.3s both' }}>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[5.5rem] font-black text-white mb-6 leading-[1.05] tracking-tight" style={{ animation: 'heroIn 1s ease 0.3s both' }}>
               Find Your<br />
               <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent"
                 style={{ backgroundSize: '200% auto', animation: 'gradShift 4s ease infinite' }}>
@@ -288,7 +290,7 @@ export default function LandingPage() {
 
           {/* Typing */}
           <Reveal delay={250}>
-            <div className="text-[15px] sm:text-base text-white/30 mb-3 h-6">
+            <div className="text-[15px] sm:text-base text-white/40 mb-3 h-6">
               <Typer words={[
                 'Learn coding with AI — Python, Java, Deep Learning & more.',
                 'AI-powered career recommendations just for you.',
@@ -299,7 +301,7 @@ export default function LandingPage() {
           </Reveal>
 
           <Reveal delay={350}>
-            <p className="text-sm text-white/20 mb-10 max-w-xl mx-auto">
+            <p className="text-sm text-white/25 mb-10 max-w-xl mx-auto">
               From career discovery to job readiness — built for Indian students.
             </p>
           </Reveal>
@@ -327,11 +329,11 @@ export default function LandingPage() {
                 { n: 95, s: '%', l: 'Success', icon: '🏆', color: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/10' },
                 { n: 200, s: '+', l: 'Mentors', icon: '🧑‍🏫', color: 'from-amber-500/20 to-orange-500/20', border: 'border-amber-500/10' },
               ].map((s, i) => (
-                <div key={i} className={`bg-white/[0.02] backdrop-blur-xl border ${s.border} rounded-xl p-4 hover:bg-white/[0.05] transition-all duration-500 group cursor-default`}
+                <div key={i} className={`bg-white/[0.03] backdrop-blur-xl border ${s.border} rounded-xl p-4 hover:bg-white/[0.06] transition-all duration-500 group cursor-default`}
                   style={{ animation: `fadeIn 0.6s ease ${0.6 + i * 0.1}s both` }}>
-                  <div className={`w-9 h-9 bg-gradient-to-br ${s.color} rounded-lg flex items-center justify-center text-lg mb-2 mx-auto group-hover:scale-110 transition-transform`}>{s.icon}</div>
+                  <div className={`w-10 h-10 bg-gradient-to-br ${s.color} rounded-xl flex items-center justify-center text-lg mb-2.5 mx-auto group-hover:scale-110 transition-transform`}>{s.icon}</div>
                   <p className="text-xl sm:text-2xl font-black text-white"><Counter end={s.n} suffix={s.s} /></p>
-                  <p className="text-[9px] sm:text-[10px] text-white/30 font-medium uppercase tracking-widest mt-0.5">{s.l}</p>
+                  <p className="text-[9px] sm:text-[10px] text-white/35 font-semibold uppercase tracking-widest mt-0.5">{s.l}</p>
                 </div>
               ))}
             </div>
@@ -342,13 +344,13 @@ export default function LandingPage() {
             <div className="flex items-center justify-center gap-4">
               <div className="flex -space-x-2.5">
                 {photos.slice(0, 5).map((p, i) => (
-                  <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-2 border-[#0a0a1e] shadow-lg"
+                  <div key={i} className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#0a0a1e] shadow-lg"
                     style={{ animation: `fadeIn 0.4s ease ${0.7 + i * 0.08}s both` }}>
                     <img src={p.src} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
                   </div>
                 ))}
               </div>
-              <div className="border-l border-white/[0.06] pl-4">
+              <div className="border-l border-white/[0.08] pl-4">
                 <div className="flex items-center gap-0.5">
                   {[1, 2, 3, 4, 5].map(s => <svg key={s} className="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>)}
                 </div>
@@ -370,7 +372,7 @@ export default function LandingPage() {
           {[...Array(2)].map((_, s) => (
             <div key={s} className="flex items-center gap-14 shrink-0">
               {['IIT Delhi', 'IIT Bombay', 'NIT Trichy', 'BITS Pilani', 'IIM Ahmedabad', 'Stanford', 'MIT', 'Google', 'Microsoft', 'Amazon'].map((n, i) => (
-                <span key={`${s}-${i}`} className="text-[13px] font-semibold text-white/12 hover:text-white/25 transition-colors whitespace-nowrap cursor-default">{n}</span>
+                <span key={`${s}-${i}`} className="text-[13px] font-semibold text-white/15 hover:text-white/30 transition-colors whitespace-nowrap cursor-default">{n}</span>
               ))}
             </div>
           ))}
@@ -420,7 +422,7 @@ export default function LandingPage() {
             </div>
           </Reveal>
 
-          {/* ═══ LEARN & BUILD — Coding, Courses, Quizzes ═══ */}
+          {/* ═══ LEARN & BUILD ═══ */}
           <Reveal className="mb-16">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-emerald-500/20">💻</div>
@@ -532,7 +534,7 @@ export default function LandingPage() {
             </div>
           </Reveal>
 
-           {/* ═══ YOUR PROFILE ═══ */}
+          {/* ═══ YOUR PROFILE ═══ */}
           <Reveal className="mb-16">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-violet-500/20">👤</div>
@@ -588,7 +590,7 @@ export default function LandingPage() {
             </div>
           </Reveal>
 
-          {/* ═══ TECHNICAL MASTERY — Excel, Power BI ═══ */}
+          {/* ═══ TECHNICAL MASTERY ═══ */}
           <Reveal className="mb-16">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-green-500/20">📊</div>
@@ -852,7 +854,7 @@ export default function LandingPage() {
                 { icon: '💰', t: 'Financial Modeling', d: 'Excel financial models, DCF valuation, P&L analysis, budgeting & forecasting.', a: '#10b981' },
                 { icon: '📈', t: 'Stock Market', d: 'Technical analysis, fundamental analysis, portfolio management & trading strategies.', a: '#059669' },
                 { icon: '🏦', t: 'Investment Banking', d: 'M&A, IPOs, equity research, financial statements analysis & valuation methods.', a: '#047857' },
-                { icon: '📊', t: 'Business Analytics', d: 'KPI tracking, business intelligence, data-driven决策 & performance dashboards.', a: '#065f46' },
+                { icon: '📊', t: 'Business Analytics', d: 'KPI tracking, business intelligence, data-driven decision making & performance dashboards.', a: '#065f46' },
               ].map((f, i) => (
                 <Reveal key={i} delay={i * 60}>
                   <Tilt intensity={8}>

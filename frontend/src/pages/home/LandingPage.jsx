@@ -532,8 +532,8 @@ export default function LandingPage() {
             </div>
           </Reveal>
 
-          {/* ═══ YOUR PROFILE ═══ */}
-          <Reveal>
+           {/* ═══ YOUR PROFILE ═══ */}
+          <Reveal className="mb-16">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-violet-500/20">👤</div>
               <h3 className="text-lg font-bold text-white">Your Profile</h3>
@@ -545,6 +545,174 @@ export default function LandingPage() {
                 { icon: '🎯', t: 'Interest Mapping', d: '12 interest categories mapped to careers — Technology, Science, Arts & more.', a: '#7c3aed' },
                 { icon: '🏅', t: 'Achievement Badges', d: '8 achievement badges — First Login, Profile Done, Career Pick, Champion & more.', a: '#6d28d9' },
                 { icon: '🔥', t: 'Weekly Streaks', d: 'Track your learning streak. Stay consistent, climb the leaderboard.', a: '#5b21b6' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ PLACEMENT REWARDS & CERTIFICATIONS ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-amber-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-amber-500/20">🏆</div>
+              <h3 className="text-lg font-bold text-white">Placement Rewards & Certifications</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '💰', t: 'Placement Rewards', d: 'Get cash rewards & achievement bonuses when you land your dream job through us.', a: '#f59e0b' },
+                { icon: '🎓', t: 'Real World Certifications', d: 'Industry-recognized certifications that add value to your resume & LinkedIn.', a: '#d97706' },
+                { icon: '🏅', t: 'Achievement Bonus', d: 'Unlock bonus rewards for completing milestones — course completion, interview prep, placement.', a: '#b45309' },
+                { icon: '⭐', t: 'Success Wall of Fame', d: 'Top performers featured on our platform. Build your reputation & get noticed by recruiters.', a: '#92400e' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ TECHNICAL MASTERY — Excel, Power BI ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-green-500/20">📊</div>
+              <h3 className="text-lg font-bold text-white">Technical Mastery</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '📑', t: 'MS Excel Expert', d: 'Master advanced Excel — VLOOKUP, Pivot Tables, Macros, Data Analysis, Dashboards.', a: '#22c55e' },
+                { icon: '📈', t: 'Power BI Expert', d: 'Build interactive dashboards, DAX formulas, data modeling & visual storytelling.', a: '#16a34a' },
+                { icon: '🐍', t: 'Python for Data Science', d: 'Pandas, NumPy, Matplotlib, Scikit-learn — complete data science toolkit.', a: '#15803d' },
+                { icon: '🤖', t: 'AI & ML Projects', d: 'Build real AI models — classification, regression, NLP, computer vision projects.', a: '#166534' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ COMMUNICATION & SOFT SKILLS ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-cyan-500/20">🗣️</div>
+              <h3 className="text-lg font-bold text-white">Communication & Soft Skills</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '💬', t: 'Improve Communication', d: 'Structured modules to build fluency — speaking, writing, body language & email etiquette.', a: '#06b6d4' },
+                { icon: '🎤', t: 'High-Level Communication', d: 'Executive communication — boardroom presentations, stakeholder management, negotiation.', a: '#0891b2' },
+                { icon: '📊', t: 'Customer Feedback Analysis', d: 'Learn to analyze customer data, sentiment analysis, feedback loops & action plans.', a: '#0e7490' },
+                { icon: '🤝', t: 'Presentation Activities', d: 'Regular presentation practice — pitch decks, product demos, project walkthroughs.', a: '#155e75' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ REAL WORLD EXPERIENCE ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-rose-500 to-pink-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-rose-500/20">🌍</div>
+              <h3 className="text-lg font-bold text-white">Real World Experience</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '🔧', t: 'Real World Projects', d: 'Work on live projects — build apps, dashboards, analysis reports for actual clients.', a: '#f43f5e' },
+                { icon: '🤝', t: 'Client Interaction', d: 'Direct client calls, requirement gathering, feedback sessions — real professional experience.', a: '#e11d48' },
+                { icon: '📅', t: 'Monthly Webinars', d: 'Exclusive monthly webinars with national company experts — IIT professors, CXOs, industry leaders.', a: '#be123c' },
+                { icon: '👨‍💼', t: 'Industry Expert Teachers', d: 'Learn from professionals working at Google, Microsoft, Amazon, top Indian startups.', a: '#9f1239' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ LEADERSHIP & PERSONAL BRANDING ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-indigo-500/20">👑</div>
+              <h3 className="text-lg font-bold text-white">Leadership & Personal Branding</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '🎯', t: 'Personal Branding', d: 'Build your LinkedIn brand, portfolio website, professional online presence & networking.', a: '#6366f1' },
+                { icon: '👥', t: 'Team Work & Collaboration', d: 'Group projects, agile sprints, cross-functional team exercises — workplace readiness.', a: '#4f46e5' },
+                { icon: '📖', t: 'Leadership Quality', d: 'Decision making, conflict resolution, team motivation, strategic thinking workshops.', a: '#4338ca' },
+                { icon: '😊', t: 'Positive Attitude Development', d: 'Growth mindset training, stress management, resilience building & emotional intelligence.', a: '#3730a3' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ BRAND MANAGEMENT ═══ */}
+          <Reveal>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-teal-500/20">🎨</div>
+              <h3 className="text-lg font-bold text-white">Brand Management & Marketing</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '🎨', t: 'Brand Management', d: 'Learn brand strategy, positioning, visual identity, brand voice & market differentiation.', a: '#14b8a6' },
+                { icon: '📱', t: 'Digital Marketing', d: 'SEO, social media marketing, content strategy, paid ads & analytics — full stack marketing.', a: '#0d9488' },
+                { icon: '📊', t: 'Market Research', d: 'Competitor analysis, user research, survey design, data-driven decision making.', a: '#0f766e' },
+                { icon: '🧠', t: 'Strategic Thinking', d: 'Business strategy, go-to-market planning, growth hacking & product thinking.', a: '#115e59' },
               ].map((f, i) => (
                 <Reveal key={i} delay={i * 60}>
                   <Tilt intensity={8}>

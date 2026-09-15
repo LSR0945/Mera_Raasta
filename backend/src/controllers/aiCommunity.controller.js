@@ -72,54 +72,25 @@ async function getGeminiResponse(message, history, profile) {
   if (!genAI) return null;
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      systemInstruction: SYSTEM_PROMPT,
-    });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    let contextInfo = '';
-    if (profile) {
-      const parts = [];
-      if (profile.user?.name) parts.push(`Name: ${profile.user.name}`);
-      if (profile.educationLevel) parts.push(`Education: ${profile.educationLevel}`);
-      if (profile.interests?.length) {
-        const interests = Array.isArray(profile.interests) ? profile.interests.join(', ') : '';
-        if (interests) parts.push(`Interests: ${interests}`);
-      }
-      if (parts.length) contextInfo = `\n\nUser info: ${parts.join(' | ')}`;
+    let prompt = message;
+
+    if (profile?.user?.name || profile?.educationLevel) {
+      const info = [];
+      if (profile.user?.name) info.push(`User name: ${profile.user.name}`);
+      if (profile.educationLevel) info.push(`Education: ${profile.educationLevel}`);
+      if (profile.interests?.length) info.push(`Interests: ${Array.isArray(profile.interests) ? profile.interests.join(', ') : ''}`);
+      prompt = `${info.join('. ')}. User asks: ${message}`;
     }
 
-    const chatHistory = (history || []).slice(-10).map(msg => ({
-      role: msg.role === 'ai' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    }));
-
-    const chat = model.startChat({
-      history: [
-        { role: 'user', parts: [{ text: `Hello! I need your help.${contextInfo}` }] },
-        { role: 'model', parts: [{ text: `Namaste${profile?.user?.name ? ' ' + profile.user.name : ''}! I am MeraRaasta AI. Ask me anything!` }] },
-        ...chatHistory
-      ],
-      generationConfig: {
-        temperature: 0.85,
-        topP: 0.95,
-        topK: 40,
-        maxOutputTokens: 2048,
-      },
-    });
-
-    console.log(`[Gemini] Sending: "${message.substring(0, 50)}..."`);
-    const result = await chat.sendMessage(message);
-    const response = result.response;
-    const text = response.text();
-    console.log(`[Gemini] Got response: ${text.substring(0, 100)}...`);
+    console.log(`[Gemini] Calling API...`);
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    console.log(`[Gemini] Response OK (${text.length} chars)`);
     return text;
   } catch (error) {
-    console.error('[Gemini] Error:', error.message);
-    console.error('[Gemini] Error details:', error.status, error.statusText);
-    if (error.response) {
-      console.error('[Gemini] Response error:', JSON.stringify(error.response).substring(0, 300));
-    }
+    console.error(`[Gemini] FAILED:`, error.message);
     return null;
   }
 }

@@ -1,50 +1,67 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import StudentProfile from '../models/StudentProfile.js';
 
-const genAI = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 10 && !process.env.GEMINI_API_KEY.includes('placeholder')
-  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const genAI = GEMINI_KEY && GEMINI_KEY.length > 15 && GEMINI_KEY.startsWith('AIza')
+  ? new GoogleGenerativeAI(GEMINI_KEY)
   : null;
 
-if (genAI) console.log('✅ Gemini AI enabled');
-else console.log('⚠️  Gemini AI disabled — using smart fallback responses');
+if (genAI) console.log('✅ Gemini AI enabled — full AI mode');
+else console.log('⚠️  Gemini AI disabled — limited fallback mode. Add GEMINI_API_KEY to .env for full AI.');
 
 const conversationHistory = new Map();
 
-const SYSTEM_PROMPT = `You are "MeraRaasta AI" — a friendly, expert Indian career guidance AI counselor.
+const SYSTEM_PROMPT = `You are "MeraRaasta AI" — an intelligent, friendly AI assistant made for Indian students.
 
-Your capabilities:
-- Career guidance (Indian job market, streams after 10th/12th, college recommendations)
-- Skill development (coding, soft skills, certifications)
-- Education planning (courses, colleges, scholarships in India)
-- Resume building and interview preparation
-- Study tips and exam preparation
-- Government schemes for students (scholarships, reservations)
-- You can also answer general questions, have casual conversations, write code, etc.
+You are like Google Gemini — you can answer ANY question on ANY topic:
 
-Language Rules:
-- If user writes in Hindi (Devanagari script), respond entirely in Hindi
+🎓 Career & Education:
+- Career guidance, college recommendations, streams after 10th/12th
+- Study tips, exam preparation (JEE, NEET, UPSC, Board exams)
+- Resume building, interview preparation
+- Scholarships, government schemes
+
+💻 Technology & Coding:
+- Write code in any language (Java, Python, JavaScript, C, C++, etc.)
+- Explain programming concepts
+- Help with web development, data science, AI/ML
+- Debug code, explain errors
+
+📚 General Knowledge:
+- Science, History, Geography, Politics
+- Current events, general awareness
+- Math problems, formulas
+- Any academic subject
+
+🗣️ Language:
+- If user writes in Hindi (Devanagari), respond in Hindi
 - If user writes in English, respond in English
-- If user writes in Hinglish (mixed Hindi-English), respond in Hinglish naturally
-- Always match the user's language style
+- If user writes in Hinglish, respond in Hinglish
+- You can translate between languages
 
-Response Rules:
-- Be warm, encouraging, and use simple language an Indian student can understand
-- Give specific, actionable advice — not generic
-- Use emojis naturally but don't overdo
-- Keep responses concise (3-5 paragraphs max) unless asked for detail
-- Reference Indian context: IITs, NITs, AIIMS, CBSE, JEE, NEET, UPSC, state boards, etc.
-- If asked about non-career topics, answer helpfully and naturally
-- Never make up facts — say "I'm not sure" if unsure
-- Be motivational when students feel lost or confused about their future`;
+🎮 Fun & Casual:
+- Jokes, riddles, fun facts
+- Motivational quotes
+- General conversation
+- Personal advice (study-life balance, stress management)
+
+Rules:
+- Be friendly, helpful, and use simple language
+- Give accurate, specific answers — not vague
+- Use emojis naturally
+- If you don't know something, say so honestly
+- For code: always provide working code with explanation
+- For career questions: give India-specific advice with salary data
+- Be conversational — like talking to a smart friend`;
 
 function detectLanguage(text) {
   if (!text || !text.trim()) return 'en';
   const hindiChars = text.match(/[\u0900-\u097F]/g);
-  if (hindiChars && hindiChars.length >= 3) return 'hi';
+  if (hindiChars && hindiChars.length >= 2) return 'hi';
   return 'en';
 }
 
-async function getGeminiResponse(message, history, profile, lang) {
+async function getGeminiResponse(message, history, profile) {
   if (!genAI) return null;
 
   try {
@@ -62,36 +79,25 @@ async function getGeminiResponse(message, history, profile, lang) {
         const interests = Array.isArray(profile.interests) ? profile.interests.join(', ') : '';
         if (interests) parts.push(`Interests: ${interests}`);
       }
-      if (profile.skills?.length) {
-        const skillNames = profile.skills.map(s => typeof s === 'object' ? s.name : s).filter(Boolean);
-        if (skillNames.length) parts.push(`Skills: ${skillNames.join(', ')}`);
-      }
-      if (profile.careerGoals) {
-        const goals = profile.careerGoals;
-        const goalText = typeof goals === 'object'
-          ? [goals.shortTerm, goals.longTerm, goals.dreamJob].filter(Boolean).join(', ')
-          : String(goals);
-        if (goalText) parts.push(`Career Goals: ${goalText}`);
-      }
-      if (parts.length) contextInfo = `\n\nUser Profile: ${parts.join(' | ')}`;
+      if (parts.length) contextInfo = `\n\nUser info: ${parts.join(' | ')}`;
     }
 
-    const chatHistory = (history || []).slice(-8).map(msg => ({
+    const chatHistory = (history || []).slice(-10).map(msg => ({
       role: msg.role === 'ai' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
 
     const chat = model.startChat({
       history: [
-        { role: 'user', parts: [{ text: `I am a student seeking career guidance.${contextInfo}` }] },
-        { role: 'model', parts: [{ text: 'Namaste! I am MeraRaasta AI, your career guidance counselor. I will help you with careers, education, skills, and more. Feel free to ask me anything in Hindi, English, or Hinglish!' }] },
+        { role: 'user', parts: [{ text: `Hello! I need your help.${contextInfo}` }] },
+        { role: 'model', parts: [{ text: `Namaste${profile?.user?.name ? ' ' + profile.user.name : ''}! 🙏 I am MeraRaasta AI — your personal AI assistant. I can help you with anything — career guidance, coding, studies, general knowledge, or just casual conversation. Ask me anything!` }] },
         ...chatHistory
       ],
       generationConfig: {
-        temperature: 0.8,
+        temperature: 0.85,
         topP: 0.95,
         topK: 40,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
       },
     });
 
@@ -101,60 +107,33 @@ async function getGeminiResponse(message, history, profile, lang) {
     if (text && text.trim().length > 0) return text;
     return null;
   } catch (error) {
-    console.error('Gemini error:', error.message?.substring(0, 200));
+    console.error('Gemini error:', error.message?.substring(0, 300));
     return null;
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INTELLIGENT CONVERSATION ENGINE — Feels like real AI
+   SMART FALLBACK — When Gemini API is not available
    ═══════════════════════════════════════════════════════════════ */
-
-const greetings = [
-  (n) => `Hey${n ? ' ' + n : ''}! 👋 Kaise ho? Main hoon MeraRaasta AI — tera career bestie! 😎\n\nMujhse pooch sakte ho:\n🎯 Career ke baare mein\n📚 Padhai ke tips\n💼 Resume aur Interview\n🧠 Skills kaise badhayein\n\nYa bas aise hi baat karo, main hoon na! 😄`,
-  (n) => `Hi${n ? ' ' + n : ''}! 🙏 Welcome back!\n\nMain tera AI career coach hoon. Bata kya jaanna hai?\n\n🎯 Career options\n📚 College & courses\n💼 Job preparation\n🧠 Skill development\n\nYa kuch bhi pooch — main help karunga! 💪`,
-  (n) => `Hello${n ? ' ' + n : ''}! 😊\n\nKya haal hai? Main MeraRaasta AI hoon.\n\nCareer ho, padhai ho, ya kuch bhi — main yahan hoon teri help ke liye!\n\nBata kya poochna hai? 🤔`,
-];
-
-const nameResponses = [
-  (n) => `Mera naam hai **MeraRaasta AI**! 🤖\n\nMain ek AI career counselor hoon — tera dost, guide, aur mentor sab ek saath!\n\n${n ? `Aur tu ${n} hai na? Mujhe pata hai! ` : ''}Bata, kya poochna hai? 😊`,
-  (n) => `Main **MeraRaasta AI** hoon! 🎯\n\nLog mujhe "Career Coach" bhi kehte hain.\n\n${n ? `${n}, ` : ''}main tere career ke sawalon ka jawab deta hoon — aur haan, main Hindi, English, aur Hinglish sab samajhta hoon! 😄`,
-  (n) => `Mera naam **MeraRaasta AI** hai! 🙏\n\nMain ek artificial intelligence hoon jo specially Indian students ke liye banaaya gaya hai.\n\n${n ? `Aur ${n} — tera naam toh mujhe already pata hai! ` : ''}Chal, kuch interesting pooch! 🚀`,
-];
-
-const selfIntro = [
-  `Main **MeraRaasta AI** hoon! 🤖✨\n\nMain kya hoon:\n• Ek AI-powered career counselor\n• Indian students ke liye specially banaaya gaya\n• Hindi, English, Hinglish — sab mein baat karta hoon\n\nMain kya kar sakta hoon:\n🎯 Career guidance — konsa stream, konsa college\n📚 Study tips — JEE, NEET, Board exams\n💼 Resume & Interview — job lagane mein madad\n🧠 Skills — kya seekhein, kaise seekhein\n🗺️ Roadmap — step-by-step career plan\n\nAur haan, main free hoon! 😄 Kuch bhi pooch!`,
-  `Hey! Main **MeraRaasta AI** hoon! 🎯\n\nMujhe banaya gaya hai Indian students ki career guidance ke liye.\n\nMere paas hai:\n✅ Career advice (IIT, NIT, Medical, Govt jobs)\n✅ Study tips aur exam strategies\n✅ Resume writing tips\n✅ Interview preparation\n✅ Skill development plans\n\nAur sabse achhi baat — main Hindi, English, ya Hinglish mein jawab deta hoon!\n\nChal, kuch pooch! 💪`,
-];
-
-const codeResponses = {
-  java: `Yeh lo Java ka Hello World program! ☕\n\n\`\`\`java\npublic class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}\n\`\`\`\n\n**Kaise kaam karta hai:**\n1. \`public class HelloWorld\` — ek class banaaya\n2. \`public static void main(String[] args)\` — main method (program yahan se start hota hai)\n3. \`System.out.println("Hello, World!")\` — screen pe print karta hai\n\n**Kaise chalayein:**\n1. File save karo \`HelloWorld.java\` naam se\n2. Terminal mein: \`javac HelloWorld.java\` (compile)\n3. Phir: \`java HelloWorld\` (run)\n\nAur kuch seekhna hai Java mein? 🚀`,
-
-  python: `Yeh lo Python ka Hello World! 🐍\n\n\`\`\`python\nprint("Hello, World!")\n\`\`\`\n\nBas! Ek line mein ho gaya! 😄\n\nPython itna easy hai na — isliye beginners ke liye best hai.\n\n**Kaise chalayein:**\n1. File save karo \`hello.py\` naam se\n2. Terminal mein: \`python hello.py\`\n\nPython seekho — Data Science, AI, Web Development sab mein kaam aata hai! 💪`,
-
-  javascript: `Yeh lo JavaScript ka Hello World! 🌐\n\n\`\`\`javascript\nconsole.log("Hello, World!");\n\`\`\`\n\nBrowser console mein ya Node.js mein chala sakte ho.\n\n**Browser mein:**\n1. Right click → Inspect → Console\n2. Yeh code paste karo\n\n**Node.js mein:**\n1. File save karo \`hello.js\`\n2. Terminal: \`node hello.js\`\n\nJavaScript seekho — Web Development, React, Node.js sab mein use hota hai! 🚀`,
-
-  c: `Yeh lo C language ka Hello World! 💾\n\n\`\`\`c\n#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}\n\`\`\`\n\n**Kaise kaam karta hai:**\n1. \`#include <stdio.h>\` — standard input/output library\n2. \`printf()\` — screen pe print karta hai\n3. \`return 0\` — program successfully结束\n\nC language foundation hai — isse seekh ke C++, Java, Python sab easy hoga! 💪`,
-};
 
 function detectTopic(msg) {
   const l = msg.toLowerCase().trim();
 
-  // Name / Identity — check FIRST (specific)
-  if (l.match(/\b(tera naam|tumhara naam|your name|naam kya|who are you|kaun ho|kya ho tum|tu kaun|name batao|apna naam)\b/)) return 'name';
-  if (l.match(/\b(my name is|mera naam|main .* hoon|I am |I'm )\b/)) return 'myname';
+  // Code requests — FIRST priority
+  if (l.match(/\b(code|program|likh|print|coding|developer|debug|error|compile|run)\b/) && l.match(/\b(java|python|javascript|js|c\+\+|c language|php|ruby|swift|kotlin|html|css|sql|react|node|angular|vue|dart|flutter|rust|go|golang|swift)\b/)) return 'code';
+  if (l.match(/\b(hello world|first code|pehla code|basic code|start.*code|sample code|example code|demo code)\b/)) return 'code_generic';
+  if (l.match(/\b(code|program|likh kar de|bana ke de|write.*code|coding.*help|code.*help|code.*banao|program.*banao)\b/)) return 'code_generic';
 
-  // Code requests — check BEFORE greeting (because "hello world" starts with "hello")
-  if (l.match(/\b(code|program|likh|print|coding)\b/) && l.match(/\b(java|python|javascript|js|c\+\+|c language|php|ruby|swift|kotlin)\b/)) return 'code';
-  if (l.match(/\b(hello world|hello.*world|first code|pehla code|basic code|start.*code)\b/)) return 'code_generic';
-  if (l.match(/\b(code|program|likh kar de|bana ke de|write.*code|coding.*help|code.*help)\b/)) return 'code_generic';
-
-  // Learning requests — "java seekni hai", "python seekhna hai", "coding kaise seekhe"
-  if (l.match(/\b(java|python|javascript|js|c\+\+|c language|php|ruby|swift|kotlin|coding|programming|web development|data science|ai|machine learning)\b.*\b(seekh|seekni|seekna|seekhna|seekhe|seekhunga|sikhna|sikh|learn|kaise|kaise milega|kahan se|where|how)\b/)) return 'skill';
+  // Learning requests — "java seekni hai", "python seekhna hai"
+  if (l.match(/\b(java|python|javascript|js|c\+\+|c language|coding|programming|web development|data science|ai|machine learning|react|node|angular)\b.*\b(seekh|seekni|seekna|seekhna|seekhe|seekhunga|sikhna|sikh|learn|kaise|kahan se|where|how)\b/)) return 'skill';
   if (l.match(/\b(seekh|seekni|seekna|seekhna|seekhe|seekhunga|sikhna|sikh|learn)\b.*\b(java|python|javascript|js|c\+\+|c language|coding|programming|web development|data science|ai|machine learning)\b/)) return 'skill';
   if (l.match(/\b(kya seekhu|kya seekhe|kaise seekhe|what to learn|konsa course|which course|course batao|course suggest)\b/)) return 'skill';
 
-  // Greeting — only if message is SHORT and starts with greeting word (no other specific keywords)
+  // Name / Identity
+  if (l.match(/\b(tera naam|tumhara naam|your name|naam kya|who are you|kaun ho|kya ho tum|tu kaun|name batao|apna naam)\b/)) return 'name';
+  if (l.match(/\b(my name is|mera naam)\b/)) return 'myname';
+
+  // Greeting — only SHORT messages
   if (l.match(/^(hi|hello|hey|namaste|नमस्ते|namaskar|sup|yo|helloji|heyji)\b/) && l.length < 30) return 'greeting';
   if (l.match(/^(good morning|good evening|good night|good afternoon)\b/)) return 'greeting';
 
@@ -162,55 +141,61 @@ function detectTopic(msg) {
   if (l.match(/\b(kaise ho|kaisa hai|kya haal|how are you|how.*you|what.*up|kya chal raha)\b/)) return 'howareyou';
 
   // Career
-  if (l.match(/\b(career|करियर|job|नौकरी|profession|क्षेत्र|field|become|बनना|after 12th|12th ke baad|after 10th|10th ke baad|what should i|kya karna|kya karun|best career|future|مستقبل)\b/)) return 'career';
+  if (l.match(/\b(career|करियर|job|नौकरी|profession|क्षेत्र|field|become|बनना|after 12th|12th ke baad|after 10th|10th ke baad|what should i|kya karna|kya karun|best career|future)\b/)) return 'career';
 
   // Skills
-  if (l.match(/\b(skill|कौशल|learn|सीख|course|कोर्स|coding|programming|python|javascript|tech|तकनीक|certification|seekhna|kaise seekhe|kya seekhu)\b/)) return 'skill';
+  if (l.match(/\b(skill|कौशल|learn|सीख|course|कोर्स|tech|तकनीक|certification)\b/)) return 'skill';
 
   // Resume
-  if (l.match(/\b(resume|cv|बायोडाटा|portfolio|biodata|resume.*banao|resume.*tips)\b/)) return 'resume';
+  if (l.match(/\b(resume|cv|बायोडाटा|portfolio|biodata)\b/)) return 'resume';
 
   // Interview
-  if (l.match(/\b(interview|इंटरव्यू|placement|नौकरी मिले|job interview|how to prepare|interview.*tips|interview.*prepare)\b/)) return 'interview';
+  if (l.match(/\b(interview|इंटरव्यू|placement|job interview)\b/)) return 'interview';
 
-  // Study
-  if (l.match(/\b(study|पढ़|exam|परीक्षा|test|quiz|padhai|padhaai|पढ़ाई|jee|neet|upsc|board|cbse|icse|padhna|kaise padhe)\b/)) return 'study';
+  // Study / Exam
+  if (l.match(/\b(study|पढ़|exam|परीक्षा|padhai|padhaai|पढ़ाई|jee|neet|upsc|board|cbse|icse|padhna|kaise padhe|maths|math|science|physics|chemistry|biology|history|geography|english|hindi)\b/)) return 'study';
 
   // College
-  if (l.match(/\b(college|कॉलेज|university|विश्वविद्यालय|iit|nit|aiims|bits|admission|admission.*kaise|college.*konsa)\b/)) return 'college';
+  if (l.match(/\b(college|कॉलेज|university|iit|nit|aiims|bits|admission)\b/)) return 'college';
 
   // Government jobs
-  if (l.match(/\b(government job|govt job|sarkari naukri|सरकारी नौकरी|ssc|upsc|banking|ibps|rrb|railway)\b/)) return 'govtjob';
+  if (l.match(/\b(government job|govt job|sarkari naukri|ssc|upsc|banking|ibps|rrb|railway)\b/)) return 'govtjob';
 
   // Salary
-  if (l.match(/\b(salary|पैसा|income|कमाई|paisa|paise|kitna kamata|earn|earning|lpa|package)\b/)) return 'salary';
+  if (l.match(/\b(salary|पैसा|income|कमाई|paisa|paise|kitna kamata|earn|lpa|package)\b/)) return 'salary';
 
   // Motivation
-  if (l.match(/\b(motivation|मोटिवेशन|inspire|प्रेरित|confused|परेशान|demotivated|thak|haar|surrender|give up|nahi ho raha|kuch nahi hota|loser)\b/)) return 'motivation';
+  if (l.match(/\b(motivation|confused|demotivated|thak|haar|give up|nahi ho raha|loser|stress|tension|pareshan)\b/)) return 'motivation';
 
   // Thanks
   if (l.match(/\b(thanks|thank you|shukriya|धन्यवाद|bahut achha|great|awesome|amazing|perfect|best|wah|zabardast)\b/)) return 'thanks';
 
-  // Age / Personal
-  if (l.match(/\b(age|umr|kitne saal|how old|birthday|janamdin)\b/)) return 'age';
+  // Age
+  if (l.match(/\b(age|umr|kitne saal|how old|birthday)\b/)) return 'age';
 
-  // Joke / Fun
+  // Joke
   if (l.match(/\b(joke|mazak|hasaao|funny|comedy|humor|mazaak)\b/)) return 'joke';
 
-  // Weather / Time
-  if (l.match(/\b(weather|mausam|time|samay|kitne baje|date|din)\b/)) return 'datetime';
+  // Time
+  if (l.match(/\b(time|samay|kitne baje|date|din|aaj|kal|aaj ka)\b/)) return 'datetime';
 
-  // Diet / Health
-  if (l.match(/\b(diet|health|fitness|exercise|workout|yoga|food|khana|pet)\b/)) return 'health';
+  // Health
+  if (l.match(/\b(diet|health|fitness|exercise|workout|yoga|food|khana)\b/)) return 'health';
 
-  // Relationship / Love
-  if (l.match(/\b(love|relationship|gf|bf|crush|pyaar|ishq|date|romantic)\b/)) return 'love';
+  // Love
+  if (l.match(/\b(love|relationship|gf|bf|crush|pyaar|ishq|romantic)\b/)) return 'love';
 
-  // Money / Scholarship
-  if (l.match(/\b(scholarship|छात्रवृत्ति|fee|fees|paisa|loan|education loan|financial)\b/)) return 'scholarship';
+  // Scholarship
+  if (l.match(/\b(scholarship|छात्रवृत्ति|fee|fees|loan|education loan)\b/)) return 'scholarship';
 
-  // Frustrated / Complaints
-  if (l.match(/\b(ulta pulta|galat|wrong|kya bata raha|kya bol raha|nahi samajh|nonsense|bakwas|faltu|bekar)\b/)) return 'frustrated';
+  // Math
+  if (l.match(/\b(math|maths|calculate|calculate.*karo|formula|equation|solve|jod|guna|bhag|plus|minus|multiply|divide|square|cube|root|triangle|circle|area|perimeter)\b/)) return 'math';
+
+  // Science
+  if (l.match(/\b(science|physics|chemistry|biology|gravity|force|energy|atom|molecule|cell|dna|planet|solar|universe)\b/)) return 'science';
+
+  // Frustrated
+  if (l.match(/\b(ulta pulta|galat|wrong|kya bata raha|nahi samajh|nonsense|bakwas|faltu|bekar)\b/)) return 'frustrated';
 
   return 'default';
 }
@@ -221,9 +206,7 @@ function getSmartFallback(message, profile, lang) {
   const level = profile?.educationLevel || '';
   const topic = detectTopic(message);
 
-  if (lang === 'hi') {
-    return getHindiResponse(topic, name, interests, level, message);
-  }
+  if (lang === 'hi') return getHindiResponse(topic, name, interests, level, message);
   return getEnglishResponse(topic, name, interests, level, message);
 }
 
@@ -231,49 +214,93 @@ function getEnglishResponse(topic, name, interests, level, message) {
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
   switch (topic) {
-    case 'greeting': return pick(greetings)(name);
-    case 'name': return pick(nameResponses)(name);
-    case 'myname': {
-      const n = message.replace(/.*(?:my name is|i am|i'm)\s*/i, '').trim();
-      return n
-        ? `Hey ${n}! 🎉 Nice to meet you!\n\nI'm MeraRaasta AI — your personal career coach.\n\n${name ? `I already know you're ${name}! ` : ''}Tell me ${n}, what are you studying right now? I can suggest the best career path for you! 🚀`
-        : pick(selfIntro);
-    }
-    case 'howareyou': return pick([
-      `I'm doing great! 😄 Thanks for asking!\n\nMain hamesha ready hoon teri help ke liye.\n\nTu bata — kya chal raha hai life mein? Koi career confusion hai kya? 🤔`,
-      `Awesome! 🎉 Main bilkul fit hoon — teri help ke liye hamesha ready!\n\nTu bata, kaise hai? Kuch poochna hai kya? 💪`,
-      `Sab badhiya hai! 😊\n\nMain tera AI career coach hoon — hamesha online, hamesha ready!\n\nBata kya haal hai? Koi exam aa raha hai kya? 📚`,
-    ]);
     case 'code': {
-      const lang_match = message.match(/java|python|javascript|js|c\+\+|c language|php|ruby|swift|kotlin/i);
-      const lang_name = lang_match ? lang_match[0].toLowerCase() : 'java';
-      if (lang_name === 'javascript' || lang_name === 'js') return codeResponses.javascript;
-      if (lang_name === 'python') return codeResponses.python;
-      if (lang_name === 'c' || lang_name === 'c language' || lang_name === 'c++') return codeResponses.c;
-      return codeResponses.java;
+      const msg = message.toLowerCase();
+      if (msg.match(/java/)) return `Here's Java Hello World! ☕\n\n\`\`\`java\npublic class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}\n\`\`\`\n\n**How it works:**\n1. \`public class HelloWorld\` — creates a class\n2. \`public static void main(String[] args)\` — entry point\n3. \`System.out.println()\` — prints to screen\n\n**To run:**\n1. Save as \`HelloWorld.java\`\n2. Compile: \`javac HelloWorld.java\`\n3. Run: \`java HelloWorld\`\n\nNeed more code? Just ask! 🚀`;
+      if (msg.match(/python/)) return `Python Hello World! 🐍\n\n\`\`\`python\nprint("Hello, World!")\n\`\`\`\n\nThat's it — one line! Python is the easiest language.\n\n**To run:**\n1. Save as \`hello.py\`\n2. Run: \`python hello.py\`\n\nNeed more? Ask me for any Python code! 💪`;
+      if (msg.match(/javascript|js/)) return `JavaScript Hello World! 🌐\n\n\`\`\`javascript\nconsole.log("Hello, World!");\n\`\`\`\n\n**In Browser:**\n1. Right click → Inspect → Console\n2. Paste this code\n\n**With Node.js:**\n1. Save as \`hello.js\`\n2. Run: \`node hello.js\`\n\nNeed more? Just ask! 🚀`;
+      if (msg.match(/c\+\+|cpp/)) return `C++ Hello World! 💾\n\n\`\`\`cpp\n#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}\n\`\`\`\n\n**To run:**\n1. Save as \`hello.cpp\`\n2. Compile: \`g++ hello.cpp -o hello\`\n3. Run: \`./hello\``;
+      if (msg.match(/html/)) return `HTML Hello World! 🌐\n\n\`\`\`html\n<!DOCTYPE html>\n<html>\n<head>\n    <title>My Page</title>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n</body>\n</html>\n\`\`\`\n\nSave as \`index.html\` and open in browser! 🚀`;
+      if (msg.match(/sql/)) return `SQL Hello World! 🗄️\n\n\`\`\`sql\nSELECT 'Hello, World!';\n\`\`\`\n\nOr create a table:\n\`\`\`sql\nCREATE TABLE students (\n    id INT PRIMARY KEY,\n    name VARCHAR(100)\n);\nINSERT INTO students VALUES (1, 'Hello World');\nSELECT * FROM students;\n\`\`\``;
+      return `Sure! Which language? ☕🐍🌐\n\n• **Java** — Enterprise apps\n• **Python** — AI, Data Science\n• **JavaScript** — Web Development\n• **C/C++** — Systems programming\n• **HTML/CSS** — Web pages\n• **SQL** — Databases\n\nJust tell me the language and what you want to build! 💻`;
     }
     case 'code_generic': return pick([
-      `Sure! Kaun si language mein code chahiye? 🤔\n\nMain ye sab likh sakta hoon:\n☕ **Java** — "Hello World" ya kuch bhi\n🐍 **Python** — Simple aur powerful\n🌐 **JavaScript** — Web development ke liye\n💾 **C/C++** — Foundation language\n\nBas bata kaun si language! 💻`,
-      `Haan bilkul! 🚀\n\nMujhe bata:\n1. Kaun si language? (Java, Python, JavaScript, C)\n2. Kya karna hai? (Hello World, Calculator, Game, etc.)\n\nMain turant code likh ke dunga! 💪`,
-    ]);
-    case 'career': return pick([
-      `Great question! 🎯\n\n${level ? `Since you're at ${level} level, ` : ''}here are the hottest careers in India (2025-26):\n\n🔥 **High Salary (₹8-30 LPA):**\n1. AI/ML Engineer\n2. Full Stack Developer\n3. Data Scientist\n4. Cloud Architect\n5. Cyber Security Expert\n\n💼 **Stable & Respectable:**\n1. Doctor (MBBS)\n2. IAS/IPS (UPSC)\n3. Bank PO (IBPS)\n4. Chartered Accountant\n\n${interests.length ? `Since you're interested in ${interests.join(', ')}, I'd suggest exploring that area first!` : 'Which field excites you the most?'}`,
-      `Yeh dekho — 2025-26 mein sabse zyada demand: 🎯\n\n**Tech (₹6-30 LPA):**\n• AI/ML Engineer — Sabse zyada demand\n• Web Developer — Har company ko chahiye\n• Data Analyst — Growing fast\n\n**Non-Tech (₹4-15 LPA):**\n• Digital Marketing — Creative + Good salary\n• Product Management — Leadership role\n• UX Design — Design lovers ke liye\n\n**Government:**\n• UPSC — IAS/IPS\n• Banking — PO, Clerk\n• SSC — CGL, CHSL\n\nKonsa field interesting lagta hai? 🤔`,
+      `Sure! Which language? 🤔\n\n☕ Java | 🐍 Python | 🌐 JavaScript | 💾 C++ | 🌐 HTML | 🗄️ SQL\n\nTell me:\n1. Which language?\n2. What to build?\n\nI'll write the code! 💻`,
+      `Let's code! 🚀\n\nTell me:\n1. **Language** — Java, Python, JS, C++, etc.\n2. **What** — Hello World, Calculator, Game, etc.\n\nI'll write it for you! 💪`,
     ]);
     case 'skill': {
       const msg = message.toLowerCase();
-      if (msg.match(/java/)) return `Java seekhna hai? Best choice! ☕\n\n**Java Learning Roadmap:**\n\n**Step 1: Basics (2 weeks)**\n• Variables, Data Types, Operators\n• if-else, Loops (for, while)\n• Arrays, Strings\n\n**Step 2: OOP (2 weeks)**\n• Classes, Objects\n• Inheritance, Polymorphism\n• Abstraction, Encapsulation\n\n**Step 3: Advanced (1 month)**\n• Collections (ArrayList, HashMap)\n• Exception Handling\n• File I/O\n• JDBC (Database connectivity)\n\n**Free Resources:**\n📚 Apna College (YouTube) — Best Hindi Java course\n📚 W3Schools — Quick reference\n📚 LeetCode — Practice problems\n\n**Project Ideas:**\n1. Calculator App\n2. Student Management System\n3. Bank Account Simulation\n\nRoz 1-2 ghanta practice kar — 3 months mein Java master! 💪`;
-      if (msg.match(/python/)) return `Python seekhna hai? Sabse easy aur powerful! 🐍\n\n**Python Learning Roadmap:**\n\n**Step 1: Basics (1 week)**\n• Variables, Strings, Lists\n• if-else, Loops\n• Functions\n\n**Step 2: Intermediate (2 weeks)**\n• Dictionary, Sets\n• File Handling\n• Error Handling\n• OOP (Classes, Objects)\n\n**Step 3: Projects (1 month)**\n• Web Scraping (BeautifulSoup)\n• Automation scripts\n• Data Analysis (Pandas)\n\n**Free Resources:**\n📚 Apna College (YouTube)\n📚 Kaggle Learn\n📚 Automate the Boring Stuff (book)\n\nPython = Data Science + AI + Web Dev + Automation! 🚀`;
-      if (msg.match(/javascript|js/)) return `JavaScript seekhna hai? Web ka king! 🌐\n\n**JavaScript Roadmap:**\n\n**Step 1: Basics (2 weeks)**\n• Variables (let, const)\n• Functions, Arrays, Objects\n• DOM Manipulation\n\n**Step 2: Modern JS (2 weeks)**\n• ES6+ (Arrow functions, Destructuring)\n• Promises, Async/Await\n• Fetch API\n\n**Step 3: Framework (1 month)**\n• React.js — Frontend\n• Node.js — Backend\n• Express.js — Server\n\n**Free Resources:**\n📚 JavaScript.info — Best tutorial\n📚 FreeCodeCamp — Interactive\n📚 Traversy Media (YouTube)\n\nJavaScript = Frontend + Backend + Mobile Apps! 🚀`;
-      return `Skills seekho — salary badhegi! 🧠\n\n**Top Skills 2025-26:**\n\n💻 **Tech (High Salary):**\n1. Python — AI/Data Science\n2. JavaScript/React — Web Dev\n3. SQL — Har data job\n4. Cloud (AWS) — ₹10-30 LPA\n\n🤝 **Soft Skills:**\n1. English Communication\n2. Problem Solving\n3. Presentation\n\n📝 **Action Plan:**\n1. Ek skill choose karo\n2. YouTube/NPTEL se seekho\n3. 1 ghanta daily practice\n4. Project banao\n\nKya specific skill seekhni hai? Java, Python, ya kuch aur? 🚀`;
+      if (msg.match(/java/)) return `Java Learning Roadmap! ☕\n\n**Week 1-2: Basics**\n• Variables, Data Types\n• if-else, Loops\n• Arrays, Strings\n\n**Week 3-4: OOP**\n• Classes, Objects\n• Inheritance, Polymorphism\n\n**Month 2: Advanced**\n• Collections (ArrayList, HashMap)\n• Exception Handling\n• File I/O\n\n**Resources:**\n📚 Apna College (YouTube)\n📚 W3Schools\n📚 LeetCode (practice)\n\nRoz 1-2 ghanta = 3 months mein master! 💪`;
+      if (msg.match(/python/)) return `Python Learning Roadmap! 🐍\n\n**Week 1: Basics**\n• Variables, Lists, Dicts\n• if-else, Loops, Functions\n\n**Week 2-3: Intermediate**\n• File Handling, OOP\n• Error Handling\n\n**Month 2: Projects**\n• Web Scraping\n• Automation\n• Data Analysis (Pandas)\n\n**Resources:**\n📚 Apna College (YouTube)\n📚 Kaggle Learn\n📚 Automate the Boring Stuff\n\nPython = Data Science + AI + Web Dev! 🚀`;
+      if (msg.match(/javascript|js/)) return `JavaScript Learning Roadmap! 🌐\n\n**Week 1-2: Basics**\n• Variables, Functions\n• DOM Manipulation\n\n**Week 3-4: Modern JS**\n• ES6+, Async/Await\n• Fetch API\n\n**Month 2: Framework**\n• React.js (Frontend)\n• Node.js (Backend)\n\n**Resources:**\n📚 JavaScript.info\n📚 FreeCodeCamp\n📚 Traversy Media (YouTube)\n\nJS = Frontend + Backend + Mobile! 🚀`;
+      return `Skills that pay! 🧠\n\n**💻 Tech:**\n1. Python — AI/Data Science\n2. JavaScript/React — Web Dev\n3. SQL — Databases\n4. Cloud (AWS) — ₹10-30 LPA\n\n**🤝 Soft:**\n1. English Communication\n2. Problem Solving\n3. Leadership\n\nWhich skill interests you? 🚀`;
     }
-    case 'frustrated': return pick([
-      `Arre, sorry! 😅 Kya galat bata raha tha?\n\nBata clearly — main ab sahi jawab deta hoon!\n\n🎯 Career, 📚 Padhai, 💼 Resume, 🧠 Skills, 📝 Code — kya chahiye?\n\nBas ek word mein bata — main fix karunga! 💪`,
-      `Maafi chahta hoon! 🙏\n\nLagta hai main galat samajh gaya.\n\nTu bata clearly — kya poochna hai?\n• "Java ka code de"\n• "Resume kaise banaun"\n• "12th ke baad kya karun"\n\nBas ye likh de — main sahi answer dunga! 😊`,
+    case 'math': {
+      const msg = message.toLowerCase();
+      if (msg.match(/(\d+)\s*(plus|\+)\s*(\d+)/)) {
+        const nums = msg.match(/(\d+)\s*(plus|\+)\s*(\d+)/);
+        return `${nums[1]} + ${nums[2]} = **${parseInt(nums[1]) + parseInt(nums[3])}** 🧮`;
+      }
+      if (msg.match(/(\d+)\s*(minus|-)\s*(\d+)/)) {
+        const nums = msg.match(/(\d+)\s*(minus|-)\s*(\d+)/);
+        return `${nums[1]} - ${nums[3]} = **${parseInt(nums[1]) - parseInt(nums[3])}** 🧮`;
+      }
+      if (msg.match(/(\d+)\s*(x|times|\*)\s*(\d+)/)) {
+        const nums = msg.match(/(\d+)\s*(x|times|\*)\s*(\d+)/);
+        return `${nums[1]} × ${nums[3]} = **${parseInt(nums[1]) * parseInt(nums[3])}** 🧮`;
+      }
+      if (msg.match(/(\d+)\s*(\/|divided?)\s*(\d+)/)) {
+        const nums = msg.match(/(\d+)\s*(\/|divided?)\s*(\d+)/);
+        return `${nums[1]} ÷ ${nums[3]} = **${(parseInt(nums[1]) / parseInt(nums[3])).toFixed(2)}** 🧮`;
+      }
+      return `Math help! 🧮\n\nI can solve:\n• Addition: "5 + 3"\n• Subtraction: "10 - 4"\n• Multiplication: "6 x 7"\n• Division: "20 / 4"\n\nOr ask me any math concept — algebra, geometry, calculus, trigonometry!\n\nWhat do you want to solve? 📐`;
+    }
+    case 'science': {
+      const msg = message.toLowerCase();
+      if (msg.match(/gravity|gravitational/)) return `**Gravity** 🍎\n\nGravity is the force that attracts objects toward each other.\n\n**Key Facts:**\n• Earth's gravity = 9.8 m/s²\n• Discovered by Isaac Newton (1687)\n• Formula: F = G(m₁m₂)/r²\n• Moon's gravity = 1.62 m/s² (6x less than Earth)\n\n**Why we don't fly off:**\nGravity keeps us grounded. Without it, we'd float into space!\n\nWant to know more about physics? 🚀`;
+      if (msg.match(/atom|atomic/)) return `**Atoms** ⚛️\n\nEverything is made of atoms!\n\n**Structure:**\n• **Nucleus** — Protons (+) + Neutrons (0)\n• **Electrons** (-) — Orbit around nucleus\n\n**Size:**\n• Atom = 0.1 nanometer\n• If atom = stadium, nucleus = marble in center\n\n**Fun Facts:**\n• 1 drop of water = 1.67 × 10²¹ atoms\n• You are 99.9999% empty space!\n\nWant to learn more about chemistry? 🧪`;
+      return `Science is amazing! 🔬\n\n**I can help with:**\n• **Physics** — Gravity, Force, Energy, Motion\n• **Chemistry** — Atoms, Elements, Reactions\n• **Biology** — Cells, DNA, Human Body\n• **Space** — Planets, Stars, Universe\n\nAsk me anything! Like:\n• "What is gravity?"\n• "How do atoms work?"\n• "Explain photosynthesis"\n\nWhat interests you? 🌟`;
+    }
+    case 'greeting': return pick([
+      (n) => `Hey${n ? ' ' + n : ''}! 👋 Kaise ho?\n\nMain hoon MeraRaasta AI — tera personal assistant!\n\nMujhse kuchh bhi pooch sakte ho:\n🎯 Career & Education\n💻 Coding & Technology\n📚 General Knowledge\n🧮 Math & Science\n🗣️ Language Translation\n😄 Fun & Jokes\n\nBas puchho! 😊`,
+    ])(name);
+    case 'name': return `I'm **MeraRaasta AI**! 🤖\n\nI'm like Google Gemini — I can answer ANY question on ANY topic!\n\nTry asking me:\n• "Write Java code for calculator"\n• "What is gravity?"\n• "5 + 3 = ?"\n• "How to prepare for JEE?"\n• "Tell me a joke"\n\nI respond in Hindi, English, or Hinglish! 😊`;
+    case 'myname': {
+      const n = message.replace(/.*(?:my name is|mera naam)\s*/i, '').trim();
+      return n ? `Hey ${n}! 🎉 Nice to meet you!\n\nI'm MeraRaasta AI — ask me anything! 💪` : `Tell me your name! 😊`;
+    }
+    case 'howareyou': return pick([
+      `I'm great! 😄 Thanks for asking!\n\nI'm always ready to help you.\n\nTu bata — kya chal raha hai? Kuchh poochna hai? 🤔`,
+      `Awesome! 🎉 Main bilkul fit hoon!\n\nTu bata — kya haal hai? 🚀`,
     ]);
+    case 'career': return pick([
+      `Career options in India (2025-26): 🎯\n\n**🔥 Tech (₹8-30 LPA):**\n1. AI/ML Engineer\n2. Full Stack Developer\n3. Data Scientist\n4. Cloud Architect\n\n**💼 Stable:**\n1. Doctor (MBBS)\n2. IAS/IPS (UPSC)\n3. Bank PO\n4. CA\n\n${interests.length ? `Your interests: ${interests.join(', ')} — explore these!` : 'Which field interests you?'}`,
+    ]);
+    case 'resume': return `Resume Formula! 📄\n\n1. **Header** — Name | Phone | Email | LinkedIn\n2. **Objective** — 2 lines\n3. **Education** — Degree, College, CGPA\n4. **Skills** — Technical + Tools\n5. **Projects** — With numbers!\n\n✅ "Increased efficiency by 30%"\n❌ "Hard working" (everyone writes this)\n\nFreshers = 1 page. Want me to review yours? ✍️`;
+    case 'interview': return `Interview Guide! 🎤\n\n**Before:**\n✅ Research company\n✅ "Tell me about yourself" (2 min story)\n✅ STAR method examples\n\n**During:**\n✅ Smile, eye contact\n✅ Be honest\n✅ Ask questions back\n\n**After:**\n✅ Thank you email\n\nConfidence is key! 💪`;
+    case 'study': return `Study Smart! 📖\n\n**Pomodoro:**\n1. 25 min study → 5 min break\n2. Repeat 4 times → 20 min break\n\n**Memory Tips:**\n🧠 Spaced Repetition\n📝 Active Recall\n👨‍🏫 Teach someone\n\n**Free Resources:**\n📚 NPTEL (IIT courses)\n📚 Khan Academy\n📚 YouTube\n\nWhat are you studying? 📚`;
+    case 'college': return `Top Colleges in India! 🎓\n\n**Engineering:**\nIITs > NITs > BITS > VIT\n\n**Medical:**\nAIIMS > JIPMER > State Colleges\n\n**Commerce:**\nSRCC > St. Xavier's > Christ\n\nWhich exam are you targeting? 🤔`;
+    case 'govtjob': return `Govt Jobs Guide! 🏛️\n\n**Top Exams:**\n1. UPSC — IAS/IPS (₹56K+ starting)\n2. SSC CGL — Group B (₹44K+)\n3. IBPS PO — Bank Officer (₹36K+)\n4. RRB — Railway\n\nWhich exam? 🎯`;
+    case 'salary': return `Salary Guide! 💰\n\n**Tech:**\n💻 Developer: ₹4-12 LPA\n🤖 AI Engineer: ₹8-25 LPA\n📊 Data Scientist: ₹6-18 LPA\n\n**Govt:**\n🏛️ Bank PO: ₹36K/month\n🏛️ IAS: ₹56K/month\n\nSkills = Salary! 🚀`;
+    case 'motivation': return pick([
+      `Hey! 🫂\n\nYe normal hai. Har successful insaan ne struggle kiya hai.\n\n**Aaj se:**\n1. Chhota goal set karo\n2. 1 ghanta productive karo\n3. Kal repeat karo\n\nTu kar sakta hai! 💪 Kya problem hai?`,
+      `Ruk! 🛑\n\n• Steve Jobs — College chhoda → Apple\n• SRK — Garib the → King of Bollywood\n• APJ Kalam — Garib the → President\n\nTu young hai, tools hai, internet hai — SAB hai!\n\nChhota start kar! 🚀`,
+    ]);
+    case 'thanks': return `You're welcome! 😊\n\nAur kuchh poochna ho toh bata! 🚀`;
+    case 'age': return `I'm an AI — no age! 😄\n\nAlways young, always ready to help! 🤖✨`;
+    case 'joke': return pick([
+      `😂 Why do programmers prefer dark mode?\n\nBecause light attracts bugs! 🐛😄`,
+      `😂 Student: "Sir, can I ask a question?"\nTeacher: "Yes."\nStudent: "Can I go to washroom?"\nTeacher: "No."\nStudent: "Then I have TWO questions!"`,
+      `😂 Why did the student eat his homework?\n\nBecause the teacher said it was a piece of cake! 🍰😄`,
+    ]);
+    case 'datetime': return `I'm an AI — time doesn't apply to me! 😄\n\nI'm online 24/7. What do you need help with? 💪`;
+    case 'health': return `Health Tips! 💪\n\n🏃 30 min daily walk\n🥗 Eat fruits & vegetables\n😴 Sleep 7-8 hours\n💧 Drink 3-4 litres water\n🧘 10 min meditation\n\nHealth = Wealth! 🏃‍♂️`;
+    case 'love': return `Love! ❤️\n\n**Rule:** Career first, love follows! 🎯\n\nWhen you're stable, everything falls into place.\n\nFocus on your goals right now! 💪`;
+    case 'scholarship': return `Scholarships! 🎓\n\n**Top Ones:**\n1. INSPIRE — ₹80K/year\n2. NMMS — ₹12K/year\n3. AICTE — ₹50K/year\n\nApply at: scholarship.gov.in\n\nEligible ho? Bata class/category! 📋`;
+    case 'frustrated': return `Sorry! 😅\n\nBata clearly — main sahi answer deta hoon!\n\nMain kuchh bhi kar sakta hoon:\n💻 Code likh sakta hoon\n📚 Padha sakta hoon\n🎯 Career guide kar sakta hoon\n🧮 Math solve kar sakta hoon\n😄 Jokes suna sakta hoon\n\nBas ek line mein likh! 💪`;
     default: return pick([
-      `Interesting question! 🤔\n\nMain MeraRaasta AI hoon — career guidance ke liye banaaya gaya hoon.\n\n**Main kya kar sakta hoon:**\n🎯 Career planning — konsa stream, konsa college\n📚 Study tips — JEE, NEET, Board exams\n💼 Resume & Interview — job lagane mein madad\n🧠 Skills — kya seekhein, kaise seekhein\n🗺️ Roadmap — step-by-step career plan\n💰 Salary info — kitna kama sakte ho\n📝 Code — Java, Python, JavaScript\n\nBas mujhse pucho! Main help karunga! 😊`,
-      `Hmm, interesting! 🤔\n\nMain zyada tar career guidance mein expert hoon, but kuch bhi pooch sakte ho!\n\n**Popular questions:**\n• "12th ke baad kya karun?"\n• "JEE/NEET ki taiyari kaise karun?"\n• "Resume kaise banaun?"\n• "Interview ki taiyari kaise karun?"\n• "Best skills kaun si hain?"\n\nBas pucho — main answer dunga! 💪`,
+      `Interesting! 🤔\n\nMain kuchh bhi kar sakta hoon:\n\n💻 **Code** — "Write Java code for calculator"\n📚 **Study** — "Explain photosynthesis"\n🧮 **Math** — "Solve 5 + 3"\n🎯 **Career** — "What after 12th PCM?"\n🗣️ **Language** — "Translate to Hindi"\n😄 **Fun** — "Tell me a joke"\n\nAsk me anything! 😊`,
+      `Hey! 🙋\n\nI can help with ANYTHING!\n\nJust ask clearly:\n• "Write Python code for game"\n• "What is DNA?"\n• "How to crack JEE?"\n• "Tell me about black holes"\n\nI'm like Google Gemini — ask anything! 🚀`,
     ]);
   }
 }
@@ -282,51 +309,46 @@ function getHindiResponse(topic, name, interests, level, message) {
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
   switch (topic) {
-    case 'greeting': return pick([
-      (n) => `Hey${n ? ' ' + n : ''}! 👋 Kaise ho?\n\nMain hoon MeraRaasta AI — tera career bestie! 😎\n\nMujhse pooch sakte ho:\n🎯 Career ke baare mein\n📚 Padhai ke tips\n💼 Resume aur Interview\n🧠 Skills kaise badhayein\n\nYa bas aise hi baat karo, main hoon na! 😄`,
-    ])(name);
-    case 'name': return pick([
-      (n) => `Mera naam hai **MeraRaasta AI**! 🤖\n\nMain ek AI career counselor hoon — tera dost, guide, aur mentor sab ek saath!\n\n${n ? `Aur tu ${n} hai na? Mujhe pata hai! ` : ''}Bata, kya poochna hai? 😊`,
-    ])(name);
-    case 'myname': {
-      const n = message.replace(/.*(?:mera naam|main)\s*/i, '').trim();
-      return n
-        ? `Hey ${n}! 🎉 Nice to meet you!\n\nMain MeraRaasta AI hoon — tera personal career coach!\n\n${name ? `Mujhe pata hai tu ${name} hai! ` : ''}Bata ${n}, abhi kya padh raha hai? Best career path suggest karunga! 🚀`
-        : `Naam sun ke achha laga! 😊\n\nMain MeraRaasta AI hoon.\n\nTu bata — kya naam hai tera, aur kya padh raha hai? 🤔`;
-    }
     case 'code': {
-      const lang_match = message.match(/java|python|javascript|js|c\+\+|c language/i);
-      const lang_name = lang_match ? lang_match[0].toLowerCase() : 'java';
-      if (lang_name === 'python') return codeResponses.python;
-      if (lang_name === 'javascript' || lang_name === 'js') return codeResponses.javascript;
-      if (lang_name === 'c' || lang_name === 'c language' || lang_name === 'c++') return codeResponses.c;
-      return codeResponses.java;
+      const msg = message.toLowerCase();
+      if (msg.match(/java/)) return `Java Hello World! ☕\n\n\`\`\`java\npublic class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}\n\`\`\`\n\n**Kaise kaam karta hai:**\n1. Class banao\n2. Main method mein \`println\` se print karo\n\n**Chalane ke liye:**\n1. Save \`HelloWorld.java\`\n2. \`javac HelloWorld.java\` (compile)\n3. \`java HelloWorld\` (run)\n\nAur code chahiye? Bas pucho! 🚀`;
+      if (msg.match(/python/)) return `Python Hello World! 🐍\n\n\`\`\`python\nprint("Hello, World!")\n\`\`\`\n\nBas ek line! Python sabse easy hai.\n\n**Chalane ke liye:**\n1. Save \`hello.py\`\n2. \`python hello.py\`\n\nAur code chahiye? Pucho! 💪`;
+      if (msg.match(/javascript|js/)) return `JavaScript Hello World! 🌐\n\n\`\`\`javascript\nconsole.log("Hello, World!");\n\`\`\`\n\nBrowser console ya Node.js mein chalao!\n\nAur code chahiye? 🚀`;
+      return `Sure! Kaun si language? ☕🐍🌐\n\nBas batao — main code likh ke dunga! 💻`;
     }
-    case 'code_generic': return pick([
-      `Haan bilkul! 🚀\n\nMujhe bata:\n1. Kaun si language? (Java, Python, JavaScript, C)\n2. Kya karna hai? (Hello World, Calculator, etc.)\n\nMain turant code likh ke dunga! 💻`,
-      `Sure! Kaun si language mein code chahiye? 🤔\n\n☕ Java | 🐍 Python | 🌐 JavaScript | 💾 C/C++\n\nBas bata! 💪`,
-    ]);
-    case 'career': return pick([
-      `Bahut achha sawaal! 🎯\n\n${level ? `Tere ${level} level ke hisaab se ` : ''}2025-26 mein India mein sabse zyada demand:\n\n🔥 **High Salary (₹8-30 LPA):**\n1. AI/ML Engineer\n2. Full Stack Developer\n3. Data Scientist\n4. Cloud Architect\n5. Cyber Security Expert\n\n💼 **Stable Careers:**\n1. Doctor (MBBS)\n2. IAS/IPS (UPSC)\n3. Bank PO\n4. Chartered Accountant\n\n${interests.length ? `Tere interests (${interests.join(', ')}) ke hisaab se — ye field best rahega!` : 'Kaun sa field interesting lagta hai?'}`,
-    ]);
+    case 'code_generic': return `Kaun si language mein code chahiye? 🤔\n\n☕ Java | 🐍 Python | 🌐 JavaScript | 💾 C++ | 🌐 HTML\n\nBas batao kya banana hai! 💻`;
     case 'skill': {
       const msg = message.toLowerCase();
-      if (msg.match(/java/)) return `Java seekhna hai? Best choice! ☕\n\n**Java Learning Roadmap:**\n\n**Step 1: Basics (2 hafte)**\n• Variables, Data Types\n• if-else, Loops\n• Arrays, Strings\n\n**Step 2: OOP (2 hafte)**\n• Classes, Objects\n• Inheritance, Polymorphism\n\n**Step 3: Advanced (1 month)**\n• Collections\n• Exception Handling\n• JDBC\n\n**Free Resources:**\n📚 Apna College (YouTube) — Best Hindi Java course\n📚 W3Schools — Quick reference\n\nRoz 1-2 ghanta practice kar — 3 months mein Java master! 💪`;
-      if (msg.match(/python/)) return `Python seekhna hai? Sabse easy! 🐍\n\n**Python Roadmap:**\n\n**Step 1: Basics (1 hafta)**\n• Variables, Lists, Dicts\n• if-else, Loops, Functions\n\n**Step 2: Intermediate (2 hafte)**\n• File Handling\n• OOP\n• Error Handling\n\n**Step 3: Projects (1 month)**\n• Web Scraping\n• Automation\n• Data Analysis (Pandas)\n\n📚 Apna College (YouTube) se seekho!\n\nPython = Data Science + AI + Web Dev! 🚀`;
-      if (msg.match(/javascript|js/)) return `JavaScript seekhna hai? Web ka king! 🌐\n\n**JS Roadmap:**\n\n**Step 1: Basics (2 hafte)**\n• Variables, Functions\n• DOM Manipulation\n\n**Step 2: Modern JS (2 hafte)**\n• ES6+, Async/Await\n• Fetch API\n\n**Step 3: Framework (1 month)**\n• React.js — Frontend\n• Node.js — Backend\n\n📚 JavaScript.info, FreeCodeCamp se seekho!\n\nJS = Frontend + Backend + Mobile! 🚀`;
-      return `Skills seekho — salary badhegi! 🧠\n\n**Top Skills 2025-26:**\n💻 Python — AI/Data Science\n🌐 JavaScript/React — Web Dev\n📊 SQL — Har data job\n☁️ Cloud (AWS) — ₹10-30 LPA\n\n**Plan:**\n1. Ek skill choose karo\n2. YouTube se seekho\n3. Daily 1 ghanta practice\n4. Project banao\n\nKya specific skill seekhni hai? 🚀`;
+      if (msg.match(/java/)) return `Java Roadmap! ☕\n\n**Week 1-2:** Variables, Loops, Arrays\n**Week 3-4:** OOP (Classes, Objects)\n**Month 2:** Collections, Exception Handling\n\n📚 Apna College (YouTube) se seekho!\n\nRoz 1-2 ghanta = 3 months mein master! 💪`;
+      if (msg.match(/python/)) return `Python Roadmap! 🐍\n\n**Week 1:** Variables, Lists, Dicts\n**Week 2-3:** OOP, File Handling\n**Month 2:** Projects (Scraping, Automation)\n\n📚 Apna College se seekho!\n\nPython = Data Science + AI! 🚀`;
+      if (msg.match(/javascript|js/)) return `JavaScript Roadmap! 🌐\n\n**Week 1-2:** Basics, DOM\n**Week 3-4:** ES6+, Async\n**Month 2:** React.js / Node.js\n\n📚 JavaScript.info se seekho!\n\nJS = Web + Mobile! 🚀`;
+      return `Skills seekho! 🧠\n\n💻 Python — AI/Data Science\n🌐 JavaScript — Web Dev\n📊 SQL — Databases\n☁️ Cloud — ₹10-30 LPA\n\nKya seekhna hai? 🚀`;
     }
-    case 'frustrated': return pick([
-      `Arre, sorry! 😅 Kya galat bata raha tha?\n\nBata clearly — main ab sahi jawab deta hoon!\n\n🎯 Career, 📚 Padhai, 💼 Resume, 🧠 Skills, 📝 Code — kya chahiye? 💪`,
-      `Maafi chahta hoon! 🙏\n\nTu bata clearly — kya poochna hai?\n• "Java ka code de"\n• "Resume kaise banaun"\n• "12th ke baad kya karun"\n\nBas ye likh de — sahi answer dunga! 😊`,
-    ]);
-    case 'thanks': return pick([
-      `You're welcome! 😊 Meri job hai teri help karna! 💪\n\nAur kuch poochna ho toh bata! 🚀`,
-      `Arre koi baat nahi! 🤗 Tu succeed kare — yahi mera goal hai!\n\nAur help chahiye toh bata! 😄`,
-    ]);
+    case 'math': {
+      const msg = message.toLowerCase();
+      if (msg.match(/(\d+)\s*(plus|\+)\s*(\d+)/)) {
+        const nums = msg.match(/(\d+)\s*(plus|\+)\s*(\d+)/);
+        return `${nums[1]} + ${nums[3]} = **${parseInt(nums[1]) + parseInt(nums[3])}** 🧮`;
+      }
+      if (msg.match(/(\d+)\s*(minus|-)\s*(\d+)/)) {
+        const nums = msg.match(/(\d+)\s*(minus|-)\s*(\d+)/);
+        return `${nums[1]} - ${nums[3]} = **${parseInt(nums[1]) - parseInt(nums[3])}** 🧮`;
+      }
+      if (msg.match(/(\d+)\s*(x|times|\*)\s*(\d+)/)) {
+        const nums = msg.match(/(\d+)\s*(x|times|\*)\s*(\d+)/);
+        return `${nums[1]} × ${nums[3]} = **${parseInt(nums[1]) * parseInt(nums[3])}** 🧮`;
+      }
+      return `Math help! 🧮\n\nMain solve kar sakta hoon:\n• "5 + 3"\n• "10 - 4"\n• "6 x 7"\n\nYa koi bhi math concept pucho! 📐`;
+    }
+    case 'science': return `Science! 🔬\n\n**Physics** — Gravity, Force, Energy\n**Chemistry** — Atoms, Elements\n**Biology** — Cells, DNA\n\nKuchh specific pucho! 🌟`;
+    case 'greeting': return pick([
+      (n) => `Hey${n ? ' ' + n : ''}! 👋 Kaise ho?\n\nMain MeraRaasta AI hoon — kuchh bhi pucho!\n\n🎯 Career | 💻 Code | 📚 Padhai | 🧮 Math | 😄 Fun\n\nPucho kya jaanna hai! 😊`,
+    ])(name);
+    case 'name': return `Mera naam **MeraRaasta AI** hai! 🤖\n\nMain kuchh bhi kar sakta hoon — code, math, science, career, jokes — kuchh bhi pucho! 😊`;
+    case 'frustrated': return `Sorry! 😅\n\nBatao kya chahiye — main kar ke dunga!\n\n💻 Code | 📚 Padhai | 🧮 Math | 🎯 Career | 😄 Fun\n\nBas ek line mein pucho! 💪`;
     default: return pick([
-      `Hmm, interesting! 🤔\n\nMain career guidance mein expert hoon, but kuch bhi pooch sakte ho!\n\n**Popular questions:**\n• "12th ke baad kya karun?"\n• "JEE/NEET ki taiyari kaise karun?"\n• "Resume kaise banaun?"\n• "Best skills kaun si hain?"\n\nBas pucho! 💪`,
-      `Bata clearly — career, padhai, ya kuch aur?\n\nJitna clear poochoge, utna achha answer milega! 😊`,
+      `Main kuchh bhi kar sakta hoon! 🤔\n\n💻 **Code** — "Java ka code de"\n📚 **Study** — "Photosynthesis samjhao"\n🧮 **Math** — "5 + 3 kitna hoga"\n🎯 **Career** — "12th ke baad kya karun"\n😄 **Fun** — "Joke sunao"\n\nBas pucho! 😊`,
+      `Hey! 🙋\n\nKuchh bhi pucho — main jawab dunga!\n\nMain Google Gemini jaisa hoon — har sawal ka jawab! 🚀`,
     ]);
   }
 }
@@ -343,9 +365,7 @@ export const chat = async (req, res, next) => {
     let profile = null;
     try {
       profile = await StudentProfile.findOne({ user: req.user._id }).populate('user', 'name email');
-    } catch (e) {
-      console.log('Profile fetch skipped:', e.message);
-    }
+    } catch (e) { /* skip */ }
 
     if (!conversationHistory.has(userId)) {
       conversationHistory.set(userId, []);
@@ -358,7 +378,7 @@ export const chat = async (req, res, next) => {
     let isAI = false;
 
     if (genAI) {
-      response = await getGeminiResponse(message, history, profile, userLang);
+      response = await getGeminiResponse(message, history, profile);
       if (response) isAI = true;
     }
 
@@ -375,33 +395,23 @@ export const chat = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: {
-        response,
-        language: userLang,
-        isAI,
-        timestamp: new Date().toISOString()
-      }
+      data: { response, language: userLang, isAI, timestamp: new Date().toISOString() }
     });
   } catch (error) {
     console.error('AI Chat error:', error.message);
     try {
-      const fallbackResponse = getSmartFallback(message || 'hello', null, 'en');
+      const fallback = getSmartFallback(message || 'hello', null, 'en');
       res.status(200).json({
         success: true,
-        data: { response: fallbackResponse, language: 'en', isAI: false, timestamp: new Date().toISOString() }
+        data: { response: fallback, language: 'en', isAI: false, timestamp: new Date().toISOString() }
       });
-    } catch {
-      next(error);
-    }
+    } catch { next(error); }
   }
 };
 
 export const clearHistory = async (req, res, next) => {
   try {
-    const userId = req.user._id.toString();
-    conversationHistory.delete(userId);
+    conversationHistory.delete(req.user._id.toString());
     res.status(200).json({ success: true, message: 'Chat history cleared' });
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 };

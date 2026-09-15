@@ -8,6 +8,13 @@ export default function Captcha({ onVerify }) {
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState('');
   const canvasRef = useRef(null);
+  const timerRef = useRef(null);
+
+  const getCorrect = (o, a, b) => {
+    if (o === '+') return a + b;
+    if (o === '-') return a - b;
+    return a * b;
+  };
 
   const generate = () => {
     const ops = ['+', '-', '×'];
@@ -28,15 +35,12 @@ export default function Captcha({ onVerify }) {
     const ctx = canvas.getContext('2d');
     const w = canvas.width, h = canvas.height;
 
-    // Background noise
     ctx.fillStyle = '#f0f4f8';
     ctx.fillRect(0, 0, w, h);
     for (let i = 0; i < 50; i++) {
       ctx.fillStyle = `rgba(${Math.random()*200},${Math.random()*200},${Math.random()*200},0.5)`;
       ctx.fillRect(Math.random()*w, Math.random()*h, Math.random()*20+2, Math.random()*4+1);
     }
-
-    // Random lines
     for (let i = 0; i < 5; i++) {
       ctx.strokeStyle = `rgba(${Math.random()*150+50},${Math.random()*150+50},${Math.random()*150+50},0.4)`;
       ctx.lineWidth = 1;
@@ -45,16 +49,12 @@ export default function Captcha({ onVerify }) {
       ctx.lineTo(Math.random()*w, Math.random()*h);
       ctx.stroke();
     }
-
-    // Dots
     for (let i = 0; i < 80; i++) {
       ctx.fillStyle = `rgba(0,0,0,${Math.random()*0.3})`;
       ctx.beginPath();
       ctx.arc(Math.random()*w, Math.random()*h, 1, 0, Math.PI*2);
       ctx.fill();
     }
-
-    // Text
     const text = `${num1} ${op} ${num2} = ?`;
     const colors = ['#1e40af', '#7c3aed', '#047857', '#b91c1c', '#c2410c'];
     ctx.font = 'bold 28px monospace';
@@ -71,25 +71,19 @@ export default function Captcha({ onVerify }) {
     }
   }, [num1, num2, op]);
 
-  const handleVerify = () => {
-    let correct;
-    if (op === '+') correct = num1 + num2;
-    else if (op === '-') correct = num1 - num2;
-    else correct = num1 * num2;
-
+  useEffect(() => {
+    if (verified || !answer) return;
+    const correct = getCorrect(op, num1, num2);
     if (parseInt(answer) === correct) {
       setVerified(true); setError('');
       onVerify(true);
-    } else {
+    } else if (answer.length >= String(correct).length) {
       setError('Wrong answer!');
       onVerify(false);
-      generate();
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => { generate(); }, 800);
     }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); handleVerify(); }
-  };
+  }, [answer, verified, op, num1, num2, onVerify]);
 
   return (
     <div className="space-y-3">
@@ -102,30 +96,23 @@ export default function Captcha({ onVerify }) {
           </svg>
         </button>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="relative">
         <input
           type="text"
           value={answer}
           onChange={(e) => { setAnswer(e.target.value); setError(''); }}
-          onKeyDown={handleKeyDown}
-          placeholder="Enter answer"
+          placeholder="Type answer..."
           disabled={verified}
-          className={`flex-1 px-4 py-2.5 border-2 rounded-xl text-sm focus:ring-0 outline-none transition-all ${
+          className={`w-full px-4 py-2.5 border-2 rounded-xl text-sm focus:ring-0 outline-none transition-all pr-12 ${
             verified ? 'border-green-400 bg-green-50 text-green-700' :
             error ? 'border-red-400 bg-red-50 focus:border-red-400' :
             'border-gray-200 focus:border-blue-500'
           }`}
         />
-        {!verified && (
-          <button type="button" onClick={handleVerify} className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-bold text-gray-700 transition-all shrink-0">
-            Verify
-          </button>
-        )}
         {verified && (
-          <span className="px-3 py-2.5 bg-green-100 text-green-700 rounded-xl text-sm font-bold flex items-center gap-1 shrink-0">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-            Verified
-          </span>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-green-600">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+          </div>
         )}
       </div>
       {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}

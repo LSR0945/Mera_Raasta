@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import StudentProfile from '../models/StudentProfile.js';
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const genAI = GEMINI_KEY && GEMINI_KEY.length > 15 && GEMINI_KEY.startsWith('AIza')
+const genAI = GEMINI_KEY && GEMINI_KEY.length > 10
   ? new GoogleGenerativeAI(GEMINI_KEY)
   : null;
 

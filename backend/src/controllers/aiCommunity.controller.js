@@ -6,8 +6,15 @@ const genAI = GEMINI_KEY && GEMINI_KEY.length > 10
   ? new GoogleGenerativeAI(GEMINI_KEY)
   : null;
 
-if (genAI) console.log('✅ Gemini AI enabled — full AI mode');
-else console.log('⚠️  Gemini AI disabled — limited fallback mode. Add GEMINI_API_KEY to .env for full AI.');
+if (genAI) {
+  console.log('✅ Gemini AI initialized');
+  console.log(`   Key prefix: ${GEMINI_KEY.substring(0, 8)}...`);
+  console.log(`   Key length: ${GEMINI_KEY.length}`);
+} else {
+  console.log('⚠️  Gemini AI disabled');
+  console.log(`   Key present: ${!!GEMINI_KEY}`);
+  console.log(`   Key length: ${GEMINI_KEY?.length || 0}`);
+}
 
 const conversationHistory = new Map();
 
@@ -62,13 +69,41 @@ function detectLanguage(text) {
 }
 
 async function getGeminiResponse(message, history, profile) {
-  if (!genAI) return null;
+  if (!genAI) {
+    console.log('Gemini not initialized');
+    return null;
+  }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      systemInstruction: SYSTEM_PROMPT,
-    });
+    // Try multiple model names
+    const modelNames = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    let model = null;
+    let lastError = null;
+
+    for (const modelName of modelNames) {
+      try {
+        model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: SYSTEM_PROMPT,
+        });
+        // Test with a simple call
+        const testResult = await model.generateContent('hi');
+        const testText = testResult.response.text();
+        if (testText) {
+          console.log(`✅ Using model: ${modelName}`);
+          break;
+        }
+      } catch (e) {
+        lastError = e;
+        console.log(`Model ${modelName} failed: ${e.message?.substring(0, 100)}`);
+        model = null;
+      }
+    }
+
+    if (!model) {
+      console.error('All Gemini models failed:', lastError?.message?.substring(0, 200));
+      return null;
+    }
 
     let contextInfo = '';
     if (profile) {
@@ -107,7 +142,7 @@ async function getGeminiResponse(message, history, profile) {
     if (text && text.trim().length > 0) return text;
     return null;
   } catch (error) {
-    console.error('Gemini error:', error.message?.substring(0, 300));
+    console.error('Gemini FULL error:', JSON.stringify(error, null, 2)?.substring(0, 500));
     return null;
   }
 }

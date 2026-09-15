@@ -701,7 +701,7 @@ export default function LandingPage() {
           </Reveal>
 
           {/* ═══ BRAND MANAGEMENT ═══ */}
-          <Reveal>
+          <Reveal className="mb-16">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-teal-500/20">🎨</div>
               <h3 className="text-lg font-bold text-white">Brand Management & Marketing</h3>
@@ -713,6 +713,230 @@ export default function LandingPage() {
                 { icon: '📱', t: 'Digital Marketing', d: 'SEO, social media marketing, content strategy, paid ads & analytics — full stack marketing.', a: '#0d9488' },
                 { icon: '📊', t: 'Market Research', d: 'Competitor analysis, user research, survey design, data-driven decision making.', a: '#0f766e' },
                 { icon: '🧠', t: 'Strategic Thinking', d: 'Business strategy, go-to-market planning, growth hacking & product thinking.', a: '#115e59' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ DATA ANALYTICS & VISUALIZATION ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-orange-500/20">📊</div>
+              <h3 className="text-lg font-bold text-white">Data Analytics & Visualization</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '📈', t: 'Tableau Expert', d: 'Interactive dashboards, data storytelling, calculated fields & publish to web.', a: '#f97316' },
+                { icon: '🔢', t: 'SQL Mastery', d: 'Advanced queries, joins, subqueries, stored procedures, database optimization.', a: '#ea580c' },
+                { icon: '📉', t: 'Data Visualization', d: 'Chart design principles, color theory, infographic creation & visual analytics.', a: '#c2410c' },
+                { icon: '🧮', t: 'Statistical Analysis', d: 'Hypothesis testing, regression, A/B testing, probability & statistical modeling.', a: '#9a3412' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ CLOUD & DEVOPS ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-sky-500 to-blue-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-sky-500/20">☁️</div>
+              <h3 className="text-lg font-bold text-white">Cloud & DevOps</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '☁️', t: 'AWS Cloud', d: 'EC2, S3, Lambda, RDS — complete AWS certification prep & hands-on labs.', a: '#0ea5e9' },
+                { icon: '🔷', t: 'Azure & GCP', d: 'Microsoft Azure fundamentals, Google Cloud Platform, multi-cloud strategies.', a: '#0284c7' },
+                { icon: '🐳', t: 'Docker & Kubernetes', d: 'Containerization, orchestration, CI/CD pipelines & microservices deployment.', a: '#0369a1' },
+                { icon: '⚙️', t: 'DevOps Practices', d: 'Jenkins, GitHub Actions, Terraform, monitoring, infrastructure as code.', a: '#075985' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ UI/UX & DESIGN ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-fuchsia-500 to-pink-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-fuchsia-500/20">🎨</div>
+              <h3 className="text-lg font-bold text-white">UI/UX & Design</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '🎨', t: 'UI/UX Design', d: 'Figma, Adobe XD, wireframing, prototyping, user research & design thinking.', a: '#d946ef' },
+                { icon: '🖌️', t: 'Graphic Design', d: 'Photoshop, Illustrator, Canva — logo design, social media creatives & branding.', a: '#c026d3' },
+                { icon: '🎬', t: 'Video Editing', d: 'Premiere Pro, After Effects, CapCut — YouTube, reels, professional video production.', a: '#a21caf' },
+                { icon: '✏️', t: 'Motion Graphics', d: 'Animated explainer videos, UI animations, Lottie files & visual effects.', a: '#86198f' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ CONTENT & CREATIVE ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-lime-500 to-green-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-lime-500/20">✍️</div>
+              <h3 className="text-lg font-bold text-white">Content & Creative</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '✍️', t: 'Content Writing', d: 'Blog writing, SEO content, copywriting, technical writing & editing skills.', a: '#84cc16' },
+                { icon: '📝', t: 'Copywriting', d: 'Ad copy, sales pages, email sequences, persuasion psychology & A/B testing.', a: '#65a30d' },
+                { icon: '🎙️', t: 'Podcasting', d: 'Audio editing, interview techniques, distribution, monetization & audience building.', a: '#4d7c0f' },
+                { icon: '📸', t: 'Photography', d: 'Product photography, portrait editing, Lightroom, composition & visual storytelling.', a: '#3f6212' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ FINANCE & BUSINESS ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-emerald-500/20">💰</div>
+              <h3 className="text-lg font-bold text-white">Finance & Business</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '💰', t: 'Financial Modeling', d: 'Excel financial models, DCF valuation, P&L analysis, budgeting & forecasting.', a: '#10b981' },
+                { icon: '📈', t: 'Stock Market', d: 'Technical analysis, fundamental analysis, portfolio management & trading strategies.', a: '#059669' },
+                { icon: '🏦', t: 'Investment Banking', d: 'M&A, IPOs, equity research, financial statements analysis & valuation methods.', a: '#047857' },
+                { icon: '📊', t: 'Business Analytics', d: 'KPI tracking, business intelligence, data-driven决策 & performance dashboards.', a: '#065f46' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ ENTREPRENEURSHIP & STARTUP ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-yellow-500/20">🚀</div>
+              <h3 className="text-lg font-bold text-white">Entrepreneurship & Startup</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '🚀', t: 'Startup Guidance', d: 'Idea validation, MVP building, lean startup methodology & product-market fit.', a: '#eab308' },
+                { icon: '💵', t: 'Fundraising', d: 'Pitch decks, investor relations, VC funding, angel investment & grant applications.', a: '#ca8a04' },
+                { icon: '📋', t: 'Business Planning', d: 'Business model canvas, revenue models, competitive analysis & scaling strategies.', a: '#a16207' },
+                { icon: '🤝', t: 'Networking', d: 'Professional networking, LinkedIn optimization, mentor connections & industry events.', a: '#854d0e' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ PRODUCTIVITY & TOOLS ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-zinc-400 to-gray-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-gray-500/20">⚡</div>
+              <h3 className="text-lg font-bold text-white">Productivity & Professional Tools</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '📑', t: 'Advanced Excel', d: 'Macros, VBA, Power Query, complex formulas, automation & business intelligence.', a: '#71717a' },
+                { icon: '📊', t: 'Power BI & Tableau', d: 'End-to-end data visualization — from raw data to interactive executive dashboards.', a: '#52525b' },
+                { icon: '📋', t: 'Project Management', d: 'Agile, Scrum, Kanban, Jira, Trello — manage teams & deliver projects on time.', a: '#404040' },
+                { icon: '⏰', t: 'Time Management', d: 'Pomodoro, time blocking, priority matrices, productivity systems & habit building.', a: '#333333' },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 60}>
+                  <Tilt intensity={8}>
+                    <div className="relative p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group overflow-hidden h-full">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(400px circle at 50% 0%, ${f.a}08, transparent 60%)` }} />
+                      <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                      <h4 className="text-[13px] font-bold text-white mb-1">{f.t}</h4>
+                      <p className="text-[11px] text-white/25 leading-relaxed">{f.d}</p>
+                    </div>
+                  </Tilt>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+
+          {/* ═══ CYBERSECURITY & BLOCKCHAIN ═══ */}
+          <Reveal className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-rose-500 rounded-lg flex items-center justify-center text-sm shadow-lg shadow-red-500/20">🔒</div>
+              <h3 className="text-lg font-bold text-white">Cybersecurity & Emerging Tech</h3>
+              <div className="flex-1 h-[1px] bg-white/[0.04]" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { icon: '🔒', t: 'Cyber Security', d: 'Ethical hacking, network security, penetration testing & security audit fundamentals.', a: '#ef4444' },
+                { icon: '⛓️', t: 'Blockchain & Web3', d: 'Smart contracts, Solidity, DeFi, NFTs & decentralized application development.', a: '#dc2626' },
+                { icon: '🤖', t: 'IoT & Embedded', d: 'Arduino, Raspberry Pi, sensor networks, edge computing & IoT project building.', a: '#b91c1c' },
+                { icon: '🔮', t: 'AR/VR Development', d: 'Unity 3D, augmented reality apps, virtual reality experiences & immersive design.', a: '#991b1b' },
               ].map((f, i) => (
                 <Reveal key={i} delay={i * 60}>
                   <Tilt intensity={8}>

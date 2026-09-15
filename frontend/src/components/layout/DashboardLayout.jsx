@@ -85,7 +85,7 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5] flex">
+    <div className="min-h-screen bg-[#0a0a1a] flex">
       {/* ═══ SIDEBAR ═══ */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-[272px] bg-[#1a1d23] flex flex-col transform transition-all duration-300 lg:translate-x-0 ${sidebar ? 'translate-x-0 shadow-2xl' : '-translate-x-full'} lg:sticky lg:top-0 lg:h-screen lg:shadow-none`}>
 
@@ -155,13 +155,13 @@ export default function DashboardLayout() {
       {/* ═══ MAIN CONTENT ═══ */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* ── Header with Search ── */}
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-200/60">
+        <header className="sticky top-0 z-30 bg-[#0a0a1a]/80 backdrop-blur-xl border-b border-white/[0.06]">
           <div className="h-16 flex items-center px-4 lg:px-8 gap-4">
-            <button onClick={() => setSidebar(true)} className="lg:hidden p-2 hover:bg-gray-100 rounded-xl transition-all active:scale-95">
-              <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+            <button onClick={() => setSidebar(true)} className="lg:hidden p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95">
+              <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
-            <Link to="/" className="lg:hidden p-2 hover:bg-gray-100 rounded-xl transition-all active:scale-95">
-              <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <Link to="/" className="lg:hidden p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95">
+              <svg className="w-5 h-5 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
               </svg>
             </Link>
@@ -169,7 +169,7 @@ export default function DashboardLayout() {
             {/* ═══ SEARCH BAR ═══ */}
             <div ref={searchRef} className="relative flex-1 max-w-xl">
               <div className="relative">
-                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
                 <input
@@ -178,7 +178,7 @@ export default function DashboardLayout() {
                   onChange={(e) => handleSearch(e.target.value)}
                   onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
                   placeholder="Search careers, courses, skills..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white/[0.06] border border-white/[0.08] rounded-xl text-sm text-white focus:bg-white/[0.1] focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/30 outline-none transition-all placeholder:text-white/30"
                 />
                 {searching && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -189,21 +189,21 @@ export default function DashboardLayout() {
 
               {/* Search Dropdown */}
               {searchOpen && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 max-h-80 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1d23] rounded-2xl shadow-2xl border border-white/[0.08] overflow-hidden z-50 max-h-80 overflow-y-auto">
                   <div className="p-2">
-                    <p className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase">Careers</p>
+                    <p className="px-3 py-1.5 text-[10px] font-bold text-white/30 uppercase">Careers</p>
                     {searchResults.map((career) => (
                       <Link key={career._id} to={`/dashboard/careers/${career.slug}`}
                         onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-all group">
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition-all group">
                         <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center text-white text-sm shadow-md group-hover:scale-105 transition-transform">
                           {career.title?.[0] || '💼'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate">{career.title}</p>
-                          <p className="text-[11px] text-gray-500 truncate">{career.category || 'Career'}</p>
+                          <p className="text-sm font-bold text-white truncate">{career.title}</p>
+                          <p className="text-[11px] text-white/40 truncate">{career.category || 'Career'}</p>
                         </div>
-                        <svg className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                        <svg className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                       </Link>
                     ))}
                   </div>
@@ -211,9 +211,9 @@ export default function DashboardLayout() {
               )}
 
               {searchOpen && searchQuery.length >= 2 && searchResults.length === 0 && !searching && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 text-center z-50">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1d23] rounded-2xl shadow-2xl border border-white/[0.08] p-8 text-center z-50">
                   <div className="text-3xl mb-2">🔍</div>
-                  <p className="text-sm font-semibold text-gray-500">No results found for "{searchQuery}"</p>
+                  <p className="text-sm font-semibold text-white/50">No results found for "{searchQuery}"</p>
                 </div>
               )}
             </div>
@@ -222,7 +222,7 @@ export default function DashboardLayout() {
 
             {/* Right side — user chip */}
             <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2.5 pl-4 border-l border-gray-200">
+              <div className="hidden sm:flex items-center gap-2.5 pl-4 border-l border-white/[0.08]">
                 {user?.avatar ? (
                   <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-xl object-cover shadow-md" />
                 ) : (
@@ -231,7 +231,7 @@ export default function DashboardLayout() {
                   </div>
                 )}
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-700 truncate max-w-[120px]">{user?.name}</p>
+                  <p className="text-sm font-semibold text-white/80 truncate max-w-[120px]">{user?.name}</p>
                   <p className={`text-[10px] font-bold ${config.text} uppercase`}>{config.label}</p>
                 </div>
               </div>
@@ -247,13 +247,13 @@ export default function DashboardLayout() {
 
       {/* ═══ LOGOUT CONFIRMATION MODAL ═══ */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowLogoutConfirm(false)}>
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5">🚪</div>
-            <h3 className="text-xl font-extrabold text-gray-900 text-center mb-2">Ready to leave?</h3>
-            <p className="text-sm text-gray-500 text-center mb-8">You'll be logged out of your dashboard. Are you sure?</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="bg-[#1a1d23] border border-white/[0.08] rounded-3xl p-8 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5">🚪</div>
+            <h3 className="text-xl font-extrabold text-white text-center mb-2">Ready to leave?</h3>
+            <p className="text-sm text-white/40 text-center mb-8">You'll be logged out of your dashboard. Are you sure?</p>
             <div className="flex gap-3">
-              <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 px-5 py-3 border-2 border-gray-200 rounded-2xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all">Cancel</button>
+              <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 px-5 py-3 border-2 border-white/10 rounded-2xl text-sm font-bold text-white/70 hover:bg-white/5 transition-all">Cancel</button>
               <button onClick={handleLogout} className="flex-1 px-5 py-3 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-2xl text-sm font-bold hover:from-red-600 hover:to-rose-600 transition-all shadow-lg shadow-red-500/25">Logout</button>
             </div>
           </div>

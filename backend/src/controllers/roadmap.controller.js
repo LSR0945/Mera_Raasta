@@ -258,15 +258,95 @@ const CAREER_ROADMAPS = {
   },
 };
 
+// ═══ INTEREST TO CAREER MAPPING ═══
+// User ki interests ke hisaab se best career suggest karo
+// Agar user ne "Technology" select kiya hai to Software Engineer suggest hoga
+const INTEREST_CAREER_MAP = {
+  'Technology': 'software-engineer',
+  'Science': 'data-scientist',
+  'Healthcare': 'doctor',
+  'Engineering': 'software-engineer',
+  'Business': 'data-scientist',
+  'Design': 'software-engineer',
+  'Arts': 'software-engineer',
+  'Law': 'doctor',
+};
+
 // ═══ getUserProfile — User ka profile fetch karo ═══
-// Roadmap banane se pehle user ki info chahiye — education, skills, interests, budget
 async function getUserProfile(userId) {
   try {
     const profile = await StudentProfile.findOne({ user: userId });
-    return profile || {};  // Agar profile nahi mila to empty object return karo
+    return profile || {};
   } catch {
-    return {};  // Error ho to empty — roadmap ban jayega default data se
+    return {};
   }
+}
+
+// ═══ getSuggestedCareer — Interests se best career suggest karo ═══
+// User ki pehli interest ke hisaab se career dhundho
+function getSuggestedCareer(interests) {
+  for (const interest of interests) {
+    if (INTEREST_CAREER_MAP[interest]) return INTEREST_CAREER_MAP[interest];
+  }
+  return 'default';  // Agar koi match na ho to default career
+}
+
+// ═══ generateAutoRoadmap — Automatically roadmap banao ═══
+// Onboarding complete hone pe ya roadmap page pe aane pe auto-generate hota hai
+async function generateAutoRoadmap(userId, profile) {
+  const interests = profile.interests || [];
+  const careerSlug = getSuggestedCareer(interests);  // Interest se career dhundho
+
+  const profileData = {
+    educationLevel: profile.educationLevel || '',
+    skills: (profile.skills || []).map(s => s.name || s),
+    interests: profile.interests || [],
+    budget: profile.budget || 'low',
+  };
+
+  // Career ka data database se lao (agar hai to)
+  let careerDoc = await Career.findOne({ slug: careerSlug });
+  if (!careerDoc) careerDoc = await Career.findOne({ isActive: true });
+
+  // Personalized nodes generate karo
+  const nodes = generatePersonalizedNodes(careerSlug, profileData);
+
+  // Milestones initialize karo
+  const milestones = [
+    { percent: 25, reached: false },
+    { percent: 50, reached: false },
+    { percent: 75, reached: false },
+    { percent: 100, reached: false },
+  ];
+
+  // Career title nikalo
+  const careerTitles = {
+    'software-engineer': 'Software Engineer',
+    'data-scientist': 'Data Scientist',
+    'doctor': 'Doctor',
+    'default': 'Your Career',
+  };
+  const careerTitle = careerTitles[careerSlug] || 'Your Career';
+
+  // Purana roadmap delete karo
+  await Roadmap.deleteMany({ student: userId });
+
+  // Naya roadmap create karo
+  const roadmap = await Roadmap.create({
+    student: userId,
+    career: careerDoc?._id || null,
+    title: `Path to ${careerTitle}`,
+    description: `Your personalized roadmap to become a ${careerTitle}`,
+    nodes,
+    milestones,
+    overallProgress: 0,
+    userProfile: profileData,
+  });
+
+  logActivity(userId, 'Auto-generated personalized roadmap', 'roadmap', { career: careerTitle, steps: nodes.length, interests });
+
+  return roadmap;
+}
 }
 
 // ═══ generatePersonalizedNodes — Personalized roadmap banao ═══
@@ -279,10 +359,21 @@ function generatePersonalizedNodes(careerSlug, profile) {
 
 // ═══ getMyRoadmap — User ka roadmap lao ═══
 // GET /roadmap — current logged-in user ka roadmap fetch karo
+// Agar roadmap nahi hai aur onboarding complete hai to auto-generate karo
 export const getMyRoadmap = async (req, res, next) => {
   try {
     // Career ka title aur icon bhi lao populate se
-    const roadmap = await Roadmap.findOne({ student: req.user._id }).populate('career', 'title slug icon');
+    let roadmap = await Roadmap.findOne({ student: req.user._id }).populate('career', 'title slug icon');
+
+    // Agar roadmap nahi hai to check karo — kya onboarding complete hai?
+    if (!roadmap) {
+      const profile = await getUserProfile(req.user._id);
+      // Agar profile hai aur interests hain to auto-generate roadmap
+      if (profile && profile.interests && profile.interests.length > 0 && profile.onboardingCompleted) {
+        roadmap = await generateAutoRoadmap(req.user._id, profile);
+      }
+    }
+
     res.status(200).json({ success: true, data: { roadmap } });
   } catch (error) {
     // Agar purana roadmap corrupt hai (wrong schema) to use delete karo
@@ -296,29 +387,42 @@ export const getMyRoadmap = async (req, res, next) => {
 };
 
 // ═══ createRoadmap — Naya personalized roadmap banao ═══
-// POST /roadmap — user career select kare to naya roadmap generate ho
+// POST /roadmap — automatically user ki profile se roadmap ban jayega
+// careerId optional hai — agar na de to interests se auto-detect hoga
 export const createRoadmap = async (req, res, next) => {
   try {
     const { careerId } = req.body;
-    if (!careerId) return res.status(400).json({ success: false, message: 'Please select a career' });
 
-    // Career ka data lao
-    const career = await Career.findById(careerId);
-    if (!career) return res.status(404).json({ success: false, message: 'Career not found' });
-
-    // User ka profile lao — roadmap personalize karne ke liye
+    // User ka profile lao
     const profile = await getUserProfile(req.user._id);
+    if (!profile || !profile.onboardingCompleted) {
+      return res.status(400).json({ success: false, message: 'Please complete onboarding first' });
+    }
+
     const profileData = {
-      educationLevel: profile.educationLevel || '',       // Education level save karo
-      skills: (profile.skills || []).map(s => s.name || s),  // Skills ka naam nikalo
-      interests: profile.interests || [],                 // Interests save karo
-      budget: profile.budget || 'low',                    // Budget save karo
+      educationLevel: profile.educationLevel || '',
+      skills: (profile.skills || []).map(s => s.name || s),
+      interests: profile.interests || [],
+      budget: profile.budget || 'low',
     };
 
-    // Personalized nodes generate karo — career + profile ke according
-    const nodes = generatePersonalizedNodes(career.slug, profileData);
+    // Agar careerId diya hai to use karo, warna interests se auto-detect karo
+    let careerSlug;
+    let careerDoc;
 
-    // Milestones initialize karo — 25%, 50%, 75%, 100%
+    if (careerId) {
+      careerDoc = await Career.findById(careerId);
+      careerSlug = careerDoc?.slug || 'default';
+    } else {
+      careerSlug = getSuggestedCareer(profile.interests || []);
+      careerDoc = await Career.findOne({ slug: careerSlug });
+      if (!careerDoc) careerDoc = await Career.findOne({ isActive: true });
+    }
+
+    // Personalized nodes generate karo
+    const nodes = generatePersonalizedNodes(careerSlug, profileData);
+
+    // Milestones initialize karo
     const milestones = [
       { percent: 25, reached: false },
       { percent: 50, reached: false },
@@ -326,23 +430,31 @@ export const createRoadmap = async (req, res, next) => {
       { percent: 100, reached: false },
     ];
 
-    // Purana roadmap delete karo — ek student ka sirf ek roadmap hoga
+    // Career title nikalo
+    const careerTitles = {
+      'software-engineer': 'Software Engineer',
+      'data-scientist': 'Data Scientist',
+      'doctor': 'Doctor',
+      'default': 'Your Career',
+    };
+    const careerTitle = careerDoc?.title || careerTitles[careerSlug] || 'Your Career';
+
+    // Purana roadmap delete karo
     await Roadmap.deleteMany({ student: req.user._id });
 
     // Naya roadmap save karo database mein
     const roadmap = await Roadmap.create({
       student: req.user._id,
-      career: career._id,
-      title: `Path to ${career.title}`,
-      description: `Your personalized roadmap to become a ${career.title}`,
+      career: careerDoc?._id || null,
+      title: `Path to ${careerTitle}`,
+      description: `Your personalized roadmap to become a ${careerTitle}`,
       nodes,
       milestones,
       overallProgress: 0,
-      userProfile: profileData,  // User ka profile bhi save karo roadmap ke saath
+      userProfile: profileData,
     });
 
-    // Activity log mein note karo
-    logActivity(req.user._id, 'Created personalized roadmap', 'roadmap', { career: career.title, steps: nodes.length });
+    logActivity(req.user._id, 'Created personalized roadmap', 'roadmap', { career: careerTitle, steps: nodes.length });
 
     res.status(201).json({ success: true, message: 'Personalized roadmap created', data: { roadmap } });
   } catch (error) { next(error); }

@@ -42,17 +42,17 @@ const translations = {
     governmentSchemes: 'Government Schemes', viewCourse: 'View Course', enrolled: 'Enrolled',
 
     // Profile
-    myProfile: 'My Profile', personalInfo: 'Personal Info', education: 'Education',
+    myProfile: 'My Profile', personalInfo: 'Personal Info',
     interests: 'Interests', skills: 'Skills', careerGoals: 'Career Goals',
     saveChanges: 'Save Changes', editProfile: 'Edit Profile',
 
     // Roadmap
     myRoadmap: 'My Roadmap', yourLearningPath: 'Your Learning Path',
-    milestone: 'Milestone', complete: 'Complete', inProgress: 'In Progress', upcoming: 'Upcoming',
+    milestone: 'Milestone', complete: 'Complete', upcoming: 'Upcoming',
     daysLeft: 'days left', noRoadmap: 'No Roadmap Yet', getRecommendation: 'Get AI Recommendation',
 
     // Career Readiness
-    careerReadiness: 'Career Readiness', interviews: 'Interviews', quizzes: 'Quizzes',
+    interviews: 'Interviews', quizzes: 'Quizzes',
     practiceQuestions: 'Practice Questions', startQuiz: 'Start Quiz', viewTips: 'View Tips',
 
     // Resume & Interview
@@ -141,7 +141,7 @@ const translations = {
     daysLeft: 'दिन शेष', noRoadmap: 'अभी कोई रोडमैप नहीं', getRecommendation: 'AI सुझाव प्राप्त करें',
 
     // Career Readiness
-    careerReadiness: 'करियर तैयारी', interviews: 'Interview', quizzes: 'Quiz',
+    interviews: 'Interview', quizzes: 'Quiz',
     practiceQuestions: 'अभ्यास प्रश्न', startQuiz: 'Quiz शुरू करें', viewTips: 'सुझाव देखें',
 
     // Resume & Interview

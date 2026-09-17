@@ -1,923 +1,303 @@
 import mongoose from 'mongoose';
 import Location from '../models/Location.js';
+import College from '../models/College.js';
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/mera_raasta';
 
-// ═══ POORE BHARAT KA GEOGRAPHY — States → Districts → Cities ═══
-// Har state ke saare districts aur unke major cities
-const locations = [
-  // ═══ 1. ANDHRA PRADESH ═══
-  { state: 'Andhra Pradesh', stateCode: 'AP', type: 'state', districts: [
-    { name: 'Anantapur', cities: ['Anantapur', 'Hindupur', 'Guntakal', 'Dharmavaram', 'Kadiri'] },
-    { name: 'Chittoor', cities: ['Chittoor', 'Tirupati', 'Nellore', 'Puttur', 'Madanapalle'] },
-    { name: 'East Godavari', cities: ['Kakinada', 'Rajahmundry', 'Amalapuram', 'Peddapuram'] },
-    { name: 'Guntur', cities: ['Guntur', 'Vijayawada', 'Tenali', 'Mangalagiri', 'Bapatla'] },
-    { name: 'Krishna', cities: ['Machilipatnam', 'Vijayawada', 'Gudiwada', 'Nuzvid'] },
-    { name: 'Kurnool', cities: ['Kurnool', 'Nandyal', 'Adoni', 'Yemmiganur'] },
-    { name: 'Prakasam', cities: ['Ongole', 'Chirala', 'Giddalur', 'Kandukur'] },
-    { name: 'Srikakulam', cities: ['Srikakulam', 'Vizianagaram', 'Amadalavalasa', 'Palasa'] },
-    { name: 'Visakhapatnam', cities: ['Visakhapatnam', 'Anakapalle', 'Paderu', 'Bheemunipatnam'] },
-    { name: 'Vizianagaram', cities: ['Vizianagaram', 'Salur', 'Bobbili', 'Parvathipuram'] },
-    { name: 'West Godavari', cities: ['Eluru', 'Bhimavaram', 'Narsapur', 'Tadepalligudem'] },
-    { name: 'YSR Kadapa', cities: ['Kadapa', 'Proddatur', 'Kurnool', 'Rajampet'] },
-    { name: 'NTR', cities: ['Vijayawada', 'Guntur', 'Tenali', 'Mangalagiri'] },
-    { name: 'Sri Potti Sriramulu Nellore', cities: ['Nellore', 'Gudur', 'Kavali', 'Atmakur'] },
-    { name: 'Parvathipuram Manyam', cities: ['Parvathipuram', 'Salur', 'Bobbili'] },
-    { name: 'Alluri Sitharama Raju', cities: ['Paderu', 'Anakapalle', 'Araku Valley'] },
-    { name: 'Nandyal', cities: ['Nandyal', 'Dhone', 'Adoni', 'Kurnool'] },
-    { name: 'Eluru', cities: ['Eluru', 'Bhimavaram', 'Narsapur'] },
-  ]},
+// ═══ GOVERNMENT APIs — 100% REAL DATA ═══
+// LGD (Local Government Directory) = data.gov.in — Official Government of India
+// India Post Pincode Directory = Department of Posts, Government of India
 
-  // ═══ 2. ARUNACHAL PRADESH ═══
-  { state: 'Arunachal Pradesh', stateCode: 'AR', type: 'state', districts: [
-    { name: 'Tawang', cities: ['Tawang', 'Lumla', 'Zemithang'] },
-    { name: 'West Kameng', cities: ['Bomdila', 'Dirang', 'Kalaktang'] },
-    { name: 'East Kameng', cities: ['Seppa', 'Chayang Tajo', 'Pakke Kessang'] },
-    { name: 'Papum Pare', cities: ['Itanagar', 'Naharlagun', 'Doimukh'] },
-    { name: 'Lower Subansiri', cities: ['Ziro', 'Yachuli', 'Basar'] },
-    { name: 'Upper Subansiri', cities: ['Daporijo', 'Dumporijo', 'Basar'] },
-    { name: 'West Siang', cities: ['Aalo', 'Along', 'Bam"]'] },
-    { name: 'East Siang', cities: ['Pasighat', 'Mebo', 'Pangin'] },
-    { name: 'Upper Siang', cities: ['Yinkiong', 'Tuting', 'Bosing'] },
-    { name: 'Dibang Valley', cities: ['Anini', 'Dambuk'] },
-    { name: 'Lower Dibang Valley', cities: ['Roing', 'Tuting'] },
-    { name: 'Lohit', cities: ['Tezu', 'Hayuliang', 'Wakro'] },
-    { name: 'Namsai', cities: ['Namsai', 'Tengapani', 'Mahadevpur'] },
-    { name: 'Changlang', cities: ['Changlang', 'Namtok', 'Miao'] },
-    { name: 'Tirap', cities: ['Khonsa', 'Borduria', 'Longding'] },
-    { name: 'Longding', cities: ['Longding', 'Wakka', 'Pumao'] },
-    { name: 'Keyi Panyor', cities: ['Yachuli', 'Basar'] },
-    { name: 'Bichom', cities: ['Nafra', 'Bomdila'] },
-  ]},
+const LGD_JSON_URL = 'https://raw.githubusercontent.com/aharnish-infotech/india-state-district-json/main/India-State-District.json';
+const DATA_GOV_PINCODE_URL = 'https://api.data.gov.in/resource/6176ee09-3d56-4a3b-8115-21841576b2f6';
+const DATA_GOV_API_KEY = '579b464db66ec23bdd000001b7c61799988d4f2d60cfa2215355205a';
 
-  // ═══ 3. ASSAM ═══
-  { state: 'Assam', stateCode: 'AS', type: 'state', districts: [
-    { name: 'Baksa', cities: ['Mushalpur', 'Tamulpur'] },
-    { name: 'Barpeta', cities: ['Barpeta', 'Barpeta Road', 'Howly'] },
-    { name: 'Biswanath', cities: ['Biswanath Chariali', 'Tezpur'] },
-    { name: 'Bongalgaon', cities: ['Bongaigaon', 'Abhayapuri', 'North Salmara'] },
-    { name: 'Cachar', cities: ['Silchar', 'Hailakandi', 'Karimganj'] },
-    { name: 'Charaideo', cities: ['Sonari', 'Mahuta', 'Sapekhati'] },
-    { name: 'Chirang', cities: ['Kajalgaon', 'Bengaluru'] },
-    { name: 'Darrang', cities: ['Mangaldai', 'Kharupetia'] },
-    { name: 'Dhemaji', cities: ['Dhemaji', 'Jonai', 'Silapathar'] },
-    { name: 'Dhubri', cities: ['Dhubri', 'Golakganj', 'Bilasipara'] },
-    { name: 'Dibrugarh', cities: ['Dibrugarh', 'Tinsukia', 'Sadiya'] },
-    { name: 'Dima Hasao', cities: ['Haflong', 'Maibang', 'Lumding'] },
-    { name: 'Goalpara', cities: ['Goalpara', 'Lakhipur', 'Balijana'] },
-    { name: 'Golaghat', cities: ['Golaghat', 'Bokakhat', 'Kaziranga'] },
-    { name: 'Hailakandi', cities: ['Hailakandi', 'Katlicherra', 'Algapur'] },
-    { name: 'Jorhat', cities: ['Jorhat', 'Majuli', 'Teok'] },
-    { name: 'Kamrup', cities: ['Guwahati', 'Azara', 'Palasbari'] },
-    { name: 'Kamrup Metropolitan', cities: ['Guwahati', 'Dispur', 'Fancy Bazar'] },
-    { name: 'Karbi Anglong', cities: ['Diphu', 'Hamren', 'Sophilan'] },
-    { name: 'Karimganj', cities: ['Karimganj', 'Badarpur', 'Patharkandi'] },
-    { name: 'Kokrajhar', cities: ['Kokrajhar', 'Gossaigaon', 'Bhowraguri'] },
-    { name: 'Lakhimpur', cities: ['North Lakhimpur', 'Dhakuakhana'] },
-    { name: 'Majuli', cities: ['Garamur', 'Kamalabari'] },
-    { name: 'Marigaon', cities: ['Morigaon', 'Jagiroad'] },
-    { name: 'Nagaon', cities: ['Nagaon', 'Raha', 'Dhing'] },
-    { name: 'Nalbari', cities: ['Nalbari', 'Rangia', 'Tihu'] },
-    { name: 'Sivasagar', cities: ['Sivasagar', 'Demow', 'Nazira'] },
-    { name: 'Sonitpur', cities: ['Tezpur', 'Dhekiajuli', 'Biswanath'] },
-    { name: 'Tinsukia', cities: ['Tinsukia', 'Duliajan', 'Digboi'] },
-    { name: 'Udalguri', cities: ['Udalguri', 'Tangla', 'Kharupetia'] },
-    { name: 'West Karbi Anglong', cities: ['Bokajan', 'Howly'] },
-  ]},
+// ═══ STEP 1: Government LGD se States + Districts lao ═══
+async function fetchGovtStatesDistricts() {
+  console.log('Fetching States & Districts from Government LGD (data.gov.in)...');
+  const res = await fetch(LGD_JSON_URL);
+  if (!res.ok) throw new Error(`LGD fetch failed: ${res.status}`);
+  const rawData = await res.json();
 
-  // ═══ 4. BIHAR ═══
-  { state: 'Bihar', stateCode: 'BR', type: 'state', districts: [
-    { name: 'Araria', cities: ['Araria', 'Forbesganj', 'Raniganj'] },
-    { name: 'Arwal', cities: ['Arwal', 'Kaler'] },
-    { name: 'Aurangabad', cities: ['Aurangabad', 'Daudnagar', 'Nabinagar'] },
-    { name: 'Banka', cities: ['Banka', 'Bhagalpur', 'Amarpur'] },
-    { name: 'Begusarai', cities: ['Begusarai', 'Barauni', 'Teghra'] },
-    { name: 'Bhagalpur', cities: ['Bhagalpur', 'Naugachia', 'Kahalgaon'] },
-    { name: 'Bhojpur', cities: ['Arrah', 'Bihia', 'Sandesh'] },
-    { name: 'Buxar', cities: ['Buxar', 'Rajpur', 'Dumraon'] },
-    { name: 'Darbhanga', cities: ['Darbhanga', 'Madhubani', 'Jhanjharpur'] },
-    { name: 'East Champaran', cities: ['Motihari', 'Raxaul', 'Muzaffarpur'] },
-    { name: 'Gaya', cities: ['Gaya', 'Bodh Gaya', 'Dobhi'] },
-    { name: 'Gopalganj', cities: ['Gopalganj', 'Barauli', 'Kuchaikote'] },
-    { name: 'Jamui', cities: ['Jamui', 'Jhajha', 'Ghoshi'] },
-    { name: 'Kaimur', cities: ['Kaimur', 'Bhabua', 'Mohania'] },
-    { name: 'Katihar', cities: ['Katihar', 'Barsoi', 'Manihari'] },
-    { name: 'Khagaria', cities: ['Khagaria', 'Mansahi', 'Alamnagar'] },
-    { name: 'Kishanganj', cities: ['Kishanganj', 'Thakurganj', 'Bahadurganj'] },
-    { name: 'Lakhisarai', cities: ['Lakhisarai', 'Suryagarh'] },
-    { name: 'Madhepura', cities: ['Madhepura', 'Murliganj', 'Singheshwar'] },
-    { name: 'Madhubani', cities: ['Madhubani', 'Jhanjharpur', 'Bihariganj'] },
-    { name: 'Munger', cities: ['Munger', 'Jamalpur', 'Khagaria'] },
-    { name: 'Muzaffarpur', cities: ['Muzaffarpur', 'Sitamarhi', 'Sheohar'] },
-    { name: 'Nalanda', cities: ['Bihar Sharif', 'Rajgir', 'Hilsa'] },
-    { name: 'Nawada', cities: ['Nawada', 'Rajauli', 'Warisaliganj'] },
-    { name: 'Patna', cities: ['Patna', 'Danapur', 'Khagaul', 'Phulwari Sharif'] },
-    { name: 'Purnia', cities: ['Purnia', 'Kasba', 'Banmankhi'] },
-    { name: 'Rohtas', cities: ['Sasaram', 'Dehri', 'Rohtas'] },
-    { name: 'Saharsa', cities: ['Saharsa', 'Supaul', 'Mahishi'] },
-    { name: 'Samastipur', cities: ['Samastipur', 'Rosera', 'Hasanpur'] },
-    { name: 'Saran', cities: ['Chhapra', 'Marhaura', 'Dighwara'] },
-    { name: 'Sheikhpura', cities: ['Sheikhpura', 'Ariari', 'Barbigha'] },
-    { name: 'Sheohar', cities: ['Sheohar', 'Piprahi'] },
-    { name: 'Sitamarhi', cities: ['Sitamarhi', 'Madaripur', 'Riga'] },
-    { name: 'Siwan', cities: ['Siwan', 'Gorakhpur', 'Mairwa'] },
-    { name: 'Supaul', cities: ['Supaul', 'Nirmali', 'Raghopur'] },
-    { name: 'Vaishali', cities: ['Hajipur', 'Mahua', 'Lalganj'] },
-    { name: 'West Champaran', cities: ['Bettiah', 'Narkatiaganj', 'Bagaha'] },
-  ]},
+  // LGD data ko group karo by state
+  const stateMap = {};
+  for (const row of rawData) {
+    const code = String(row.StateCode).padStart(2, '0');
+    if (!stateMap[code]) {
+      stateMap[code] = { state: row.StateName, stateCode: code, type: 'state', districts: [] };
+    }
+    // Duplicate district check
+    const distName = row['DistrictName(InEnglish)'];
+    if (!stateMap[code].districts.find(d => d.name === distName)) {
+      stateMap[code].districts.push({ name: distName, cities: [] });
+    }
+  }
 
-  // ═══ 5. CHHATTISGARH ═══
-  { state: 'Chhattisgarh', stateCode: 'CG', type: 'state', districts: [
-    { name: 'Raipur', cities: ['Raipur', 'Abhanpur', 'Arang'] },
-    { name: 'Bilaspur', cities: ['Bilaspur', 'Bilha', 'Takhatpur'] },
-    { name: 'Durg', cities: ['Durg', 'Bhilai', 'Rajnandgaon'] },
-    { name: 'Jagdalpur', cities: ['Jagdalpur', 'Bastar', 'Dantewada'] },
-    { name: 'Ambikapur', cities: ['Ambikapur', 'Surajpur', 'Lakhanpur'] },
-    { name: 'Rajnandgaon', cities: ['Rajnandgaon', 'Dongargaon', 'Khairagarh'] },
-    { name: 'Korba', cities: ['Korba', 'Katghora', 'Pali'] },
-    { name: 'Raigarh', cities: ['Raigarh', 'Saraipali', 'Kharsia'] },
-    { name: 'Janjgir-Champa', cities: ['Janjgir', 'Champa', 'Sakti'] },
-    { name: 'Kabirdham', cities: ['Kawardha', 'Pandariya'] },
-    { name: 'Mahasamund', cities: ['Mahasamund', 'Saraipali'] },
-    { name: 'Dhamtari', cities: ['Dhamtari', 'Kurud'] },
-    { name: 'Gariaband', cities: ['Gariaband', 'Deobhog'] },
-    { name: 'Balod', cities: ['Balod', 'Dalli-Rajhara'] },
-    { name: 'Bemetara', cities: ['Bemetara', 'Nagri'] },
-    { name: 'Kondagaon', cities: ['Kondagaon', 'Narayanpur'] },
-    { name: 'Kawardha', cities: ['Kawardha', 'Pandariya'] },
-    { name: 'Surguja', cities: ['Ambikapur', 'Surajpur', 'Pratappur'] },
-    { name: 'Dantewada', cities: ['Dantewada', 'Bacheli', 'Geedam'] },
-    { name: 'Bijapur', cities: ['Bijapur', 'Bhairamgarh'] },
-    { name: 'Narayanpur', cities: ['Narayanpur', 'Abhujmad'] },
-    { name: 'Korba', cities: ['Korba', 'Hasdeo'] },
-    { name: 'Gaurela-Pendra-Marwahi', cities: ['Gaurela', 'Pendra', 'Marwahi'] },
-  ]},
+  // UT codes (>35) detect karo
+  const utCodes = ['35', '31', '34', '04', '07', '26', '32', '38'];
+  for (const code of Object.keys(stateMap)) {
+    if (utCodes.includes(code)) stateMap[code].type = 'ut';
+  }
 
-  // ═══ 6. GOA ═══
-  { state: 'Goa', stateCode: 'GA', type: 'state', districts: [
-    { name: 'North Goa', cities: ['Panaji', 'Mapusa', 'Ponda', 'Calangute', 'Bicholim', 'Pernem', 'Siolim'] },
-    { name: 'South Goa', cities: ['Margao', 'Vasco da Gama', 'Mormugao', 'Quepem', 'Canacona', 'Sanguem', 'Dharbandora'] },
-  ]},
+  const result = Object.values(stateMap);
+  console.log(`  Found ${result.length} States/UTs with ${result.reduce((a, s) => a + s.districts.length, 0)} districts`);
+  return result;
+}
 
-  // ═══ 7. GUJARAT ═══
-  { state: 'Gujarat', stateCode: 'GJ', type: 'state', districts: [
-    { name: 'Ahmedabad', cities: ['Ahmedabad', 'Gandhinagar', 'Naroda', 'Vastral', 'Sabarmati'] },
-    { name: 'Surat', cities: ['Surat', 'Navsari', 'Bardoli', 'Mahuva'] },
-    { name: 'Vadodara', cities: ['Vadodara', 'Dabhoi', 'Padra', 'Karjan'] },
-    { name: 'Rajkot', cities: ['Rajkot', 'Gondal', 'Jetpur', 'Dhoraji'] },
-    { name: 'Bhavnagar', cities: ['Bhavnagar', 'Palitana', 'Talaja'] },
-    { name: 'Jamnagar', cities: ['Jamnagar', 'Dwarka', 'Rajkot'] },
-    { name: 'Junagadh', cities: ['Junagadh', 'Veraval', 'Mangrol', 'Somnath'] },
-    { name: 'Anand', cities: ['Anand', 'Nadiad', 'Khambhat'] },
-    { name: 'Bharuch', cities: ['Bharuch', 'Ankleshwar', 'Jhagadia'] },
-    { name: 'Mehsana', cities: ['Mehsana', 'Unjha', 'Visnagar'] },
-    { name: 'Patan', cities: ['Patan', 'Sidhpur', 'Hansa'] },
-    { name: 'Surendranagar', cities: ['Surendranagar', 'Wadhwan', 'Dhangadhra'] },
-    { name: 'Gandhinagar', cities: ['Gandhinagar', 'Dehgam', 'Kalol'] },
-    { name: 'Kheda', cities: ['Kheda', 'Nadiad', 'Matar'] },
-    { name: 'Panchmahal', cities: ['Godhra', 'Halol', 'Santrampur'] },
-    { name: 'Dahod', cities: ['Dahod', 'Jhalod', 'Limkheda'] },
-    { name: 'Navsari', cities: ['Navsari', 'Valsad', 'Bilimora'] },
-    { name: 'Valsad', cities: ['Valsad', 'Vapi', 'Dharampur'] },
-    { name: 'Tapi', cities: ['Vyara', 'Songadh', 'Nizampur'] },
-    { name: 'Porbandar', cities: ['Porbandar', 'Ranavav', 'Kutiyana'] },
-    { name: 'Amreli', cities: ['Amreli', 'Bhavnagar', 'Lathi'] },
-    { name: 'Devbhoomi Dwarka', cities: ['Dwarka', 'Bhadreshwar', 'Khambhalia'] },
-    { name: 'Gir Somnath', cities: ['Veraval', 'Somnath', 'Sutrapada'] },
-    { name: 'Chhota Udaipur', cities: ['Chhota Udaipur', 'Bodeli'] },
-    { name: 'Arvalli', cities: ['Modasa', 'Meghraj', 'Bayad'] },
-    { name: 'Morbi', cities: ['Morbi', 'Maliya', 'Tankara'] },
-    { name: 'Narmada', cities: ['Rajpipla', 'Nandod', 'Tilakwada'] },
-    { name: 'Sabarkantha', cities: ['Himmatnagar', 'Vijapur', 'Idar'] },
-    { name: 'Banaskantha', cities: ['Palanpur', 'Deesa', 'Tharad'] },
-    { name: 'Kutch', cities: ['Bhuj', 'Mundra', 'Rapar', 'Gandhidham'] },
-  ]},
+// ═══ STEP 2: India Post Pincode Directory se Cities lao ═══
+// Department of Posts, Government of India — 155K+ records
+async function fetchGovtCities() {
+  console.log('Fetching Cities from India Post Pincode Directory (data.gov.in)...');
+  console.log('  This takes ~2-3 minutes (155K records in batches)...');
 
-  // ═══ 8. HARYANA ═══
-  { state: 'Haryana', stateCode: 'HR', type: 'state', districts: [
-    { name: 'Gurugram', cities: ['Gurugram', 'Sohna', 'Pataudi'] },
-    { name: 'Faridabad', cities: ['Faridabad', 'Ballabgarh', 'Palwal'] },
-    { name: 'Panipat', cities: ['Panipat', 'Samalkha', 'Israna'] },
-    { name: 'Ambala', cities: ['Ambala', 'Ambala Cantt', 'Shahzadpur'] },
-    { name: 'Karnal', cities: ['Karnal', 'Indri', 'Gharaunda'] },
-    { name: 'Sonipat', cities: ['Sonipat', 'Ganaur', 'Kharkhoda'] },
-    { name: 'Rohtak', cities: ['Rohtak', 'Bahadurgarh', 'Jhajjar'] },
-    { name: 'Hisar', cities: ['Hisar', 'Hansi', 'Barwala'] },
-    { name: 'Sirsa', cities: ['Sirsa', 'Dabwali', 'Rania'] },
-    { name: 'Jind', cities: ['Jind', 'Narwana', 'Safidon'] },
-    { name: 'Kurukshetra', cities: ['Kurukshetra', 'Thanesar', 'Ladwa'] },
-    { name: 'Kaithal', cities: ['Kaithal', 'Guhla', 'Pundri'] },
-    { name: 'Panchkula', cities: ['Panchkula', 'Pinjore', 'Kalka'] },
-    { name: 'Yamunanagar', cities: ['Yamunanagar', 'Jagadhri', 'Bilaspur'] },
-    { name: 'Rewari', cities: ['Rewari', 'Bawal', 'Dharuhera'] },
-    { name: 'Mahendragarh', cities: ['Narnaul', 'Mahendragarh', 'Kanina'] },
-    { name: 'Charkhi Dadri', cities: ['Charkhi Dadri', 'Bhiwani'] },
-    { name: 'Bhiwani', cities: ['Bhiwani', 'Loharu', 'Siwani'] },
-    { name: 'Fatehabad', cities: ['Fatehabad', 'Tohana', 'Ratia'] },
-    { name: 'Palwal', cities: ['Palwal', 'Hodal', 'Mathura'] },
-    { name: 'Mewat', cities: ['Nuh', 'Ferozepur Jhirka', 'Punhana'] },
-    { name: 'Jhajjar', cities: ['Jhajjar', 'Bahadurgarh', 'Matnhail'] },
-    { name: 'Hisar', cities: ['Hisar', 'Hansi', 'Adampur'] },
-    { name: 'Karnal', cities: ['Karnal', 'Assandh', 'Gharaunda'] },
-    { name: 'Kurukshetra', cities: ['Kurukshetra', 'Pehowa', 'Shahabad'] },
-  ]},
+  const cityMap = {}; // "STATE|DISTRICT" -> Set of cities
+  let offset = 0;
+  const batchSize = 1000;
+  let total = Infinity;
 
-  // ═══ 9. HIMACHAL PRADESH ═══
-  { state: 'Himachal Pradesh', stateCode: 'HP', type: 'state', districts: [
-    { name: 'Shimla', cities: ['Shimla', 'Theog', 'Kufri', 'Chopal'] },
-    { name: 'Kangra', cities: ['Dharamshala', 'Kangra', 'Palampur', 'Jwalamukhi'] },
-    { name: 'Mandi', cities: ['Mandi', 'Sundernagar', 'Jogindernagar'] },
-    { name: 'Kullu', cities: ['Kullu', 'Manali', 'Bhuntar'] },
-    { name: 'Hamirpur', cities: ['Hamirpur', 'Nadaun', 'Bhota'] },
-    { name: 'Bilaspur', cities: ['Bilaspur', 'Ghumarwin', 'Naina Devi'] },
-    { name: 'Chamba', cities: ['Chamba', 'Dalhousie', 'Khajjiar'] },
-    { name: 'Una', cities: ['Una', 'Amb', 'Gagret'] },
-    { name: 'Solan', cities: ['Solan', 'Baddi', 'Parwanoo'] },
-    { name: 'Sirmaur', cities: ['Nahan', 'Paonta Sahib', 'Rajgarh'] },
-    { name: 'Kinnaur', cities: ['Reckong Peo', 'Kalpa', 'Sangla'] },
-    { name: 'Lahaul and Spiti', cities: ['Keylong', 'Kaza', 'Udaipur'] },
-    { name: 'Dharamshala', cities: ['Dharamshala', 'McLeod Ganj', 'Kangra'] },
-  ]},
+  while (offset < total) {
+    try {
+      const url = `${DATA_GOV_PINCODE_URL}?api-key=${DATA_GOV_API_KEY}&format=json&limit=${batchSize}&offset=${offset}&fields=statename,districtname,officename`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Batch ${offset} failed: ${res.status}`);
+      const data = await res.json();
+      total = parseInt(data.total) || 155570;
 
-  // ═══ 10. JHARKHAND ═══
-  { state: 'Jharkhand', stateCode: 'JH', type: 'state', districts: [
-    { name: 'Ranchi', cities: ['Ranchi', 'Kanke', 'Namkum'] },
-    { name: 'Jamshedpur', cities: ['Jamshedpur', 'Potka', 'Ghatshila'] },
-    { name: 'Dhanbad', cities: ['Dhanbad', 'Jharia', 'Katras'] },
-    { name: 'Bokaro', cities: ['Bokaro Steel City', 'Chas', 'Tenu Dam'] },
-    { name: 'Deoghar', cities: ['Deoghar', 'Madhupur', 'Jasidih'] },
-    { name: 'Hazaribag', cities: ['Hazaribag', 'Chauparan', 'Katkamsandi'] },
-    { name: 'Giridih', cities: ['Giridih', 'Deoghar', 'Madhupur'] },
-    { name: 'Ramgarh', cities: ['Ramgarh', 'Mandu', 'Patratu'] },
-    { name: 'Dumka', cities: ['Dumka', 'Jamtara', 'Nirsa'] },
-    { name: 'Gumla', cities: ['Gumla', 'Lohardaga', 'Simdega'] },
-    { name: 'Lohardaga', cities: ['Lohardaga', 'Chainpur'] },
-    { name: 'Simdega', cities: ['Simdega', 'Kolebira'] },
-    { name: 'Palamu', cities: ['Daltonganj', 'Medininagar', 'Chhatarpur'] },
-    { name: 'Latehar', cities: ['Latehar', 'Manatu', 'Barwadih'] },
-    { name: 'Pakur', cities: ['Pakur', 'Mahagama', 'Litipara'] },
-    { name: 'Sahebganj', cities: ['Sahebganj', 'Rajmahal', 'Mahagama'] },
-    { name: 'Godda', cities: ['Godda', 'Mahagama', 'Pathargama'] },
-    { name: 'Koderma', cities: ['Koderma', 'Hazaribag', 'Chatro'] },
-    { name: 'Chatra', cities: ['Chatra', 'Itkhori', 'Simaria'] },
-    { name: 'Seraikela-Kharsawan', cities: ['Seraikela', 'Kharsawan', 'Chaibasa'] },
-    { name: 'West Singhbhum', cities: ['Chaibasa', 'Chakradharpur', 'Manoharpur'] },
-    { name: 'East Singhbhum', cities: ['Jamshedpur', 'Ghatshila', 'Musabani'] },
-    { name: 'Khunti', cities: ['Khunti', 'Torpa', 'Rania'] },
-    { name: 'Sahibganj', cities: ['Sahibganj', 'Rajmahal', 'Mandro'] },
-    { name: 'Jamtara', cities: ['Jamtara', 'Nirsa', 'Fatehpur'] },
-    { name: 'Sadhugram', cities: ['Sadhugram', 'Ghatshila'] },
-  ]},
+      for (const rec of data.records || []) {
+        const state = rec.statename?.trim();
+        const district = rec.districtname?.trim();
+        let city = rec.officename?.trim();
 
-  // ═══ 11. KARNATAKA ═══
-  { state: 'Karnataka', stateCode: 'KA', type: 'state', districts: [
-    { name: 'Bangalore Urban', cities: ['Bangalore', 'Whitefield', 'Electronic City', 'Hebbal', 'HSR Layout'] },
-    { name: 'Bangalore Rural', cities: ['Nelamangala', 'Devanahalli', 'Hoskote'] },
-    { name: 'Mysore', cities: ['Mysore', 'Hunsur', 'Nanjangud'] },
-    { name: 'Mangalore', cities: ['Mangalore', 'Surathkal', 'Bantwal'] },
-    { name: 'Belgaum', cities: ['Belgaum', 'Gokak', 'Chikkodi'] },
-    { name: 'Gulbarga', cities: ['Gulbarga', 'Bidar', 'Yadgir'] },
-    { name: 'Hubli-Dharwad', cities: ['Hubli', 'Dharwad', 'Navanagar'] },
-    { name: 'Davangere', cities: ['Davangere', 'Harihar', 'Chitradurga'] },
-    { name: 'Shimoga', cities: ['Shimoga', 'Bhadravati', 'Sagar'] },
-    { name: 'Tumkur', cities: ['Tumkur', 'Tiptur', 'Kunigal'] },
-    { name: 'Hassan', cities: ['Hassan', 'Arsikere', 'Belur'] },
-    { name: 'Mandya', cities: ['Mandya', 'Maddur', 'Srirangapatna'] },
-    { name: 'Raichur', cities: ['Raichur', 'Bellary', 'Yadgir'] },
-    { name: 'Bellary', cities: ['Bellary', 'Hospet', 'Sandur'] },
-    { name: 'Bijapur', cities: ['Bijapur', 'Indi', 'Basavana Bagevadi'] },
-    { name: 'Bagalkot', cities: ['Bagalkot', 'Bijapur', 'Badami'] },
-    { name: 'Chitradurga', cities: ['Chitradurga', 'Hosdurga', 'Molakalmuru'] },
-    { name: 'Koppal', cities: ['Koppal', 'Gangavathi', 'Yelburga'] },
-    { name: 'Gadag', cities: ['Gadag', 'Betageri', 'Lakshmeshwar'] },
-    { name: 'Uttara Kannada', cities: ['Karwar', 'Sirsi', 'Honnavar'] },
-    { name: 'Dakshina Kannada', cities: ['Mangalore', 'Puttur', 'Sullia'] },
-    { name: 'Udupi', cities: ['Udupi', 'Kundapura', 'Manipal'] },
-    { name: 'Chikmagalur', cities: ['Chikmagalur', 'Kadur', 'Mudigere'] },
-    { name: 'Kodagu', cities: ['Madikeri', 'Virajpet', 'Somwarpet'] },
-    { name: 'Kolar', cities: ['Kolar', 'Bangarpet', 'Mulbagal'] },
-    { name: 'Chikkaballapur', cities: ['Chikkaballapur', 'Gauribidanur'] },
-    { name: 'Ramanagara', cities: ['Ramanagara', 'Channapatna', 'Kanakapura'] },
-    { name: 'Yadgir', cities: ['Yadgir', 'Shahpur', 'Shorapur'] },
-    { name: 'Haveri', cities: ['Haveri', 'Ranebennur', 'Harihar'] },
-    { name: 'Dharwad', cities: ['Dharwad', 'Hubli', 'Navalgund'] },
-    { name: 'Chamarajanagar', cities: ['Chamarajanagar', 'Gundlupet', 'Yelandur'] },
-  ]},
+        // Post office suffixes hatao — "Connaught Place S.O" -> "Connaught Place"
+        city = city.replace(/\s*(S\.O|B\.O|H\.O|G\.P\.O|\.S\.O|\.B\.O|\.H\.O|Head Post Office|Sub Post Office|Branch Post Office)\s*$/i, '').trim();
 
-  // ═══ 12. KERALA ═══
-  { state: 'Kerala', stateCode: 'KL', type: 'state', districts: [
-    { name: 'Thiruvananthapuram', cities: ['Thiruvananthapuram', 'Neyyattinkara', 'Attingal', 'Kazhakootam'] },
-    { name: 'Kollam', cities: ['Kollam', 'Punalur', 'Karunagappally'] },
-    { name: 'Pathanamthitta', cities: ['Pathanamthitta', 'Pandalam', 'Ranni'] },
-    { name: 'Alappuzha', cities: ['Alappuzha', 'Cherthala', 'Kayamkulam'] },
-    { name: 'Kottayam', cities: ['Kottayam', 'Pala', 'Changanassery'] },
-    { name: 'Idukki', cities: ['Idukki', 'Kottayam', 'Munnar'] },
-    { name: 'Ernakulam', cities: ['Kochi', 'Aluva', 'Perumbavoor', 'Kakkanad'] },
-    { name: 'Thrissur', cities: ['Thrissur', 'Chalakudy', 'Kodungallur'] },
-    { name: 'Palakkad', cities: ['Palakkad', 'Ottapalam', 'Chittur'] },
-    { name: 'Malappuram', cities: ['Malappuram', 'Manjeri', 'Perinthalmanna'] },
-    { name: 'Kozhikode', cities: ['Kozhikode', 'Vadakara', 'Koyilandy'] },
-    { name: 'Wayanad', cities: ['Kalpetta', 'Sulthan Bathery', 'Mananthavady'] },
-    { name: 'Kannur', cities: ['Kannur', 'Thalassery', 'Payyannur'] },
-    { name: 'Kasaragod', cities: ['Kasaragod', 'Kanhangad', 'Nileshwar'] },
-  ]},
+        if (state && district && city) {
+          const key = `${state}|${district}`;
+          if (!cityMap[key]) cityMap[key] = new Set();
+          cityMap[key].add(city);
+        }
+      }
 
-  // ═══ 13. MADHYA PRADESH ═══
-  { state: 'Madhya Pradesh', stateCode: 'MP', type: 'state', districts: [
-    { name: 'Bhopal', cities: ['Bhopal', 'Kolar', 'Habibganj'] },
-    { name: 'Indore', cities: ['Indore', 'Dewas', 'Mhow'] },
-    { name: 'Jabalpur', cities: ['Jabalpur', 'Katangi', 'Madan Mahal'] },
-    { name: 'Gwalior', cities: ['Gwalior', 'Dabra', 'Bhitarwar'] },
-    { name: 'Ujjain', cities: ['Ujjain', 'Dewas', 'Maksi'] },
-    { name: 'Sagar', cities: ['Sagar', 'Damoh', 'Khurai'] },
-    { name: 'Satna', cities: ['Satna', 'Amarpatan', 'Maihar'] },
-    { name: 'Rewa', cities: ['Rewa', 'Maihar', 'Sidhi'] },
-    { name: 'Dhar', cities: ['Dhar', 'Manawar', 'Badnawar'] },
-    { name: 'Jhabua', cities: ['Jhabua', 'Ratlam', 'Thandla'] },
-    { name: 'Dewas', cities: ['Dewas', 'Khandwa', 'Burhanpur'] },
-    { name: 'Sehore', cities: ['Sehore', 'Bhopal', 'Nasrullaganj'] },
-    { name: 'Hoshangabad', cities: ['Hoshangabad', 'Pipariya', 'Bankhedi'] },
-    { name: 'Betul', cities: ['Betul', 'Multai', 'Amarkantak'] },
-    { name: 'Chhindwara', cities: ['Chhindwara', 'Parasia', 'Amarwara'] },
-    { name: 'Balaghat', cities: ['Balaghat', 'Lanji', 'Katangi'] },
-    { name: 'Vidisha', cities: ['Vidisha', 'Bhopal', 'Ganjbasoda'] },
-    { name: 'Raisen', cities: ['Raisen', 'Begumganj', 'Sanchi'] },
-    { name: 'Rajgarh', cities: ['Rajgarh', 'Biaora', 'Khilchipur'] },
-    { name: 'Datia', cities: ['Datia', 'Seondha', 'Bhander'] },
-    { name: 'Panna', cities: ['Panna', 'Satna', 'Ajaigarh'] },
-    { name: 'Tikamgarh', cities: ['Tikamgarh', 'Orchha', 'Prithvipur'] },
-    { name: 'Damoh', cities: ['Damoh', 'Patera', 'Hatta'] },
-    { name: 'Mandla', cities: ['Mandla', 'Nainpur', 'Bichhiya'] },
-    { name: 'Dindori', cities: ['Dindori', 'Shahpura'] },
-    { name: 'Seoni', cities: ['Seoni', 'Lakhnadon', 'Keolari'] },
-    { name: 'Narsinghpur', cities: ['Narsinghpur', 'Gadarwara', 'Kareli'] },
-    { name: 'Katni', cities: ['Katni', 'Murwara', 'Barhi'] },
-    { name: 'Umaria', cities: ['Umaria', 'BANDAVAGARH', 'Manpur'] },
-    { name: 'Shahdol', cities: ['Shahdol', 'Anuppur', 'Dongargarh'] },
-    { name: 'Anuppur', cities: ['Anuppur', 'Pushprajgarh', 'Kotma'] },
-    { name: 'Singrauli', cities: ['Singrauli', 'Waidhan', 'Baidyanath'] },
-    { name: 'Ashoknagar', cities: ['Ashoknagar', 'Mungaoli'] },
-    { name: 'Sheopur', cities: ['Sheopur', 'Vijaypur'] },
-    { name: 'Morena', cities: ['Morena', 'Sabalgarh', 'Dabra'] },
-    { name: 'Bhind', cities: ['Bhind', 'Gohad', 'Ater'] },
-    { name: 'Khargone', cities: ['Khargone', 'Barwah', 'Sanawad'] },
-    { name: 'Barwani', cities: ['Barwani', 'Rajpur', 'Sendhwa'] },
-    { name: 'Alirajpur', cities: ['Alirajpur', 'Jobat'] },
-    { name: 'Harda', cities: ['Harda', 'Timarni', 'Khirkiya'] },
-    { name: 'Pandhurna', cities: ['Pandhurna', 'Chhindwara'] },
-  ]},
+      offset += batchSize;
+      const pct = Math.min(100, Math.round((offset / total) * 100));
+      process.stdout.write(`\r  Progress: ${pct}% (${Math.min(offset, total)}/${total} records)`);
+    } catch (err) {
+      console.log(`\n  Batch error at offset ${offset}: ${err.message}. Retrying in 2s...`);
+      await new Promise(r => setTimeout(r, 2000));
+      continue; // Retry same offset
+    }
+  }
 
-  // ═══ 14. MAHARASHTRA ═══
-  { state: 'Maharashtra', stateCode: 'MH', type: 'state', districts: [
-    { name: 'Mumbai', cities: ['Mumbai', 'Andheri', 'Bandra', 'Borivali', 'Dadar', 'Juhu', 'Powai'] },
-    { name: 'Mumbai Suburban', cities: ['Bandra', 'Andheri', 'Borivali', 'Goregaon', 'Malad'] },
-    { name: 'Thane', cities: ['Thane', 'Kalyan', 'Dombivli', 'Ulhasnagar', 'Shahapur'] },
-    { name: 'Pune', cities: ['Pune', 'Pimpri-Chinchwad', 'Hinjewadi', 'Wagholi', 'Kothrud'] },
-    { name: 'Nagpur', cities: ['Nagpur', 'Wardha', 'Bhandara', 'Katol'] },
-    { name: 'Nashik', cities: ['Nashik', 'Sinnar', 'Igatpuri', 'Malegaon'] },
-    { name: 'Aurangabad', cities: ['Aurangabad', 'Jalna', 'Beed', 'Parbhani'] },
-    { name: 'Solapur', cities: ['Solapur', 'Akola', 'Barshi', 'Pandharpur'] },
-    { name: 'Kolhapur', cities: ['Kolhapur', 'Ichalkaranji', 'Karad', 'Patan'] },
-    { name: 'Amravati', cities: ['Amravati', 'Badlapur', 'Akola', 'Washim'] },
-    { name: 'Jalgaon', cities: ['Jalgaon', 'Chopda', 'Dharangaon', 'Bhusawal'] },
-    { name: 'Ahmednagar', cities: ['Ahmednagar', 'Sangamner', 'Shrigonda', 'Rahata'] },
-    { name: 'Latur', cities: ['Latur', 'Udgir', 'Nilanga', 'Achalpur'] },
-    { name: 'Osmanabad', cities: ['Osmanabad', 'Paranda', 'Tuljapur'] },
-    { name: 'Nanded', cities: ['Nanded', 'Hadgaon', 'Mudkhed', 'Bhokar'] },
-    { name: 'Satara', cities: ['Satara', 'Karad', 'Mahabaleshwar', 'Wai'] },
-    { name: 'Ratnagiri', cities: ['Ratnagiri', 'Chiplun', 'Lanja', 'Mandangad'] },
-    { name: 'Sindhudurg', cities: ['Sindhudurg', 'Kudal', 'Vengurla', 'Sawantwadi'] },
-    { name: 'Wardha', cities: ['Wardha', 'Hinganghat', 'Arvi'] },
-    { name: 'Yavatmal', cities: ['Yavatmal', 'Wani', 'Pusad', 'Umarkhed'] },
-    { name: 'Chandrapur', cities: ['Chandrapur', 'Ballarpur', 'Warora', 'Gadchiroli'] },
-    { name: 'Gadchiroli', cities: ['Gadchiroli', 'Aheri', 'Armori'] },
-    { name: 'Hingoli', cities: ['Hingoli', 'Basmath', 'Kalamnuri'] },
-    { name: 'Parbhani', cities: ['Parbhani', 'Jintur', 'Manwath'] },
-    { name: 'Jalna', cities: ['Jalna', 'Ambad', 'Partur'] },
-    { name: 'Dhule', cities: ['Dhule', 'Shindkheda', 'Nardana'] },
-    { name: 'Nandurbar', cities: ['Nandurbar', 'Navapur', 'Shahada'] },
-    { name: 'Buldhana', cities: ['Buldhana', 'Khamgaon', 'Chikhli', 'Jalgaon Jamod'] },
-    { name: 'Washim', cities: ['Washim', 'Karanja', 'Mangrulpir'] },
-    { name: 'Beed', cities: ['Beed', 'Parli', 'Ambajogai'] },
-    { name: 'Chhatrapati Sambhajinagar', cities: ['Aurangabad', 'Jalna', 'Paithan'] },
-  ]},
+  console.log(`\n  Found ${Object.keys(cityMap).length} state-district combinations with cities`);
+  return cityMap;
+}
 
-  // ═══ 15. MANIPUR ═══
-  { state: 'Manipur', stateCode: 'MN', type: 'state', districts: [
-    { name: 'Imphal West', cities: ['Imphal', 'Lamphelpat', 'Wangoi'] },
-    { name: 'Imphal East', cities: ['Imphal', 'Porompat', 'Keishamthong'] },
-    { name: 'Thoubal', cities: ['Thoubal', 'Lilong', 'Wabagai'] },
-    { name: 'Bishnupur', cities: ['Bishnupur', 'Nambol', 'Kumbi'] },
-    { name: 'Churachandpur', cities: ['Churachandpur', 'Lamka', 'Singngat'] },
-    { name: 'Chandel', cities: ['Chandel', 'Tengnoupal', 'Moreh'] },
-    { name: 'Senapati', cities: ['Senapati', 'Mao', 'Karong'] },
-    { name: 'Tamenglong', cities: ['Tamenglong', 'Nungba', 'Thenjang'] },
-    { name: 'Ukhrul', cities: ['Ukhrul', 'Jessami', 'Phungyar'] },
-    { name: 'Jiribam', cities: ['Jiribam', 'Borobekra'] },
-    { name: 'Kakching', cities: ['Kakching', 'Wabagai'] },
-    { name: 'Kamjong', cities: ['Kamjong', 'Chassad'] },
-    { name: 'Noney', cities: ['Noney', 'Longmai'] },
-    { name: 'Pherzawl', cities: ['Pherzawl', 'Thanlon'] },
-    { name: 'Tengnoupal', cities: ['Tengnoupal', 'Moreh'] },
-  ]},
+// ═══ STEP 3: States/Districts + Cities merge karo ═══
+function mergeData(states, cityMap) {
+  console.log('Merging government data...');
+  for (const state of states) {
+    // LGD state names vs India Post state names match karo
+    // LGD: "Andhra Pradesh" vs India Post: "ANDHRA PRADESH"
+    const stateUpper = state.state.toUpperCase();
+    for (const district of state.districts) {
+      const distUpper = district.name.toUpperCase();
+      // Try exact match, then partial match
+      let cities = cityMap[`${stateUpper}|${distUpper}`];
+      if (!cities) {
+        // Partial match try karo
+        for (const [key, val] of Object.entries(cityMap)) {
+          const [s, d] = key.split('|');
+          if (s === stateUpper && (d.includes(distUpper) || distUpper.includes(d))) {
+            cities = val;
+            break;
+          }
+        }
+      }
+      if (cities) {
+        district.cities = [...cities].sort();
+      }
+    }
+  }
+  return states;
+}
 
-  // ═══ 16. MEGHALAYA ═══
-  { state: 'Meghalaya', stateCode: 'ML', type: 'state', districts: [
-    { name: 'East Khasi Hills', cities: ['Shillong', 'Cherrapunji', 'Mawsynram'] },
-    { name: 'West Khasi Hills', cities: ['Nongstoin', 'Mairang'] },
-    { name: 'South West Khasi Hills', cities: ['Mawkyrwat', 'Ranikor'] },
-    { name: 'East Jaintia Hills', cities: ['Khliehriat', 'Sutnga'] },
-    { name: 'West Jaintia Hills', cities: ['Jowai', 'Nartiang'] },
-    { name: 'East Garo Hills', cities: ['Williamnagar', 'Resubelpara'] },
-    { name: 'West Garo Hills', cities: ['Tura', 'Ampati'] },
-    { name: 'South Garo Hills', cities: ['Baghmara', 'Rongara'] },
-    { name: 'North Garo Hills', cities: ['Tura', 'Phulbari'] },
-    { name: 'South West Garo Hills', cities: ['Baghmara', 'Ampati'] },
-    { name: 'East Khasi Hills', cities: ['Shillong', 'Laitumkhrah'] },
-  ]},
+// ═══ STEP 4: MongoDB mein save karo ═══
+async function saveToDB(states) {
+  console.log('Saving to MongoDB...');
+  let created = 0, updated = 0, skipped = 0;
 
-  // ═══ 17. MIZORAM ═══
-  { state: 'Mizoram', stateCode: 'MZ', type: 'state', districts: [
-    { name: 'Aizawl', cities: ['Aizawl', 'Sairang', 'Saitual'] },
-    { name: 'Lunglei', cities: ['Lunglei', 'Bualeazar', 'Hnahthial'] },
-    { name: 'Champhai', cities: ['Champhai', 'Kawrthah', 'Khawhai'] },
-    { name: 'Kolasib', cities: ['Kolasib', 'Vairengte'] },
-    { name: 'Lawngtlai', cities: ['Lawngtlai', 'Siaha', 'Chawngte'] },
-    { name: 'Mamit', cities: ['Mamit', 'Zawlnuam', 'Reiek'] },
-    { name: 'Saiha', cities: ['Saiha', 'Siahmiri'] },
-    { name: 'Serchhip', cities: ['Serchhip', 'Thenzawl', 'Hlimen'] },
-    { name: 'Hnahthial', cities: ['Hnahthial', 'Khawhai'] },
-    { name: 'Saitual', cities: ['Saitual', 'Aizawl'] },
-  ]},
+  for (const state of states) {
+    const existing = await Location.findOne({ stateCode: state.stateCode });
+    if (existing) {
+      // Update karo agar new data zyada hai
+      if (state.districts.length > existing.districts.length) {
+        await Location.findOneAndUpdate({ stateCode: state.stateCode }, { $set: { districts: state.districts, type: state.type } });
+        updated++;
+        console.log(`  Updated: ${state.state} (${state.districts.length} districts)`);
+      } else {
+        skipped++;
+      }
+    } else {
+      await Location.create(state);
+      created++;
+      console.log(`  Created: ${state.state} (${state.stateCode}) — ${state.districts.length} districts`);
+    }
+  }
 
-  // ═══ 18. NAGALAND ═══
-  { state: 'Nagaland', stateCode: 'NL', type: 'state', districts: [
-    { name: 'Kohima', cities: ['Kohima', 'Jakhama', 'Chiephobozou'] },
-    { name: 'Dimapur', cities: ['Dimapur', 'Chumukedima', 'Medziphema'] },
-    { name: 'Mokokchung', cities: ['Mokokchung', 'Impur', 'Mangkolemba'] },
-    { name: 'Tuensang', cities: ['Tuensang', 'Noklak', 'Panso'] },
-    { name: 'Mon', cities: ['Mon', 'Longshen', 'Monyakshu'] },
-    { name: 'Wokha', cities: ['Wokha', 'Mokokchung', 'Sanis'] },
-    { name: 'Zunheboto', cities: ['Zunheboto', 'Suruhuto', 'Atoizu'] },
-    { name: 'Phek', cities: ['Phek', 'Chozuba', 'Kikruma'] },
-    { name: 'Kiphire', cities: ['Kiphire', 'Pungro', 'Yongyahu'] },
-    { name: 'Longleng', cities: ['Longleng', 'Shamator', 'Sakshi'] },
-    { name: 'Peren', cities: ['Peren', 'Jalukie', 'Bokajan'] },
-    { name: 'Noklak', cities: ['Noklak', 'Thonoknyu'] },
-    { name: 'Chumoukedima', cities: ['Chumoukedima', 'Dimapur'] },
-    { name: 'Shamator', cities: ['Shamator', 'Kiphire'] },
-    { name: 'Tseminyu', cities: ['Tseminyu', 'Kohima'] },
-    { name: 'Niuland', cities: ['Niuland', 'Dimapur'] },
-    { name: 'Chumukedima', cities: ['Chumukedima', 'Medziphema'] },
-  ]},
+  console.log(`\nSave complete: Created=${created}, Updated=${updated}, Skipped=${skipped}`);
+}
 
-  // ═══ 19. ODISHA ═══
-  { state: 'Odisha', stateCode: 'OR', type: 'state', districts: [
-    { name: 'Bhubaneswar', cities: ['Bhubaneswar', 'Cuttack', 'Puri', 'Khurda'] },
-    { name: 'Cuttack', cities: ['Cuttack', 'Athagarh', 'Niali'] },
-    { name: 'Puri', cities: ['Puri', 'Konark', 'Satyabadi'] },
-    { name: 'Ganjam', cities: ['Berhampur', 'Chhatrapur', 'Chikiti'] },
-    { name: 'Sambalpur', cities: ['Sambalpur', 'Burla', 'Hirakud'] },
-    { name: 'Balasore', cities: ['Balasore', 'Bhadrak', 'Jaleswar'] },
-    { name: 'Mayurbhanj', cities: ['Baripada', 'Keonjhar', 'Rairangpur'] },
-    { name: 'Keonjhar', cities: ['Keonjhar', 'Anandapur', 'Barbil'] },
-    { name: 'Sundargarh', cities: ['Rourkela', 'Sundargarh', 'Bonai'] },
-    { name: 'Jharsuguda', cities: ['Jharsuguda', 'Brajarajnagar', 'Lakhanpur'] },
-    { name: 'Kendujhar', cities: ['Kendujhar', 'Anandapur', 'Ghatgaon'] },
-    { name: 'Dhenkanal', cities: ['Dhenkanal', 'Kamakhyanagar', 'Hindol'] },
-    { name: 'Angul', cities: ['Angul', 'Talcher', 'Sambalpur'] },
-    { name: 'Jajpur', cities: ['Jajpur', 'Panikoili', 'Korei'] },
-    { name: 'Kendrapara', cities: ['Kendrapara', 'Pattamundai', 'Rajnagar'] },
-    { name: 'Jagatsinghpur', cities: ['Jagatsinghpur', 'Paradeep', 'Tirtol'] },
-    { name: 'Khordha', cities: ['Khordha', 'Jatni', 'Banpur'] },
-    { name: 'Nayagarh', cities: ['Nayagarh', 'Khandapada', 'Daspalla'] },
-    { name: 'Bolangir', cities: ['Bolangir', 'Patnagarh', 'Titlagarh'] },
-    { name: 'Kalahandi', cities: ['Bhawanipatna', 'Dharamgarh', 'Junagarh'] },
-    { name: 'Nuapada', cities: ['Nuapada', 'Khariar', 'Boden'] },
-    { name: 'Rayagada', cities: ['Rayagada', 'Kashipur', 'Bissam Cuttack'] },
-    { name: 'Nabarangapur', cities: ['Nabarangapur', 'Umerkote', 'Dabugan'] },
-    { name: 'Koraput', cities: ['Koraput', 'Jeypore', 'Sunabeda'] },
-    { name: 'Malkangiri', cities: ['Malkangiri', 'Chitrakonda', 'Balimela'] },
-    { name: 'Gajapati', cities: ['Paralakhemundi', 'R. Udayagiri'] },
-    { name: 'Deogarh', cities: ['Deogarh', 'Rengali', 'Kundheigola'] },
-    { name: 'Sonepur', cities: ['Sonepur', 'Binae Bazar', 'Dunguripali'] },
-    { name: 'Boudh', cities: ['Boudh', 'Phulbani', 'Kandhamal'] },
-    { name: 'Ganjam', cities: ['Berhampur', 'Chatrapur', 'Hinjilicut'] },
-  ]},
+// ═══ MAIN SEED FUNCTION ═══
+const seedGovtData = async () => {
+  try {
+    console.log('═══════════════════════════════════════════');
+    console.log('  GOVERNMENT DATA SEED — 100% Real Data');
+    console.log('  Source: data.gov.in + India Post (GoI)');
+    console.log('═══════════════════════════════════════════\n');
 
-  // ═══ 20. PUNJAB ═══
-  { state: 'Punjab', stateCode: 'PB', type: 'state', districts: [
-    { name: 'Ludhiana', cities: ['Ludhiana', 'Khanna', 'Doraha', 'Raikot'] },
-    { name: 'Amritsar', cities: ['Amritsar', 'Tarn Taran', 'Patti'] },
-    { name: 'Jalandhar', cities: ['Jalandhar', 'Phagwara', 'Nakodar'] },
-    { name: 'Patiala', cities: ['Patiala', 'Rajpura', 'Nabha'] },
-    { name: 'Bathinda', cities: ['Bathinda', 'Mansa', 'Sangrur'] },
-    { name: 'Gurdaspur', cities: ['Gurdaspur', 'Batala', 'Pathankot'] },
-    { name: 'Hoshiarpur', cities: ['Hoshiarpur', 'Mukerian', 'Dasuya'] },
-    { name: 'Kapurthala', cities: ['Kapurthala', 'Jalandhar', 'Phagwara'] },
-    { name: 'Moga', cities: ['Moga', 'Jagraon', 'Dharamkot'] },
-    { name: 'Sangrur', cities: ['Sangrur', 'Sunam', 'Dhuri'] },
-    { name: 'Shaheed Bhagat Singh Nagar', cities: ['Nawanshahr', 'Banga', 'Balachaur'] },
-    { name: 'Firozpur', cities: ['Firozpur', 'Fazilka', 'Jalalabad'] },
-    { name: 'Faridkot', cities: ['Faridkot', 'Kotkapura', 'Jaito'] },
-    { name: 'Muktsar', cities: ['Sri Muktsar Sahib', 'Malout', 'Gidderbaha'] },
-    { name: 'Rupnagar', cities: ['Rupnagar', 'Anandpur Sahib', 'Morinda'] },
-    { name: 'Patiala', cities: ['Patiala', 'Rajpura', 'Samana'] },
-    { name: 'Sahibzada Ajit Singh Nagar', cities: ['Mohali', 'Kharar', 'Lalru'] },
-    { name: 'Tarn Taran', cities: ['Tarn Taran', 'Patti', 'Kartarpur'] },
-    { name: 'Barnala', cities: ['Barnala', 'Tapa', 'Dhurli'] },
-    { name: 'Malerkotla', cities: ['Malerkotla', 'Dharamkot', 'Ahmedgarh'] },
-    { name: 'Fazilka', cities: ['Fazilka', 'Jalalabad', 'Abohar'] },
-    { name: 'Pathankot', cities: ['Pathankot', 'Gurdaspur', 'Dhar Kalan'] },
-  ]},
+    // Check pehle se data hai ya nahi
+    const existingCount = await Location.countDocuments();
+    if (existingCount >= 35) {
+      console.log(`Location data already exists (${existingCount} states/UTs). Skipping seed.`);
+      return;
+    }
 
-  // ═══ 21. RAJASTHAN ═══
-  { state: 'Rajasthan', stateCode: 'RJ', type: 'state', districts: [
-    { name: 'Jaipur', cities: ['Jaipur', 'Jhotwara', 'Sanganer', 'Bagru'] },
-    { name: 'Jodhpur', cities: ['Jodhpur', 'Pali', 'Sikar', 'Nagaur'] },
-    { name: 'Udaipur', cities: ['Udaipur', 'Rajsamand', 'Chittorgarh'] },
-    { name: 'Kota', cities: ['Kota', 'Baran', 'Bundi', 'Jhalawar'] },
-    { name: 'Ajmer', cities: ['Ajmer', 'Kishangarh', 'Beawar'] },
-    { name: 'Bikaner', cities: ['Bikaner', 'Churu', 'Ganganagar'] },
-    { name: 'Alwar', cities: ['Alwar', 'Bharatpur', 'Dholpur'] },
-    { name: 'Bharatpur', cities: ['Bharatpur', 'Deeg', 'Kumher'] },
-    { name: 'Sikar', cities: ['Sikar', 'Jhunjhunu', 'Churu'] },
-    { name: 'Jhunjhunu', cities: ['Jhunjhunu', 'Chirawa', 'Mandawa'] },
-    { name: 'Churu', cities: ['Churu', 'Sujangarh', 'Ratangarh'] },
-    { name: 'Nagaur', cities: ['Nagaur', 'Merta City', 'Degana'] },
-    { name: 'Pali', cities: ['Pali', 'Jodhpur', 'Sojat City'] },
-    { name: 'Barmer', cities: ['Barmer', 'Balotra', 'Sheo'] },
-    { name: 'Jalore', cities: ['Jalore', 'Bhinmal', 'Raniwara'] },
-    { name: 'Sirohi', cities: ['Sirohi', 'Abu Road', 'Pindwara'] },
-    { name: 'Dungarpur', cities: ['Dungarpur', 'Banswara', 'Kushalgarh'] },
-    { name: 'Banswara', cities: ['Banswara', 'Kushalgarh', 'Kanad'] },
-    { name: 'Pratapgarh', cities: ['Pratapgarh', 'Chhoti Sadri', 'Dhariawad'] },
-    { name: 'Chittorgarh', cities: ['Chittorgarh', 'Bhilwara', 'Kota'] },
-    { name: 'Bhilwara', cities: ['Bhilwara', 'Mandal', 'Gangapur City'] },
-    { name: 'Rajsamand', cities: ['Rajsamand', 'Nathdwara', 'Kankroli'] },
-    { name: 'Udaipur', cities: ['Udaipur', 'Salumber', 'Gogunda'] },
-    { name: 'Dausa', cities: ['Dausa', 'Lalsot', 'Mahwa'] },
-    { name: 'Karauli', cities: ['Karauli', 'Sapotra', 'Todabhim'] },
-    { name: 'Sawai Madhopur', cities: ['Sawai Madhopur', 'Kushalgarh', 'Bonli'] },
-    { name: 'Tonk', cities: ['Tonk', 'Niwar', 'Deoli'] },
-    { name: 'Bundi', cities: ['Bundi', 'Nainwa', 'Keshoraipatan'] },
-    { name: 'Baran', cities: ['Baran', 'Atru', 'Kishanganj'] },
-    { name: 'Dholpur', cities: ['Dholpur', 'Baseri', 'Bari'] },
-    { name: 'Ganganagar', cities: ['Sri Ganganagar', 'Hanumangarh', 'Suratgarh'] },
-    { name: 'Hanumangarh', cities: ['Hanumangarh', 'Sangaria', 'Tibi'] },
-    { name: 'Sri Ganganagar', cities: ['Sri Ganganagar', 'Anupgarh', 'Padampur'] },
-    { name: 'Jaisalmer', cities: ['Jaisalmer', 'Pokaran', 'Barmer'] },
-    { name: 'Jalor', cities: ['Jalore', 'Bhinmal', 'Sanchore'] },
-  ]},
+    // Step 1: Government LGD se states + districts
+    const states = await fetchGovtStatesDistricts();
 
-  // ═══ 22. SIKKIM ═══
-  { state: 'Sikkim', stateCode: 'SK', type: 'state', districts: [
-    { name: 'East Sikkim', cities: ['Gangtok', 'Rangpo', 'Singtam'] },
-    { name: 'West Sikkim', cities: ['Gyalshing', 'Pelling', 'Ravangla'] },
-    { name: 'North Sikkim', cities: ['Mangan', 'Chungthang', 'Lachung'] },
-    { name: 'South Sikkim', cities: ['Namchi', 'Jorethang', 'Rangli'] },
-    { name: 'Pakyong', cities: ['Pakyong', 'Ranipool'] },
-    { name: 'Soreng', cities: ['Soreng', 'Dentam'] },
-  ]},
+    // Step 2: India Post se cities
+    const cityMap = await fetchGovtCities();
 
-  // ═══ 23. TAMIL NADU ═══
-  { state: 'Tamil Nadu', stateCode: 'TN', type: 'state', districts: [
-    { name: 'Chennai', cities: ['Chennai', 'T Nagar', 'Adyar', 'Velachery', 'Anna Nagar'] },
-    { name: 'Coimbatore', cities: ['Coimbatore', 'Mettupalayam', 'Pollachi'] },
-    { name: 'Madurai', cities: ['Madurai', 'Melur', 'Vadipatti'] },
-    { name: 'Tiruchirappalli', cities: ['Tiruchirappalli', 'Lalgudi', 'Manapparai'] },
-    { name: 'Salem', cities: ['Salem', 'Attur', 'Mettur'] },
-    { name: 'Tirunelveli', cities: ['Tirunelveli', 'Palayamkottai', 'Kadayanallur'] },
-    { name: 'Erode', cities: ['Erode', 'Gobichettipalayam', 'Bhavani'] },
-    { name: 'Vellore', cities: ['Vellore', 'Katpadi', 'Gudiyatham'] },
-    { name: 'Tiruppur', cities: ['Tiruppur', 'Kangeyam', 'Dharapuram'] },
-    { name: 'Thanjavur', cities: ['Thanjavur', 'Kumbakonam', 'Papanasam'] },
-    { name: 'Dindigul', cities: ['Dindigul', 'Palani', 'Oddanchatram'] },
-    { name: 'Kancheepuram', cities: ['Kancheepuram', 'Sriperumbudur', 'Uthiramerur'] },
-    { name: 'Kanyakumari', cities: ['Nagercoil', 'Thuckalay', 'Colachel'] },
-    { name: 'Karur', cities: ['Karur', 'Kulithalai', 'Krishnarayapuram'] },
-    { name: 'Namakkal', cities: ['Namakkal', 'Rasipuram', 'Tiruchengode'] },
-    { name: 'Cuddalore', cities: ['Cuddalore', 'Chidambaram', 'Virudhachalam'] },
-    { name: 'Thoothukudi', cities: ['Thoothukudi', 'Kovilpatti', 'Tiruchendur'] },
-    { name: 'Dharmapuri', cities: ['Dharmapuri', 'Pappireddipatti', 'Harur'] },
-    { name: 'Krishnagiri', cities: ['Krishnagiri', 'Hosur', 'Denkanikottai'] },
-    { name: 'Ramanathapuram', cities: ['Ramanathapuram', 'Paramakudi', 'Kamuthi'] },
-    { name: 'Nilgiris', cities: ['Ooty', 'Coonoor', 'Kotagiri'] },
-    { name: 'Theni', cities: ['Theni', 'Periyakulam', 'Bodinayakkanur'] },
-    { name: 'Tiruvallur', cities: ['Tiruvallur', 'Gummidipoondi', 'Ponneri'] },
-    { name: 'Villupuram', cities: ['Villupuram', 'Tindivanam', 'Gingee'] },
-    { name: 'Tiruvannamalai', cities: ['Tiruvannamalai', 'Arani', 'Polur'] },
-    { name: 'Perambalur', cities: ['Perambalur', 'Kunnam'] },
-    { name: 'Ariyalur', cities: ['Ariyalur', 'Sendurai'] },
-    { name: 'Chengalpattu', cities: ['Chengalpattu', 'Tambaram', 'Tiruporur'] },
-    { name: 'Tirupattur', cities: ['Tirupattur', 'Ambur', 'Vaniyambadi'] },
-    { name: 'Mayiladuthurai', cities: ['Mayiladuthurai', 'Sirkazhi'] },
-    { name: 'Kallakurichi', cities: ['Kallakurichi', 'Ulundurpettai'] },
-    { name: 'Ranipet', cities: ['Ranipet', 'Arakkonam', 'Sholinghur'] },
-  ]},
+    // Step 3: Merge karo
+    const merged = mergeData(states, cityMap);
 
-  // ═══ 24. TELANGANA ═══
-  { state: 'Telangana', stateCode: 'TS', type: 'state', districts: [
-    { name: 'Hyderabad', cities: ['Hyderabad', 'Secunderabad', 'HITEC City', 'Gachibowli', 'Madhapur'] },
-    { name: 'Rangareddy', cities: ['Hyderabad', 'Bachupally', 'Kukatpally', 'Miyapur'] },
-    { name: 'Medchal-Malkajgiri', cities: ['Medchal', 'Malkajgiri', 'Kompally'] },
-    { name: 'Warangal', cities: ['Warangal', 'Hanamkonda', 'Kazipet'] },
-    { name: 'Karimnagar', cities: ['Karimnagar', 'Sircilla', 'Jagtial'] },
-    { name: 'Nizamabad', cities: ['Nizamabad', 'Armoor', 'Bodhan'] },
-    { name: 'Khammam', cities: ['Khammam', 'Bhadrachalam', 'Yellandu'] },
-    { name: 'Mahabubnagar', cities: ['Mahabubnagar', 'Nagarkurnool', 'Jadcherla'] },
-    { name: 'Nalgonda', cities: ['Nalgonda', 'Miryalaguda', 'Suryapet'] },
-    { name: 'Adilabad', cities: ['Adilabad', 'Nirmal', 'Mancherial'] },
-    { name: 'Medak', cities: ['Medak', 'Sangareddy', 'Zaheerabad'] },
-    { name: 'Nalgonda', cities: ['Nalgonda', 'Miryalaguda', 'Devarakonda'] },
-    { name: 'Mahabubabad', cities: ['Mahabubabad', 'Dornakal', 'Maripeda'] },
-    { name: 'Jayashankar Bhupalpally', cities: ['Bhupalpally', 'Mahadevpur'] },
-    { name: 'Jangaon', cities: ['Jangaon', 'Station Ghanpur'] },
-    { name: 'Wardha', cities: ['Wardha', 'Hinganghat'] },
-    { name: 'Yadadri Bhuvanagiri', cities: ['Bhongir', 'Yadadri'] },
-    { name: 'Suryapet', cities: ['Suryapet', 'Huzurnagar', 'Thirumalagiri'] },
-    { name: 'Siddipet', cities: ['Siddipet', 'Gajwel', 'Dubbak'] },
-    { name: 'Jagtial', cities: ['Jagtial', 'Koratla', 'Metpally'] },
-    { name: 'Rajanna Sircilla', cities: ['Sircilla', 'Vemulawada', 'Kodimyal'] },
-    { name: 'Mancherial', cities: ['Mancherial', 'Bellampalli', 'Chennur'] },
-    { name: 'Nirmal', cities: ['Nirmal', 'Bhainsa', 'Khanpur'] },
-    { name: 'Asifabad', cities: ['Asifabad', 'Kagaznagar', 'Sirpur'] },
-    { name: 'Vikarabad', cities: ['Vikarabad', 'Tandur', 'Pudur'] },
-    { name: 'Kamareddy', cities: ['Kamareddy', 'Yellareddy', 'Banswada'] },
-    { name: 'Rajampet', cities: ['Rajampet', 'Pulivendla'] },
-    { name: 'Mulugu', cities: ['Mulugu', 'Eturnagaram'] },
-    { name: 'Narayanpet', cities: ['Narayanpet', 'Mahabubnagar'] },
-    { name: 'Wanaparthy', cities: ['Wanaparthy', 'Amrabad'] },
-  ]},
+    // Step 4: MongoDB mein save
+    await saveToDB(merged);
 
-  // ═══ 25. TRIPURA ═══
-  { state: 'Tripura', stateCode: 'TR', type: 'state', districts: [
-    { name: 'West Tripura', cities: ['Agartala', 'Badharghat', 'Pratapgarh'] },
-    { name: 'Sepahijala', cities: ['Bishramganj', 'Kathalbari', 'Melaghar'] },
-    { name: 'Khowai', cities: ['Khowai', 'Teliamura', 'Kalyanpur'] },
-    { name: 'Gomati', cities: ['Udaipur', 'Amarpur', 'Karbook'] },
-    { name: 'South Tripura', cities: ['Belonia', 'Santirbazar', 'Sabroom'] },
-    { name: 'Dhalai', cities: ['Ambassa', 'Kamalpur', 'Longtarai'] },
-    { name: 'North Tripura', cities: ['Dharmanagar', 'Kailasahar', 'Kanchanpur'] },
-    { name: 'Unakoti', cities: ['Kailasahar', 'Kumarghat', 'Panchayatan'] },
-    { name: 'Unakoti', cities: ['Kailasahar', 'Panchayatan'] },
-  ]},
+    // Final count
+    const totalStates = await Location.countDocuments();
+    const totalDistricts = await Location.aggregate([{ $unwind: '$districts' }, { $count: 'total' }]);
+    const totalCities = await Location.aggregate([
+      { $unwind: '$districts' },
+      { $unwind: '$districts.cities' },
+      { $count: 'total' },
+    ]);
 
-  // ═══ 26. UTTAR PRADESH ═══
-  { state: 'Uttar Pradesh', stateCode: 'UP', type: 'state', districts: [
-    { name: 'Lucknow', cities: ['Lucknow', 'Aminabad', 'Gomti Nagar', 'Hazratganj', 'Indira Nagar'] },
-    { name: 'Noida', cities: ['Noida', 'Greater Noida', 'Dadri', 'Ghaziabad'] },
-    { name: 'Varanasi', cities: ['Varanasi', 'Sarnath', 'Ramnagar', 'Manduadih'] },
-    { name: 'Agra', cities: ['Agra', 'Fatehpur Sikri', 'Mathura', 'Vrindavan'] },
-    { name: 'Kanpur', cities: ['Kanpur', 'Kanpur Cantonment', 'Kalyanpur'] },
-    { name: 'Allahabad', cities: ['Prayagraj', 'Naini', 'Sadar'] },
-    { name: 'Meerut', cities: ['Meerut', 'Muzaffarnagar', 'Sardhana'] },
-    { name: 'Gorakhpur', cities: ['Gorakhpur', 'Bansgaon', 'Chauri Chaura'] },
-    { name: 'Agra', cities: ['Agra', 'Firozabad', 'Etah'] },
-    { name: 'Aligarh', cities: ['Aligarh', 'Hathras', 'Khair'] },
-    { name: 'Bareilly', cities: ['Bareilly', 'Pilibhit', 'Budaun'] },
-    { name: 'Moradabad', cities: ['Moradabad', 'Amroha', 'Bijnor'] },
-    { name: 'Jhansi', cities: ['Jhansi', 'Lalitpur', 'Orai'] },
-    { name: 'Ghaziabad', cities: ['Ghaziabad', 'Indirapuram', 'Kaushambi'] },
-    { name: 'Noida', cities: ['Noida', 'Greater Noida', 'Dadri'] },
-    { name: 'Mathura', cities: ['Mathura', 'Vrindavan', 'Baldeo'] },
-    { name: 'Ayodhya', cities: ['Ayodhya', 'Faizabad', 'Bikapur'] },
-    { name: 'Sitapur', cities: ['Sitapur', 'Laharpur', 'Misrikh'] },
-    { name: 'Rae Bareli', cities: ['Rae Bareli', 'Salon', 'Unchahar'] },
-    { name: 'Fatehpur', cities: ['Fatehpur', 'Khaga', 'Bindki'] },
-    { name: 'Pratapgarh', cities: ['Pratapgarh', 'Bela', 'Patti'] },
-    { name: 'Ambedkar Nagar', cities: ['Akbarpur', 'Tanda', 'Baskhari'] },
-    { name: 'Azamgarh', cities: ['Azamgarh', 'Sultanpur', 'Mau'] },
-    { name: 'Jaunpur', cities: ['Jaunpur', 'Shahganj', 'Mariahu'] },
-    { name: 'Ghazipur', cities: ['Ghazipur', 'Zamania', 'Mohammadabad'] },
-    { name: 'Ballia', cities: ['Ballia', 'Rasra', 'Bansdih'] },
-    { name: 'Deoria', cities: ['Deoria', 'Rudrapur', 'Bhatpar Rani'] },
-    { name: 'Gorakhpur', cities: ['Gorakhpur', 'Bansgaon', 'Sahjanwa'] },
-    { name: 'Maharajganj', cities: ['Maharajganj', 'Nautanwa', 'Pharenda'] },
-    { name: 'Kushinagar', cities: ['Kushinagar', 'Padrauna', 'Hata'] },
-    { name: 'Basti', cities: ['Basti', 'Khalilabad', 'Rudhauli'] },
-    { name: 'Siddharthnagar', cities: ['Siddharthnagar', 'Domariyaganj', 'Bansi'] },
-    { name: 'Bahraich', cities: ['Bahraich', 'Nanpara', 'Mahasi'] },
-    { name: 'Gonda', cities: ['Gonda', 'Tulsipur', 'Utraula'] },
-    { name: 'Balrampur', cities: ['Balrampur', 'Tulsipur', 'Pachperwa'] },
-    { name: 'Shravasti', cities: ['Bhinga', 'Ikauna'] },
-    { name: 'Sultanpur', cities: ['Sultanpur', 'Amethi', 'Kadipur'] },
-    { name: 'Amethi', cities: ['Amethi', 'Gauriganj', 'Sultanpur'] },
-    { name: 'Barabanki', cities: ['Barabanki', 'Ramsanehi Ghat', 'Fatehpur'] },
-    { name: 'Faizabad', cities: ['Faizabad', 'Ayodhya', 'Bikapur'] },
-    { name: 'Bijnor', cities: ['Bijnor', 'Najibabad', 'Chandpur'] },
-    { name: 'Moradabad', cities: ['Moradabad', 'Sambhal', 'Bilari'] },
-    { name: 'Rampur', cities: ['Rampur', 'Bilaspur', 'Milak'] },
-    { name: 'Shahjahanpur', cities: ['Shahjahanpur', 'Tilhar', 'Katra'] },
-    { name: 'Hardoi', cities: ['Hardoi', 'Sandila', 'Balamau'] },
-    { name: 'Unnao', cities: ['Unnao', 'Bichhia', 'Hasanganj'] },
-    { name: 'Kanpur Dehat', cities: ['Akbarpur', 'Bilhaur', 'Rasulabad'] },
-    { name: 'Farrukhabad', cities: ['Farrukhabad', 'Kaimganj', 'Kannauj'] },
-    { name: 'Kannauj', cities: ['Kannauj', 'Chhibramau', 'Tirwa'] },
-    { name: 'Etawah', cities: ['Etawah', 'Bharthana', 'Lakhna'] },
-    { name: 'Mainpuri', cities: ['Mainpuri', 'Bhogaon', 'Karhal'] },
-    { name: 'Firozabad', cities: ['Firozabad', 'Shikohabad', 'Jasrana'] },
-    { name: 'Etah', cities: ['Etah', 'Aliganj', 'Kasganj'] },
-    { name: 'Kasganj', cities: ['Kasganj', 'Sahawar', 'Amanpur'] },
-    { name: 'Hathras', cities: ['Hathras', 'Sasni', 'Sikandra Rao'] },
-    { name: 'Budaun', cities: ['Budaun', 'Bisauli', 'Sahaswan'] },
-    { name: 'Bareilly', cities: ['Bareilly', 'Aonla', 'Baheri'] },
-    { name: 'Pilibhit', cities: ['Pilibhit', 'Bisalpur', 'Puranpur'] },
-    { name: 'Shahjahanpur', cities: ['Shahjahanpur', 'Tilhar', 'Powayan'] },
-    { name: 'Lakhimpur Kheri', cities: ['Lakhimpur', 'Dhaurahra', 'Gola Gokarannath'] },
-    { name: 'Sitapur', cities: ['Sitapur', 'Biswan', 'Sidhauli'] },
-    { name: 'Hardoi', cities: ['Hardoi', 'Shahabad', 'Sanderaw'] },
-    { name: 'Lucknow', cities: ['Lucknow', 'Malihabad', 'Bakshi Ka Talaab'] },
-    { name: 'Unnao', cities: ['Unnao', 'Safipur', 'Purwa'] },
-    { name: 'Rae Bareli', cities: ['Rae Bareli', 'Lalganj', 'Dalmau'] },
-    { name: 'Prayagraj', cities: ['Prayagraj', 'Phulpur', 'Handia'] },
-    { name: 'Fatehpur', cities: ['Fatehpur', 'Lalalganj', 'Khaga'] },
-    { name: 'Kaushambi', cities: ['Kaushambi', 'Manjhanpur', 'Bharwari'] },
-    { name: 'Pratapgarh', cities: ['Pratapgarh', 'Kunda', 'Manikpur'] },
-    { name: 'Sonbhadra', cities: ['Robertsganj', 'Dudhi', 'Chunar'] },
-    { name: 'Mirzapur', cities: ['Mirzapur', 'Vindhyachal', 'Chunar'] },
-    { name: 'Chitrakoot', cities: ['Chitrakoot', 'Karvi', 'Banda'] },
-    { name: 'Banda', cities: ['Banda', 'Atarra', 'Naraini'] },
-    { name: 'Mahoba', cities: ['Mahoba', 'Kulpahar', 'Charkhari'] },
-    { name: 'Hamirpur', cities: ['Hamirpur', 'Rath', 'Kurara'] },
-    { name: 'Jalaun', cities: ['Orai', 'Kalpi', 'Konch'] },
-    { name: 'Jhansi', cities: ['Jhansi', 'Moth', 'Garautha'] },
-    { name: 'Lalitpur', cities: ['Lalitpur', 'Jhansi', 'Mehrauni'] },
-    { name: 'Mahoba', cities: ['Mahoba', 'Charkhari', 'Kulpahar'] },
-    { name: 'Ghaziabad', cities: ['Ghaziabad', 'Indirapuram', 'Vaishali'] },
-    { name: 'Gautam Buddh Nagar', cities: ['Noida', 'Greater Noida', 'Dadri'] },
-    { name: 'Hapur', cities: ['Hapur', 'Pilkhuwa', 'Garhmukteshwar'] },
-    { name: 'Bulandshahr', cities: ['Bulandshahr', 'Sikandrabad', 'Khurja'] },
-    { name: 'Aligarh', cities: ['Aligarh', 'Khair', 'Iglas'] },
-    { name: 'Hathras', cities: ['Hathras', 'Sadabad', 'Atrauli'] },
-    { name: 'Mathura', cities: ['Mathura', 'Chhata', 'Govardhan'] },
-    { name: 'Agra', cities: ['Agra', 'Kiraoli', 'Fatehabad'] },
-    { name: 'Firozabad', cities: ['Firozabad', 'Tundla', 'Jasrana'] },
-    { name: 'Mainpuri', cities: ['Mainpuri', 'Kurraali', 'Bhogaon'] },
-    { name: 'Etawah', cities: ['Etawah', 'Saifai', 'Bakewar'] },
-    { name: 'Kannauj', cities: ['Kannauj', 'Chhibramau', 'S.Guna'] },
-    { name: 'Farrukhabad', cities: ['Farrukhabad', 'Kaimganj', 'Amritpur'] },
-    { name: 'Banda', cities: ['Banda', 'Naraini', 'Atarra'] },
-    { name: 'Chitrakoot', cities: ['Chitrakoot', 'Karvi'] },
-    { name: 'Mahoba', cities: ['Mahoba', 'Kulpahar'] },
-    { name: 'Hamirpur', cities: ['Hamirpur', 'Rath'] },
-    { name: 'Jalaun', cities: ['Orai', 'Kalpi'] },
-    { name: 'Jhansi', cities: ['Jhansi', 'Moth'] },
-    { name: 'Lalitpur', cities: ['Lalitpur', 'Mehrauni'] },
-  ]},
+    console.log('\n═══════════════════════════════════════════');
+    console.log('  SEED COMPLETE — Government Data');
+    console.log(`  States/UTs: ${totalStates}`);
+    console.log(`  Districts: ${totalDistricts[0]?.total || 0}`);
+    console.log(`  Cities: ${totalCities[0]?.total || 0}`);
+    console.log('═══════════════════════════════════════════');
+  } catch (err) {
+    console.error('Govt Data Seed Error:', err.message);
+  }
+};
 
-  // ═══ 27. UTTARAKHAND ═══
-  { state: 'Uttarakhand', stateCode: 'UK', type: 'state', districts: [
-    { name: 'Dehradun', cities: ['Dehradun', 'Mussoorie', 'Rishikesh', 'Doiwala'] },
-    { name: 'Haridwar', cities: ['Haridwar', 'Roorkee', 'Laksar', 'Bhagwanpur'] },
-    { name: 'Nainital', cities: ['Nainital', 'Haldwani', 'Ramnagar', 'Bhimtal'] },
-    { name: 'Almora', cities: ['Almora', 'Ranikhet', 'Bhimtal', 'Dwarahat'] },
-    { name: 'Pithoragarh', cities: ['Pithoragarh', 'Munsiari', 'Didihat'] },
-    { name: 'Chamoli', cities: ['Gopeshwar', 'Joshimath', 'Badrinath', 'Karnaprayag'] },
-    { name: 'Rudraprayag', cities: ['Rudraprayag', 'Ukhimath', 'Augustmuni'] },
-    { name: 'Tehri Garhwal', cities: ['New Tehri', 'Chamba', 'Mussoorie'] },
-    { name: 'Pauri Garhwal', cities: ['Pauri', 'Kotdwar', 'Srinagar', 'Lansdowne'] },
-    { name: 'Uttarkashi', cities: ['Uttarkashi', 'Barkot', 'Naugaon'] },
-    { name: 'Champawat', cities: ['Champawat', 'Tanakpur', 'Lohaghat'] },
-    { name: 'Udham Singh Nagar', cities: ['Rudrapur', 'Kichha', 'Bazpur', 'Jaspur'] },
-    { name: 'Haridwar', cities: ['Haridwar', 'Roorkee', 'Bhagwanpur'] },
-    { name: 'Pithoragarh', cities: ['Pithoragarh', 'Dharchula', 'Didihat'] },
-    { name: 'Chamoli', cities: ['Gopeshwar', 'Joshimath', 'Karnaprayag'] },
-    { name: 'Tehri Garhwal', cities: ['New Tehri', 'Biran Ghat', 'Narendranagar'] },
-    { name: 'Dehradun', cities: ['Dehradun', 'Sahastradhara', 'Rajpur Road'] },
-    { name: 'Pauri Garhwal', cities: ['Pauri', 'Srinagar', 'Kotdwar'] },
-    { name: 'Uttarkashi', cities: ['Uttarkashi', 'Gangotri', 'Yamunotri'] },
-    { name: 'Bageshwar', cities: ['Bageshwar', 'Kapkot', 'Gairsain'] },
-    { name: 'Chamoli', cities: ['Gopeshwar', 'Joshimath', 'Valley of Flowers'] },
-    { name: 'Rudraprayag', cities: ['Rudraprayag', 'Ukhimath', 'Kedarnath'] },
-    { name: 'Haridwar', cities: ['Haridwar', 'Roorkee', 'Laksar'] },
-    { name: 'Nainital', cities: ['Nainital', 'Haldwani', 'Ramnagar'] },
-  ]},
+// ═══ College Seed Data — Top Government Colleges ═══
+const seedCollegeData = async () => {
+  try {
+    const existingCount = await College.countDocuments();
+    if (existingCount >= 40) {
+      console.log(`College data already exists (${existingCount} colleges). Skipping.`);
+      return;
+    }
 
-  // ═══ 28. WEST BENGAL ═══
-  { state: 'West Bengal', stateCode: 'WB', type: 'state', districts: [
-    { name: 'Kolkata', cities: ['Kolkata', 'Salt Lake', 'New Town', 'Ballygunge', 'Park Street'] },
-    { name: 'Howrah', cities: ['Howrah', 'Shibpur', 'Bally', 'Uluberia'] },
-    { name: 'Hooghly', cities: ['Chinsurah', 'Chandannagar', 'Srirampore', 'Arambag'] },
-    { name: 'North 24 Parganas', cities: ['Baranagar', 'Dum Dum', 'Barrackpore', 'Bangur'] },
-    { name: 'South 24 Parganas', cities: ['Alipore', 'Diamond Harbour', 'Baruipur'] },
-    { name: 'Bardhaman', cities: ['Bardhaman', 'Durgapur', 'Asansol', 'Kalna'] },
-    { name: 'Murshidabad', cities: ['Berhampore', 'Jangipur', 'Lalbag'] },
-    { name: 'Nadia', cities: ['Krishnanagar', 'Naihati', 'Ranaghat'] },
-    { name: 'Malda', cities: ['English Bazar', 'Chanchal', 'Manikchak'] },
-    { name: 'Jalpaiguri', cities: ['Jalpaiguri', 'Alipurduar', 'Mainaguri'] },
-    { name: 'Darjeeling', cities: ['Darjeeling', 'Siliguri', 'Kurseong', 'Gangtok'] },
-    { name: 'North Dinajpur', cities: ['Raiganj', 'Kaliyaganj', 'Islampur'] },
-    { name: 'South Dinajpur', cities: ['Balurghat', 'Gangarampur', 'Tapan'] },
-    { name: 'Purulia', cities: ['Purulia', 'Raghunathpur', 'Manbazar'] },
-    { name: 'Bankura', cities: ['Bankura', 'Bishnupur', 'Sonamukhi'] },
-    { name: 'Birbhum', cities: ['Suri', 'Bolpur', 'Nanoor'] },
-    { name: 'Paschim Medinipur', cities: ['Medinipur', 'Kharagpur', 'Jhargram'] },
-    { name: 'Purba Medinipur', cities: ['Tamluk', 'Haldia', 'Contai'] },
-    { name: 'Burdwan', cities: ['Bardhaman', 'Durgapur', 'Kalna'] },
-    { name: 'Cooch Behar', cities: ['Cooch Behar', 'Dinhata', 'Mathabhanga'] },
-    { name: 'Jhargram', cities: ['Jhargram', 'Binpur', 'Ghatal'] },
-    { name: 'Kalimpong', cities: ['Kalimpong', 'Pedong', 'Algarah'] },
-    { name: 'Paschim Bardhaman', cities: ['Durgapur', 'Asansol', 'Raniganj'] },
-    { name: 'Purba Bardhaman', cities: ['Bardhaman', 'Katwa', 'Manteswar'] },
-  ]},
+    console.log('Seeding top Indian colleges...');
 
-  // ═══ UNION TERRITORIES ═══
-  { state: 'Delhi', stateCode: 'DL', type: 'ut', districts: [
-    { name: 'New Delhi', cities: ['New Delhi', 'Connaught Place', 'Lutyens Delhi', 'Chanakyapuri'] },
-    { name: 'Central Delhi', cities: ['Daryaganj', 'Karol Bagh', 'Paharganj'] },
-    { name: 'North Delhi', cities: ['Rohini', 'Model Town', 'Shalimar Bagh', 'Pitampura'] },
-    { name: 'South Delhi', cities: ['Saket', 'Lajpat Nagar', 'Defence Colony', 'Greater Kailash'] },
-    { name: 'East Delhi', cities: ['Laxmi Nagar', 'Preet Vihar', 'Mayur Vihar'] },
-    { name: 'West Delhi', cities: ['Rajouri Garden', 'Janakpuri', 'Uttam Nagar'] },
-    { name: 'North West Delhi', cities: ['Paschim Vihar', 'Peeragarhi', 'Nangloi'] },
-    { name: 'South West Delhi', cities: ['Dwarka', 'Vasant Kunj', 'Uttam Nagar'] },
-    { name: 'North East Delhi', cities: ['Dilshad Garden', 'Seelampur', 'Welcome'] },
-    { name: 'Shahdara', cities: ['Shahdara', 'GTB Nagar', 'Welcome'] },
-    { name: 'South East Delhi', cities: ['Nehru Place', 'Kalkaji', 'Okhla'] },
-    { name: 'Central Delhi', cities: ['Paharganj', 'Karol Bagh', 'Daryaganj'] },
-  ]},
-  { state: 'Chandigarh', stateCode: 'CH', type: 'ut', districts: [
-    { name: 'Chandigarh', cities: ['Chandigarh', 'Mohali', 'Panchkula', 'Manimajra', 'Sector 17', 'Sector 22'] },
-  ]},
-  { state: 'Jammu and Kashmir', stateCode: 'JK', type: 'ut', districts: [
-    { name: 'Jammu', cities: ['Jammu', 'Udhampur', 'Kathua', 'Samba'] },
-    { name: 'Srinagar', cities: ['Srinagar', 'Anantnag', 'Baramulla', 'Pulwama'] },
-    { name: 'Baramulla', cities: ['Baramulla', 'Sopore', 'Uri', 'Pattan'] },
-    { name: 'Anantnag', cities: ['Anantnag', 'Kokernag', 'Pahalgam', 'Qazigund'] },
-    { name: 'Budgam', cities: ['Budgam', 'Chadoora', 'Beerwah'] },
-    { name: 'Kupwara', cities: ['Kupwara', 'Handwara', 'Lolab'] },
-    { name: 'Pulwama', cities: ['Pulwama', 'Tral', 'Awantipora'] },
-    { name: 'Shopian', cities: ['Shopian', 'Kapran', 'Bonbazar'] },
-    { name: 'Kulgam', cities: ['Kulgam', 'D.H. Pora', 'Devsar'] },
-    { name: 'Doda', cities: ['Doda', 'Bhaderwah', 'Thathri'] },
-    { name: 'Ramban', cities: ['Ramban', 'Banihal', 'Ukhral'] },
-    { name: 'Kishtwar', cities: ['Kishtwar', 'Doda', 'Marwah'] },
-    { name: 'Udhampur', cities: ['Udhampur', 'Chenani', 'Ramnagar'] },
-    { name: 'Reasi', cities: ['Reasi', 'Katra', 'Jammu'] },
-    { name: 'Samba', cities: ['Samba', 'Vijaypur', 'Bari Brahmana'] },
-    { name: 'Kathua', cities: ['Kathua', 'Hiranagar', 'Billawar'] },
-    { name: 'Poonch', cities: ['Poonch', 'Mendhar', 'Surankote'] },
-    { name: 'Rajouri', cities: ['Rajouri', 'Nowshera', 'Kalan'] },
-    { name: 'Bandipora', cities: ['Bandipora', 'Sumbal', 'Gurez'] },
-    { name: 'Ganderbal', cities: ['Ganderbal', 'Kangan', 'Wangat'] },
-  ]},
-  { state: 'Ladakh', stateCode: 'LA', type: 'ut', districts: [
-    { name: 'Leh', cities: ['Leh', 'Nubra', 'Zanskar', 'Kargil'] },
-    { name: 'Kargil', cities: ['Kargil', 'Suru', 'Drass'] },
-  ]},
-  { state: 'Jharkhand', stateCode: 'JH', type: 'state', districts: [
-    { name: 'Ranchi', cities: ['Ranchi', 'Kanke', 'Namkum'] },
-  ]},
-  { state: 'Puducherry', stateCode: 'PY', type: 'ut', districts: [
-    { name: 'Puducherry', cities: ['Puducherry', 'Karaikal', 'Mahe', 'Yanam'] },
-    { name: 'Karaikal', cities: ['Karaikal', 'Nagapattinam'] },
-    { name: 'Mahe', cities: ['Mahe', 'Thalassery'] },
-    { name: 'Yanam', cities: ['Yanam', 'Amalapuram'] },
-  ]},
-  { state: 'Andaman and Nicobar Islands', stateCode: 'AN', type: 'ut', districts: [
-    { name: 'South Andaman', cities: ['Port Blair', 'Havelock Island', 'Neil Island'] },
-    { name: 'Nicobar', cities: ['Car Nicobar', 'Great Nicobar'] },
-  ]},
-  { state: 'Lakshadweep', stateCode: 'LD', type: 'ut', districts: [
-    { name: 'Lakshadweep', cities: ['Kavaratti', 'Agatti', 'Minicoy', 'Andrott'] },
-  ]},
-  { state: 'Dadra and Nagar Haveli and Daman and Diu', stateCode: 'DD', type: 'ut', districts: [
-    { name: 'Daman', cities: ['Daman', 'Diu'] },
-    { name: 'Diu', cities: ['Diu', 'Funda'] },
-    { name: 'Dadra', cities: ['Silvassa', 'Naroli'] },
-    { name: 'Nagar Haveli', cities: ['Silvassa', 'Vapi'] },
-  ]},
-];
+    const colleges = [
+      { name: 'IIT Delhi', slug: 'iit-delhi', city: 'New Delhi', state: 'Delhi', address: 'Hauz Khas, New Delhi 110016', type: 'government', rating: 4.5, established: 1961, website: 'https://www.iitd.ac.in', description: 'Premier engineering institute. Top ranked in India.', tags: ['engineering', 'iit', 'technology', 'research'], courses: [
+        { name: 'B.Tech Computer Science', duration: '4 years', fees: 200000, feesDisplay: '₹2 Lakh/year', type: 'undergraduate', stream: 'Engineering', eligibility: 'JEE Advanced', seats: 80 },
+        { name: 'M.Tech', duration: '2 years', fees: 200000, feesDisplay: '₹2 Lakh/year', type: 'postgraduate', stream: 'Engineering', eligibility: 'GATE', seats: 50 },
+      ]},
+      { name: 'IIT Bombay', slug: 'iit-bombay', city: 'Mumbai', state: 'Maharashtra', address: 'Powai, Mumbai 400076', type: 'government', rating: 4.6, established: 1958, website: 'https://www.iitb.ac.in', description: 'One of the top IITs. Strong CS and research.', tags: ['engineering', 'iit', 'technology'], courses: [
+        { name: 'B.Tech Computer Science', duration: '4 years', fees: 200000, feesDisplay: '₹2 Lakh/year', type: 'undergraduate', stream: 'Engineering', eligibility: 'JEE Advanced', seats: 80 },
+      ]},
+      { name: 'IIT Madras', slug: 'iit-madras', city: 'Chennai', state: 'Tamil Nadu', address: 'Adyar, Chennai 600036', type: 'government', rating: 4.7, established: 1959, website: 'https://www.iitm.ac.in', description: 'Consistently ranked #1 IIT. Strong research culture.', tags: ['engineering', 'iit', 'technology', 'research'], courses: [
+        { name: 'B.Tech Computer Science', duration: '4 years', fees: 200000, feesDisplay: '₹2 Lakh/year', type: 'undergraduate', stream: 'Engineering', eligibility: 'JEE Advanced', seats: 80 },
+      ]},
+      { name: 'IIT Kanpur', slug: 'iit-kanpur', city: 'Kanpur', state: 'Uttar Pradesh', address: 'Kalyanpur, Kanpur 208016', type: 'government', rating: 4.4, established: 1959, website: 'https://www.iitk.ac.in', description: 'Strong in CS and mathematics.', tags: ['engineering', 'iit', 'technology'], courses: [
+        { name: 'B.Tech Computer Science', duration: '4 years', fees: 200000, feesDisplay: '₹2 Lakh/year', type: 'undergraduate', stream: 'Engineering', eligibility: 'JEE Advanced', seats: 80 },
+      ]},
+      { name: 'IIT Kharagpur', slug: 'iit-kharagpur', city: 'Kharagpur', state: 'West Bengal', address: 'Kharagpur 721302', type: 'government', rating: 4.3, established: 1951, website: 'https://www.iitkgp.ac.in', description: 'First IIT. Largest campus. Diverse programs.', tags: ['engineering', 'iit', 'technology'], courses: [
+        { name: 'B.Tech Computer Science', duration: '4 years', fees: 200000, feesDisplay: '₹2 Lakh/year', type: 'undergraduate', stream: 'Engineering', eligibility: 'JEE Advanced', seats: 80 },
+      ]},
+      { name: 'IIT Roorkee', slug: 'iit-roorkee', city: 'Roorkee', state: 'Uttarakhand', address: 'Roorkee 247667', type: 'government', rating: 4.2, established: 1847, website: 'https://www.iitr.ac.in', description: 'One of the oldest engineering institutions.', tags: ['engineering', 'iit', 'technology'], courses: [
+        { name: 'B.Tech Computer Science', duration: '4 years', fees: 200000, feesDisplay: '₹2 Lakh/year', type: 'undergraduate', stream: 'Engineering', eligibility: 'JEE Advanced', seats: 80 },
+      ]},
+      { name: 'IIT Guwahati', slug: 'iit-guwahati', city: 'Guwahati', state: 'Assam', address: 'North Guwahati 781039', type: 'government', rating: 4.2, established: 1994, website: 'https://www.iitg.ac.in', description: 'Beautiful campus. Strong in biotech and design.', tags: ['engineering', 'iit', 'technology'], courses: [
+        { name: 'B.Tech Computer Science', duration: '4 years', fees: 200000, feesDisplay: '₹2 Lakh/year', type: 'undergraduate', stream: 'Engineering', eligibility: 'JEE Advanced', seats: 80 },
+      ]},
+      { name: 'NIT Trichy', slug: 'nit-trichy', city: 'Tiruchirappalli', state: 'Tamil Nadu', address: 'Tiruchirappalli 620015', type: 'government', rating: 4.3, established: 1964, website: 'https://www.nitt.edu', description: 'Top NIT. Strong in CS and ECE.', tags: ['engineering', 'nit', 'technology'], courses: [
+        { name: 'B.Tech Computer Science', duration: '4 years', fees: 150000, feesDisplay: '₹1.5 Lakh/year', type: 'undergraduate', stream: 'Engineering', eligibility: 'JEE Main', seats: 65 },
+      ]},
+      { name: 'BITS Pilani', slug: 'bits-pilani', city: 'Pilani', state: 'Rajasthan', address: 'Pilani 333031', type: 'deemed', rating: 4.2, established: 1964, website: 'https://www.bits-pilani.ac.in', description: 'Top private deemed university. Strong industry links.', tags: ['engineering', 'private', 'technology'], courses: [
+        { name: 'B.E. Computer Science', duration: '4 years', fees: 200000, feesDisplay: '₹2 Lakh/year', type: 'undergraduate', stream: 'Engineering', eligibility: 'BITSAT', seats: 150 },
+      ]},
+      { name: 'Delhi University', slug: 'delhi-university', city: 'New Delhi', state: 'Delhi', address: 'North Campus, Delhi 110007', type: 'autonomous', rating: 4.1, established: 1922, website: 'https://www.du.ac.in', description: 'India\'s largest university. Arts, Science, Commerce.', tags: ['university', 'arts', 'science', 'commerce'], courses: [
+        { name: 'B.A. (Hons) English', duration: '3 years', fees: 15000, feesDisplay: '₹15,000/year', type: 'undergraduate', stream: 'Arts', eligibility: 'CUET', seats: 200 },
+        { name: 'B.Sc. (Hons) Computer Science', duration: '3 years', fees: 30000, feesDisplay: '₹30,000/year', type: 'undergraduate', stream: 'Science', eligibility: 'CUET', seats: 60 },
+      ]},
+      { name: 'JNU', slug: 'jnu', city: 'New Delhi', state: 'Delhi', address: 'Aruna Asaf Ali Marg, New Delhi 110067', type: 'autonomous', rating: 4.0, established: 1969, website: 'https://www.jnu.ac.in', description: 'Premier university for humanities and social sciences.', tags: ['university', 'arts', 'humanities', 'research'], courses: [
+        { name: 'M.A. International Relations', duration: '2 years', fees: 12000, feesDisplay: '₹12,000/year', type: 'postgraduate', stream: 'Arts', eligibility: 'JNUEE', seats: 50 },
+      ]},
+      { name: 'AIIMS Delhi', slug: 'aiims-delhi', city: 'New Delhi', state: 'Delhi', address: 'Ansari Nagar, New Delhi 110029', type: 'government', rating: 4.8, established: 1956, website: 'https://www.aiims.edu', description: 'India\'s top medical institute. Best healthcare education.', tags: ['medical', 'healthcare', 'research'], courses: [
+        { name: 'MBBS', duration: '5.5 years', fees: 5000, feesDisplay: '₹5,000/year', type: 'undergraduate', stream: 'Medical', eligibility: 'NEET', seats: 100 },
+      ]},
+      { name: 'NIMHANS', slug: 'nimhans', city: 'Bangalore', state: 'Karnataka', address: 'Hosur Road, Bangalore 560029', type: 'government', rating: 4.5, established: 1974, website: 'https://www.nimhans.ac.in', description: 'Top mental health and neurosciences institute.', tags: ['medical', 'neurosciences', 'research'], courses: [
+        { name: 'MD Psychiatry', duration: '3 years', fees: 10000, feesDisplay: '₹10,000/year', type: 'postgraduate', stream: 'Medical', eligibility: 'NEET PG', seats: 20 },
+      ]},
+      { name: 'IIM Ahmedabad', slug: 'iima', city: 'Ahmedabad', state: 'Gujarat', address: 'Vastrapur, Ahmedabad 380015', type: 'autonomous', rating: 4.6, established: 1961, website: 'https://www.iima.ac.in', description: 'India\'s top business school.', tags: ['management', 'mba', 'business'], courses: [
+        { name: 'PGP (MBA)', duration: '2 years', fees: 2500000, feesDisplay: '₹25 Lakh/year', type: 'postgraduate', stream: 'Management', eligibility: 'CAT', seats: 400 },
+      ]},
+      { name: 'IIM Bangalore', slug: 'iimb', city: 'Bangalore', state: 'Karnataka', address: 'Bannerghatta Road, Bangalore 560076', type: 'autonomous', rating: 4.5, established: 1973, website: 'https://www.iimb.ac.in', description: 'Top business school. Strong placement records.', tags: ['management', 'mba', 'business'], courses: [
+        { name: 'PGP (MBA)', duration: '2 years', fees: 2300000, feesDisplay: '₹23 Lakh/year', type: 'postgraduate', stream: 'Management', eligibility: 'CAT', seats: 420 },
+      ]},
+      { name: 'NLU Delhi', slug: 'nlu-delhi', city: 'New Delhi', state: 'Delhi', address: 'Sector 14, Dwarka, New Delhi 110078', type: 'government', rating: 4.3, established: 2008, website: 'https://nlud.ac.in', description: 'Top law university in India.', tags: ['law', 'legal', 'university'], courses: [
+        { name: 'B.A. LL.B (Hons)', duration: '5 years', fees: 150000, feesDisplay: '₹1.5 Lakh/year', type: 'undergraduate', stream: 'Law', eligibility: 'CLAT', seats: 80 },
+      ]},
+      { name: 'NID Ahmedabad', slug: 'nid-ahmedabad', city: 'Ahmedabad', state: 'Gujarat', address: 'Paldi, Ahmedabad 380007', type: 'government', rating: 4.4, established: 1961, website: 'https://www.nid.edu', description: 'India\'s premier design institute.', tags: ['design', 'creative', 'technology'], courses: [
+        { name: 'B.Des Industrial Design', duration: '4 years', fees: 200000, feesDisplay: '₹2 Lakh/year', type: 'undergraduate', stream: 'Design', eligibility: 'NID DAT', seats: 40 },
+      ]},
+    ];
 
-// ═══ SEED FUNCTION ═══
-const seedLocations = async () => {
+    let created = 0;
+    for (const college of colleges) {
+      const exists = await College.findOne({ slug: college.slug });
+      if (!exists) {
+        await College.create(college);
+        created++;
+        console.log(`  + ${college.name} (${college.city})`);
+      }
+    }
+    console.log(`Colleges seeded: ${created} new, ${colleges.length - created} skipped`);
+  } catch (err) {
+    console.error('College Seed Error:', err.message);
+  }
+};
+
+// ═══ STANDALONE RUN ═══
+// Jab node seedLocations.js run karo (independently)
+const runStandalone = async () => {
   try {
     console.log('Connecting to MongoDB...');
     await mongoose.connect(MONGO_URI);
     console.log('Connected!\n');
-
-    let created = 0;
-    let skipped = 0;
-
-    for (const loc of locations) {
-      const exists = await Location.findOne({ stateCode: loc.stateCode });
-      if (exists) { skipped++; continue; }
-      await Location.create(loc);
-      created++;
-      console.log(`  + ${loc.state} (${loc.stateCode}) — ${loc.districts.length} districts`);
-    }
-
-    console.log(`\nDone! Created: ${created}, Skipped: ${skipped}`);
-    const total = await Location.countDocuments();
-    console.log(`Total states/UTs in DB: ${total}`);
-
+    await seedGovtData();
+    await seedCollegeData();
     await mongoose.disconnect();
     process.exit(0);
   } catch (err) {
-    console.error('Seed error:', err.message);
+    console.error('Seed failed:', err.message);
     process.exit(1);
   }
 };
 
-seedLocations();
+// Export for db.js auto-seed
+export { seedGovtData, seedCollegeData };
+
+// Agar directly run kiya hai (node seedLocations.js) to standalone mode
+const isDirectRun = process.argv[1] && (process.argv[1].includes('seedLocations') || process.argv[1].includes('govtDataSeed'));
+if (isDirectRun) {
+  runStandalone();
+}

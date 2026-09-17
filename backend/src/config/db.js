@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { config } from './env.js';
 import User from '../models/User.js';
+import { seedGovtData, seedCollegeData } from '../utils/seedLocations.js';
 
 const LOCAL_URI = 'mongodb://127.0.0.1:27017/mera_raasta';
 
@@ -35,6 +36,8 @@ export const connectDB = async () => {
     await mongoose.connect(primaryUri, { serverSelectionTimeoutMS: 8000, connectTimeoutMS: 8000, socketTimeoutMS: 15000 });
     console.log('Connected to Atlas:', mongoose.connection.host);
     await seedDemoAccounts();
+    await seedGovtData();   // Government data auto-seed
+    await seedCollegeData(); // College data auto-seed
     return;
   } catch (err) {
     console.log('Atlas failed:', err.message.substring(0, 80));
@@ -46,6 +49,8 @@ export const connectDB = async () => {
     await mongoose.connect(LOCAL_URI, { serverSelectionTimeoutMS: 5000, connectTimeoutMS: 5000 });
     console.log('Connected to LOCAL MongoDB (fallback)');
     await seedDemoAccounts();
+    await seedGovtData();   // Government data auto-seed
+    await seedCollegeData(); // College data auto-seed
     return;
   } catch (err) {
     console.error('Local MongoDB also failed:', err.message);

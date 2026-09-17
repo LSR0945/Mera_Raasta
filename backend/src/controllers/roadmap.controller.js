@@ -347,7 +347,6 @@ async function generateAutoRoadmap(userId, profile) {
 
   return roadmap;
 }
-}
 
 // ═══ generatePersonalizedNodes — Personalized roadmap banao ═══
 // Career slug ke hisaab se sahi generator function dhundho aur user ki profile pass karo

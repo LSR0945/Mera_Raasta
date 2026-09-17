@@ -60,8 +60,55 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const interests = ['Technology', 'Science', 'Business', 'Arts', 'Healthcare', 'Engineering', 'Design', 'Law'];
-  const skills = ['Programming', 'Mathematics', 'Communication', 'Leadership', 'Writing', 'Analysis', 'Creativity', 'Problem Solving'];
+  // ═══ India ke saare Government Streams/Interests — CBSE + UGC + AICTE ═══
+  const interests = [
+    // CBSE Science Streams
+    'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'Electronics', 'Biotechnology',
+    // CBSE Commerce Streams
+    'Accountancy', 'Business Studies', 'Economics', 'Finance',
+    // CBSE Humanities/Arts Streams
+    'History', 'Geography', 'Political Science', 'Sociology', 'Psychology', 'Philosophy', 'English Literature', 'Hindi Literature', 'Sanskrit',
+    // Engineering (AICTE)
+    'Computer Science Engineering', 'Mechanical Engineering', 'Civil Engineering', 'Electrical Engineering', 'Electronics Engineering', 'Information Technology', 'Chemical Engineering', 'Aerospace Engineering', 'Automobile Engineering', 'Biomedical Engineering', 'Mining Engineering', 'Metallurgical Engineering', 'Textile Engineering', 'Food Technology', 'Agricultural Engineering', 'Environmental Engineering', 'Architecture', 'Planning',
+    // Medical (NMC)
+    'Medicine (MBBS)', 'Dentistry (BDS)', 'Ayurveda (BAMS)', 'Homeopathy (BHMS)', 'Nursing', 'Pharmacy', 'Physiotherapy', 'Optometry', 'Laboratory Technology', 'Radiology', 'Anesthesia',
+    // Management (AICTE/AIU)
+    'MBA', 'BBA', 'Commerce', 'Hotel Management', 'Tourism Management', 'Hospital Administration', 'Retail Management', 'Supply Chain Management', 'Human Resource Management', 'Marketing Management', 'Finance Management',
+    // Law (BCI)
+    'Law (LLB)', 'Corporate Law', 'Criminal Law', 'International Law', 'Constitutional Law', 'Cyber Law', 'Intellectual Property Law',
+    // Design (COA/Council of Architecture)
+    'Fashion Design', 'Interior Design', 'Graphic Design', 'Product Design', 'Textile Design', 'UX/UI Design', 'Game Design', 'Animation', 'VFX', 'Film Making',
+    // IT/Computer (NASSCOM aligned)
+    'Web Development', 'App Development', 'Data Science', 'Artificial Intelligence', 'Machine Learning', 'Cyber Security', 'Cloud Computing', 'Blockchain', 'DevOps', 'IoT', 'Digital Marketing', 'SEO', 'Content Writing',
+    // Agriculture (ICAR)
+    'Agriculture', 'Horticulture', 'Forestry', 'Fisheries', 'Dairy Science', 'Food Science',
+    // Education (NCTE)
+    'Teaching', 'Education', 'Special Education', 'Elementary Education', 'Physical Education',
+    // Media (UGC)
+    'Journalism', 'Mass Communication', 'Public Relations', 'Advertising', 'Film Studies', 'Theatre', 'Dance', 'Music', 'Fine Arts', 'Visual Arts', 'Photography',
+    // Defence
+    'Defence Studies', 'Military Science', 'Nautical Science',
+    // Government Competitive Exams
+    'UPSC Preparation', 'SSC Preparation', 'Banking Preparation', 'Railway Preparation', 'State PSC', 'Teaching (CTET/NET)', 'GATE Preparation', 'CAT Preparation',
+    // Vocational (NSDC/MSDE)
+    'Electrical Work', 'Plumbing', 'Welding', 'Carpentry', 'Automobile Repair', 'Beauty & Wellness', 'Healthcare Assistant', 'Paramedical',
+  ];
+
+  // ═══ India ke saare Government Skills — NSQF Aligned ═══
+  const skills = [
+    'Programming', 'Web Development', 'Mobile App Development', 'Data Analysis', 'Database Management',
+    'Mathematics', 'Statistics', 'Physics', 'Chemistry', 'Biology',
+    'Communication', 'Public Speaking', 'Presentation', 'Negotiation', 'Team Leadership', 'Project Management',
+    'English Writing', 'Hindi Writing', 'Creative Writing', 'Technical Writing', 'Report Writing',
+    'Critical Thinking', 'Problem Solving', 'Analytical Thinking', 'Logical Reasoning',
+    'Creativity', 'Design Thinking', 'Innovation', 'Research',
+    'Financial Literacy', 'Accounting', 'Taxation', 'Auditing',
+    'Cooking', 'First Aid', 'Swimming', 'Driving',
+    'Cooking', 'Home Management', 'Fashion Styling', 'Interior Decoration',
+    'Photography', 'Video Editing', 'Graphic Design', 'Content Creation',
+    'Agriculture', 'Animal Husbandry', 'Food Processing',
+    'Mechanical Aptitude', 'Electrical Aptitude', 'Computer Hardware',
+  ];
 
   const statesList = useMemo(() => INDIAN_STATES.map(s => s.state), []);
 
@@ -200,46 +247,53 @@ export default function OnboardingPage() {
                 searchPlaceholder="Search city..." onSelect={(val) => setForm({ ...form, city: val })} />
             )}
           </div>
-          <button onClick={() => setStep(2)} disabled={!form.state || !form.district || !form.city}
-            className="mt-6 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">
-            Next
-          </button>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setStep(0)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>
+            <button onClick={() => setStep(2)} disabled={!form.state || !form.district || !form.city}
+              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">Next</button>
+          </div>
         </div>
       )}
 
       {step === 2 && (
         <div>
-          <h1 className="text-2xl font-bold mb-6 text-white">Select your interests</h1>
+          <h1 className="text-2xl font-bold mb-2 text-white">Select your interests</h1>
+          <p className="text-xs text-gray-400 mb-4">All CBSE, UGC, AICTE recognized streams & career fields in India</p>
           <div className="flex flex-wrap gap-2">
             {interests.map((i) => (
               <button key={i} onClick={() => toggleItem('interests', i)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${form.interests.includes(i) ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/5'}`}>
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${form.interests.includes(i) ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/5'}`}>
                 {i}
               </button>
             ))}
           </div>
-          <button onClick={() => setStep(3)} disabled={form.interests.length === 0}
-            className="mt-6 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">
-            Next
-          </button>
+          <p className="text-xs text-gray-500 mt-2">{form.interests.length} selected</p>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setStep(1)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>
+            <button onClick={() => setStep(3)} disabled={form.interests.length === 0}
+              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">Next</button>
+          </div>
         </div>
       )}
 
       {step === 3 && (
         <div>
-          <h1 className="text-2xl font-bold mb-6 text-white">Select your skills</h1>
+          <h1 className="text-2xl font-bold mb-2 text-white">Select your skills</h1>
+          <p className="text-xs text-gray-400 mb-4">NSQF (National Skills Qualifications Framework) aligned skills</p>
           <div className="flex flex-wrap gap-2">
             {skills.map((s) => (
               <button key={s} onClick={() => toggleItem('skills', s)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${form.skills.includes(s) ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/5'}`}>
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${form.skills.includes(s) ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/5'}`}>
                 {s}
               </button>
             ))}
           </div>
-          <button onClick={() => setStep(4)} disabled={form.skills.length === 0}
-            className="mt-6 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">
-            Next
-          </button>
+          <p className="text-xs text-gray-500 mt-2">{form.skills.length} selected</p>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setStep(2)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>
+            <button onClick={() => setStep(4)} disabled={form.skills.length === 0}
+              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">Next</button>
+          </div>
         </div>
       )}
 
@@ -254,10 +308,13 @@ export default function OnboardingPage() {
               </button>
             ))}
           </div>
-          <button onClick={handleSubmit} disabled={loading}
-            className="mt-6 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">
-            {loading ? 'Saving...' : 'Complete Onboarding'}
-          </button>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setStep(3)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>
+            <button onClick={handleSubmit} disabled={loading}
+              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">
+              {loading ? 'Saving...' : 'Complete Onboarding'}
+            </button>
+          </div>
         </div>
       )}
 

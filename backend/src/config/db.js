@@ -36,8 +36,9 @@ export const connectDB = async () => {
     await mongoose.connect(primaryUri, { serverSelectionTimeoutMS: 8000, connectTimeoutMS: 8000, socketTimeoutMS: 15000 });
     console.log('Connected to Atlas:', mongoose.connection.host);
     await seedDemoAccounts();
-    await seedGovtData();   // Government data auto-seed
-    await seedCollegeData(); // College data auto-seed
+    // Seed ko background mein chalao — server block mat karo
+    seedGovtData().catch(err => console.log('Govt seed (background):', err.message));
+    seedCollegeData().catch(err => console.log('College seed (background):', err.message));
     return;
   } catch (err) {
     console.log('Atlas failed:', err.message.substring(0, 80));
@@ -49,8 +50,9 @@ export const connectDB = async () => {
     await mongoose.connect(LOCAL_URI, { serverSelectionTimeoutMS: 5000, connectTimeoutMS: 5000 });
     console.log('Connected to LOCAL MongoDB (fallback)');
     await seedDemoAccounts();
-    await seedGovtData();   // Government data auto-seed
-    await seedCollegeData(); // College data auto-seed
+    // Seed ko background mein chalao — server block mat karo
+    seedGovtData().catch(err => console.log('Govt seed (background):', err.message));
+    seedCollegeData().catch(err => console.log('College seed (background):', err.message));
     return;
   } catch (err) {
     console.error('Local MongoDB also failed:', err.message);

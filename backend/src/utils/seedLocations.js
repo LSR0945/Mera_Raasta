@@ -48,27 +48,40 @@ async function fetchGovtStatesDistricts() {
 // Department of Posts, Government of India — 155K+ records
 async function fetchGovtCities() {
   console.log('Fetching Cities from India Post Pincode Directory (data.gov.in)...');
-  console.log('  This takes ~2-3 minutes (155K records in batches)...');
+  console.log('  Using batches of 1000 with delays to avoid rate limits...');
 
   const cityMap = {}; // "STATE|DISTRICT" -> Set of cities
   let offset = 0;
   const batchSize = 1000;
   let total = Infinity;
+  let consecutiveErrors = 0;
+  const MAX_ERRORS = 3; // 3 baar error aaya to stop
 
-  while (offset < total) {
+  while (offset < total && consecutiveErrors < MAX_ERRORS) {
     try {
       const url = `${DATA_GOV_PINCODE_URL}?api-key=${DATA_GOV_API_KEY}&format=json&limit=${batchSize}&offset=${offset}&fields=statename,districtname,officename`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`Batch ${offset} failed: ${res.status}`);
+
+      // 429 Rate Limit — exponential backoff
+      if (res.status === 429) {
+        consecutiveErrors++;
+        const waitTime = Math.min(30000, 2000 * Math.pow(2, consecutiveErrors)); // 4s, 8s, 16s
+        console.log(`\n  Rate limit (429) at offset ${offset}. Waiting ${waitTime/1000}s... (Attempt ${consecutiveErrors}/${MAX_ERRORS})`);
+        await new Promise(r => setTimeout(r, waitTime));
+        continue; // Same offset retry
+      }
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       total = parseInt(data.total) || 155570;
+      consecutiveErrors = 0; // Success — reset errors
 
       for (const rec of data.records || []) {
         const state = rec.statename?.trim();
         const district = rec.districtname?.trim();
         let city = rec.officename?.trim();
 
-        // Post office suffixes hatao — "Connaught Place S.O" -> "Connaught Place"
+        // Post office suffixes hatao
         city = city.replace(/\s*(S\.O|B\.O|H\.O|G\.P\.O|\.S\.O|\.B\.O|\.H\.O|Head Post Office|Sub Post Office|Branch Post Office)\s*$/i, '').trim();
 
         if (state && district && city) {
@@ -80,12 +93,24 @@ async function fetchGovtCities() {
 
       offset += batchSize;
       const pct = Math.min(100, Math.round((offset / total) * 100));
-      process.stdout.write(`\r  Progress: ${pct}% (${Math.min(offset, total)}/${total} records)`);
+      process.stdout.write(`\r  Progress: ${pct}% (${Math.min(offset, total)}/${total} records) — ${Object.keys(cityMap).length} districts found`);
+
+      // Delay between requests — rate limit avoid karo
+      await new Promise(r => setTimeout(r, 300));
+
     } catch (err) {
-      console.log(`\n  Batch error at offset ${offset}: ${err.message}. Retrying in 2s...`);
-      await new Promise(r => setTimeout(r, 2000));
-      continue; // Retry same offset
+      consecutiveErrors++;
+      console.log(`\n  Error at offset ${offset}: ${err.message}`);
+      if (consecutiveErrors < MAX_ERRORS) {
+        const waitTime = 5000 * consecutiveErrors;
+        console.log(`  Retrying in ${waitTime/1000}s... (${consecutiveErrors}/${MAX_ERRORS})`);
+        await new Promise(r => setTimeout(r, waitTime));
+      }
     }
+  }
+
+  if (consecutiveErrors >= MAX_ERRORS) {
+    console.log(`\n  Stopped after ${MAX_ERRORS} consecutive errors. Proceeding with ${Object.keys(cityMap).length} districts found.`);
   }
 
   console.log(`\n  Found ${Object.keys(cityMap).length} state-district combinations with cities`);
@@ -155,23 +180,29 @@ const seedGovtData = async () => {
     console.log('  Source: data.gov.in + India Post (GoI)');
     console.log('═══════════════════════════════════════════\n');
 
-    // Check pehle se data hai ya nahi
+    // Check pehle se data hai ya nahi — agar states hain aur cities bhi hain to skip
     const existingCount = await Location.countDocuments();
-    if (existingCount >= 35) {
-      console.log(`Location data already exists (${existingCount} states/UTs). Skipping seed.`);
+    const hasCities = await Location.findOne({ 'districts.0.cities.0': { $exists: true } });
+    if (existingCount >= 35 && hasCities) {
+      console.log(`Location data already exists (${existingCount} states/UTs with cities). Skipping seed.`);
       return;
     }
 
     // Step 1: Government LGD se states + districts
     const states = await fetchGovtStatesDistricts();
 
-    // Step 2: India Post se cities
-    const cityMap = await fetchGovtCities();
+    // Step 2: India Post se cities — partial data bhi save karo agar rate limit aaye
+    let cityMap = {};
+    try {
+      cityMap = await fetchGovtCities();
+    } catch (err) {
+      console.log(`\n  City fetch error: ${err.message}. Saving states + districts without cities.`);
+    }
 
     // Step 3: Merge karo
     const merged = mergeData(states, cityMap);
 
-    // Step 4: MongoDB mein save
+    // Step 4: MongoDB mein save — har haal mein save karo
     await saveToDB(merged);
 
     // Final count

@@ -12,6 +12,7 @@ import passwordResetRoutes from './passwordReset.routes.js';
 import parentRoutes from './parent.routes.js';
 import mentorRoutes from './mentor.routes.js';
 import activityRoutes from './activity.routes.js';
+import collegeRoutes from './college.routes.js';
 
 const router = Router();
 router.get('/health', (req, res) => {
@@ -19,5 +20,5 @@ router.get('/health', (req, res) => {
   const dbStates = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
   res.status(200).json({ success: true, api: 'ok', database: dbStates[dbState] || 'unknown', timestamp: new Date().toISOString() });
 });
-router.use(authRoutes, profileRoutes, careerRoutes, educationRoutes, roadmapRoutes, careerReadinessRoutes, aiCommunityRoutes, lmsQuizRoutes, passwordResetRoutes, parentRoutes, mentorRoutes, activityRoutes);
+router.use(authRoutes, profileRoutes, careerRoutes, educationRoutes, roadmapRoutes, careerReadinessRoutes, aiCommunityRoutes, lmsQuizRoutes, passwordResetRoutes, parentRoutes, mentorRoutes, activityRoutes, collegeRoutes);
 export default router;

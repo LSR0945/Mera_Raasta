@@ -33,6 +33,7 @@ const ChildrenProgressPage = lazy(() => import('./pages/dashboard/ChildrenProgre
 const MentorStudentsPage = lazy(() => import('./pages/dashboard/MentorStudentsPage'));
 const MentorStudentDetailPage = lazy(() => import('./pages/dashboard/MentorStudentDetailPage'));
 const MentorReviewsPage = lazy(() => import('./pages/dashboard/MentorReviewsPage'));
+const NearbyCollegesPage = lazy(() => import('./pages/dashboard/NearbyCollegesPage'));
 const PlaceholderPage = lazy(() => import('./pages/dashboard/PlaceholderPage'));
 
 const ProtectedRoute = ({ children }) => { const { user, loading } = useAuth(); if (loading) return <LoadingSpinner fullScreen />; return user ? children : <Navigate to="/login" replace />; };
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="/dashboard/careers/recommendations" element={<RecommendationsPage />} />
           <Route path="/dashboard/careers/:slug" element={<CareerDetailPage />} />
           <Route path="/dashboard/roadmap" element={<RoadmapPage />} />
+          <Route path="/dashboard/nearby-colleges" element={<NearbyCollegesPage />} />
           <Route path="/dashboard/career-readiness" element={<CareerReadinessPage />} />
           <Route path="/dashboard/resume-interview" element={<ResumeInterviewPage />} />
           <Route path="/dashboard/children" element={<ChildrenPage />} />

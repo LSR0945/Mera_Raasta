@@ -25,6 +25,7 @@ export default function DashboardLayout() {
     { to: '/dashboard/careers/recommendations', label: t('recommendations'), icon: '⭐' },
     { to: '/dashboard/education', label: t('education'), icon: '📚' },
     { to: '/dashboard/roadmap', label: t('roadmap'), icon: '🗺️' },
+    { to: '/dashboard/nearby-colleges', label: 'Nearby Colleges', icon: '🏛️' },
     { to: '/dashboard/career-readiness', label: t('careerReadiness'), icon: '💼' },
     { to: '/dashboard/resume-interview', label: t('resumeInterview'), icon: '📄' },
     { to: '/dashboard/ai-community', label: t('aiCoach'), icon: '🤖' },

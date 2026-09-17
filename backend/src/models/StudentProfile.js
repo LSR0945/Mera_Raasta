@@ -11,7 +11,7 @@ const studentProfileSchema = new mongoose.Schema({
   skills: [{ name: String, level: { type: String, enum: ['beginner', 'intermediate', 'advanced'] } }],
   budget: { type: String, enum: ['low', 'medium', 'high', 'very_high'] },
   budgetAmount: { min: Number, max: Number },
-  location: { city: String, state: String, country: String, willingToRelocate: Boolean },
+  location: { city: String, district: String, state: String, stateCode: String, country: String, willingToRelocate: Boolean },
   studyHoursPerDay: Number, preferredStudyTime: String, preferredLanguage: String,
   languagesSpoken: [String],
   careerGoals: { shortTerm: String, longTerm: String, dreamJob: String, preferredWorkType: String },

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collegeAPI } from '../../api/college';
+import api from '../../api/axios';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../hooks/useAuth';
 import BackButton from '../../components/common/BackButton';
@@ -150,8 +151,34 @@ export default function NearbyCollegesPage() {
   const [searchText, setSearchText] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedCollege, setSelectedCollege] = useState(null);
+  const [userLocation, setUserLocation] = useState(null); // User ki saved location
 
-  useEffect(() => { loadColleges(); loadCities(); }, []);
+  // ═══ Mount pe: user ki location fetch karo, phir colleges load karo ═══
+  useEffect(() => {
+    const init = async () => {
+      try {
+        // User ki profile se location nikalo
+        const profileRes = await api.get('/profile');
+        const profile = profileRes.data?.data?.profile;
+        const loc = profile?.location;
+        if (loc?.city) {
+          setUserLocation({ city: loc.city, state: loc.state || '', district: loc.district || '' });
+          setSearchCity(loc.city);
+          // User ki city ke colleges load karo
+          loadColleges(loc.city);
+        } else {
+          // Location nahi hai to saare colleges dikhao
+          loadColleges();
+        }
+        loadCities();
+      } catch (err) {
+        // Profile fetch fail ho to saare colleges dikhao
+        loadColleges();
+        loadCities();
+      }
+    };
+    init();
+  }, []);
 
   // ═══ loadColleges — Colleges fetch karo ═══
   const loadColleges = async (cityFilter) => {
@@ -193,6 +220,13 @@ export default function NearbyCollegesPage() {
     loadColleges(city);
   };
 
+  // ═══ clearLocationFilter — Saare colleges dikhao ═══
+  const clearLocationFilter = () => {
+    setUserLocation(null);
+    setSearchCity('');
+    loadColleges();
+  };
+
   // Filtered colleges
   const displayColleges = colleges.filter(c => {
     if (searchText) {
@@ -219,6 +253,14 @@ export default function NearbyCollegesPage() {
           <p className="text-blue-100/80 text-lg max-w-xl mx-auto">
             Discover <span className="text-white font-bold">government and private colleges</span> near you — courses, fees, and details.
           </p>
+          {/* User ki location dikhaao */}
+          {userLocation && (
+            <div className="mt-4 inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/20">
+              <span className="text-sm">📍</span>
+              <span className="text-sm font-bold text-white">Showing colleges near {userLocation.city}{userLocation.district ? `, ${userLocation.district}` : ''}, {userLocation.state}</span>
+              <button onClick={clearLocationFilter} className="ml-2 text-white/60 hover:text-white text-xs underline">Show All</button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -271,6 +313,7 @@ export default function NearbyCollegesPage() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-extrabold text-white">
             {searchCity ? `Colleges in ${searchCity}` : searchText ? 'Search Results' : 'All Colleges'}
+            {userLocation && searchCity === userLocation.city && <span className="text-sm text-gray-400 ml-2">(Near You)</span>}
             <span className="text-sm text-gray-400 ml-2">({displayColleges.length})</span>
           </h3>
         </div>

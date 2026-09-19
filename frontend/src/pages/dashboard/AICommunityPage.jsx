@@ -1,117 +1,122 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { aiAPI } from '../../api/aiCommunity';
 import { useLanguage } from '../../contexts/LanguageContext';
 import BackButton from '../../components/common/BackButton';
+
+function renderMarkdown(text) {
+  if (!text) return text;
+  const parts = [];
+  const regex = /(```[\s\S]*?```|`[^`]+`|\*\*[^*]+\*\*)/g;
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    const seg = match[0];
+    if (seg.startsWith('```')) {
+      const code = seg.slice(3, -3).replace(/^\w+\n/, '');
+      parts.push(
+        <pre key={key++} className="my-2 rounded-xl bg-black/40 border border-white/[0.06] p-3 overflow-x-auto">
+          <code className="text-xs text-violet-300/80 font-mono whitespace-pre">{code}</code>
+        </pre>
+      );
+    } else if (seg.startsWith('`')) {
+      parts.push(
+        <code key={key++} className="mx-0.5 px-1.5 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.06] text-violet-300/90 text-xs font-mono">
+          {seg.slice(1, -1)}
+        </code>
+      );
+    } else if (seg.startsWith('**')) {
+      parts.push(<strong key={key++} className="text-white/95 font-semibold">{seg.slice(2, -2)}</strong>);
+    }
+    lastIndex = match.index + seg.length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  }
+  return parts.length > 0 ? parts : text;
+}
 
 export default function AICommunityPage() {
   const { lang, t } = useLanguage();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [typingText, setTypingText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [waitingForFirst, setWaitingForFirst] = useState(false);
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
-  const typingRef = useRef(null);
+  const streamRef = useRef(false);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, typingText]);
+  }, [messages, streamingText, waitingForFirst]);
 
-  const typeMessage = useCallback((text, onComplete) => {
-    setIsTyping(true);
-    setTypingText('');
-    let i = 0;
-    const speed = 10;
-    const chunkSize = 4;
-
-    typingRef.current = setInterval(() => {
-      if (i < text.length) {
-        const nextChunk = text.slice(i, i + chunkSize);
-        setTypingText(prev => prev + nextChunk);
-        i += chunkSize;
-      } else {
-        clearInterval(typingRef.current);
-        typingRef.current = null;
-        setIsTyping(false);
-        setTypingText('');
-        onComplete(text);
-      }
-    }, speed);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (typingRef.current) clearInterval(typingRef.current);
-    };
-  }, []);
-
-  const sendMessage = async () => {
-    if (!input.trim() || loading || isTyping) return;
-    const msg = input.trim();
+  const sendMessage = async (overrideMsg) => {
+    const msg = overrideMsg || input.trim();
+    if (!msg || isStreaming) return;
     setInput('');
-
     setMessages(prev => [...prev, { role: 'user', content: msg, id: Date.now() }]);
-    setLoading(true);
-
+    setIsStreaming(true);
+    setWaitingForFirst(true);
+    setStreamingText('');
+    streamRef.current = true;
+    let fullText = '';
     try {
-      const { data } = await aiAPI.chat({ type: 'counselor', message: msg });
-
-      if (data.success && data.data?.response) {
-        typeMessage(data.data.response, (fullText) => {
-          setMessages(prev => [...prev, { role: 'ai', content: fullText, id: Date.now() + 1 }]);
-          setLoading(false);
-        });
-      } else {
-        const errMsg = lang === 'hi'
-          ? 'माफ़ कीजिए, कुछ गलत हो गया। कृपया दोबारा try करें।'
-          : 'Sorry, something went wrong. Please try again.';
-        typeMessage(errMsg, (fullText) => {
-          setMessages(prev => [...prev, { role: 'ai', content: fullText, id: Date.now() + 1 }]);
-          setLoading(false);
-        });
+      const stream = aiAPI.chatStream({ type: 'counselor', message: msg });
+      for await (const data of stream) {
+        if (!streamRef.current) break;
+        if (data.done) break;
+        if (data.chunk) {
+          if (waitingForFirst) setWaitingForFirst(false);
+          fullText += data.chunk;
+          setStreamingText(fullText);
+        }
+      }
+      if (streamRef.current && fullText) {
+        setMessages(prev => [...prev, { role: 'ai', content: fullText, id: Date.now() + 1 }]);
+      } else if (streamRef.current && !fullText) {
+        const errMsg = lang === 'hi' ? '\u092E\u093E\u092B\u093C \u0915\u0940\u091C\u093F\u092F\u0947, \u0915\u0941\u091B \u0917\u0932\u0924 \u0939\u094B \u0917\u092F\u093E\u0964 \u0915\u0943\u092A\u092F\u093E \u0926\u094B\u092C\u093E\u0930\u093E try \u0915\u0930\u0947\u0902\u0964' : 'Sorry, something went wrong. Please try again.';
+        setMessages(prev => [...prev, { role: 'ai', content: errMsg, id: Date.now() + 1 }]);
       }
     } catch (err) {
       console.error('AI Chat error:', err);
       let errMsg;
       if (err.response?.status === 401) {
-        errMsg = lang === 'hi'
-          ? 'आपका session खत्म हो गया है। कृपया दोबारा login करें।'
-          : 'Your session has expired. Please login again.';
+        errMsg = lang === 'hi' ? '\u0906\u092A\u0915\u093E session \u0916\u0924\u094D\u092E \u0939\u094B \u0917\u092F\u093E \u0939\u0948\u0964 \u0915\u0943\u092A\u092F\u093E \u0926\u094B\u092C\u093E\u0930\u093E login \u0915\u0930\u0947\u0902\u0964' : 'Your session has expired. Please login again.';
       } else if (err.response?.status === 429) {
-        errMsg = lang === 'hi'
-          ? 'बहुत ज़्यादा requests भेज दीं। कुछ देर रुककर दोबारा try करें।'
-          : 'Too many requests. Please wait a moment and try again.';
+        errMsg = lang === 'hi' ? '\u092C\u0939\u0941\u0924 \u091C\u093C\u094D\u092F\u093E\u0926\u093E requests \u092D\u0947\u091C \u0926\u0940\u0902\u0964 \u0915\u0941\u0926\u093C \u0926\u0947\u0930 \u0930\u0941\u0915\u0915\u0930 \u0926\u094B\u092C\u093E\u0930\u093E try \u0915\u0930\u0947\u0902\u0964' : 'Too many requests. Please wait a moment and try again.';
       } else if (err.response?.data?.message) {
         errMsg = err.response.data.message;
       } else {
-        errMsg = lang === 'hi'
-          ? 'सर्वर से जुड़ नहीं पा रहे। कृपया server check करें और दोबारा try करें।'
-          : 'Cannot connect to server. Please check if the server is running and try again.';
+        errMsg = lang === 'hi' ? '\u0938\u0930\u094D\u0935\u0930 \u0938\u0947 \u091C\u0941\u0921\u093C \u0928\u0939\u0940\u0902 \u092A\u093E \u0930\u0939\u0947\u0964 \u0915\u0943\u092A\u092F\u093E server check \u0915\u0930\u0947\u0902 \u0914\u0930 \u0926\u094B\u092C\u093E\u0930\u093E try \u0915\u0930\u0947\u0902\u0964' : 'Cannot connect to server. Please check if the server is running and try again.';
       }
-      typeMessage(errMsg, (fullText) => {
-        setMessages(prev => [...prev, { role: 'ai', content: fullText, id: Date.now() + 1 }]);
-        setLoading(false);
-      });
+      setMessages(prev => [...prev, { role: 'ai', content: errMsg, id: Date.now() + 1 }]);
+    } finally {
+      setIsStreaming(false);
+      setWaitingForFirst(false);
+      setStreamingText('');
+      streamRef.current = false;
     }
   };
 
-  const newChat = async () => {
-    if (typingRef.current) clearInterval(typingRef.current);
-    typingRef.current = null;
-    setIsTyping(false);
-    setTypingText('');
-    setLoading(false);
+  const newChat = () => {
+    streamRef.current = false;
+    setIsStreaming(false);
+    setWaitingForFirst(false);
+    setStreamingText('');
     setMessages([]);
-    try { await aiAPI.clearHistory(); } catch {}
+    aiAPI.clearHistory().catch(() => {});
   };
 
   const quickPrompts = [
-    { icon: '🎯', text: t('q1') },
-    { icon: '💼', text: t('q2') },
-    { icon: '📄', text: t('q3') },
-    { icon: '🧠', text: t('q4') },
-    { icon: '🎤', text: t('q5') },
+    { icon: '\uD83C\uDFAF', text: t('q1') },
+    { icon: '\uD83D\uDCBC', text: t('q2') },
+    { icon: '\uD83D\uDCC4', text: t('q3') },
+    { icon: '\uD83E\uDDE0', text: t('q4') },
+    { icon: '\uD83C\uDFA4', text: t('q5') },
   ];
 
   return (
@@ -129,12 +134,12 @@ export default function AICommunityPage() {
       <div className="flex items-center justify-between mb-6" style={{ animation: 'fadeUp 0.5s ease' }}>
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-violet-500/20 relative">
-            🤖
+            {'\uD83E\uDD16'}
             <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-[#0a0a1a]" />
           </div>
           <div>
             <h1 className="text-2xl font-black text-white">{t('aiCoach')}</h1>
-            <p className="text-sm text-white/30">{lang === 'hi' ? 'हिंदी और English दोनों में बात करें' : 'Talk in Hindi or English — I understand both!'}</p>
+            <p className="text-sm text-white/30">{lang === 'hi' ? '\u0939\u093F\u0928\u094D\u0926\u0940 \u0914\u0930 English \u0926\u094B\u0928\u094B\u0902 \u092E\u0947\u0902 \u092C\u093E\u0924 \u0915\u0930\u0947\u0902' : 'Talk in Hindi or English \u2014 I understand both!'}</p>
           </div>
         </div>
         {messages.length > 0 && (
@@ -153,20 +158,20 @@ export default function AICommunityPage() {
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" style={{ animation: 'orbFloat 12s ease-in-out 4s infinite' }} />
 
         <div className="min-h-[420px] max-h-[520px] overflow-y-auto p-6 space-y-5 relative z-10 scroll-smooth">
-          {messages.length === 0 && !isTyping && !loading && (
+          {messages.length === 0 && !isStreaming && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-24 h-24 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-500/10 rounded-3xl flex items-center justify-center text-5xl mb-6 relative" style={{ animation: 'fadeUp 0.5s ease' }}>
-                🤖
+                {'\uD83E\uDD16'}
                 <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-[#0a0a1a] animate-pulse" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">{lang === 'hi' ? 'नमस्ते! मैं आपका AI करियर कोच हूँ' : 'Hello! I\'m your AI Career Coach'}</h3>
+              <h3 className="text-xl font-bold text-white mb-2">{lang === 'hi' ? '\u0928\u092E\u0938\u094D\u0924\u0947! \u092E\u0948\u0902 \u0906\u092A\u0915\u093E AI \u0915\u0930\u093F\u092F\u0930 \u0915\u094B\u091A \u0939\u0942\u0901' : "Hello! I'm your AI Career Coach"}</h3>
               <p className="text-sm text-white/25 text-center max-w-md mb-8 leading-relaxed">
-                {lang === 'hi' ? 'मैं करियर, कौशल, शिक्षा और भविष्य के बारे में आपकी मदद कर सकता हूँ। नीचे किसी भी सवाल पर क्लिक करें या अपना सवाल टाइप करें।' : 'I can help you with careers, skills, education, and your future. Click any question below or type your own.'}
+                {lang === 'hi' ? '\u092E\u0948\u0902 \u0915\u0930\u093F\u092F\u0930, \u0915\u094C\u0936\u0932, \u0936\u093F\u0915\u094D\u0937\u093E \u0914\u0930 \u092D\u0935\u093F\u0937\u094D\u092F \u0915\u0947 \u092C\u093E\u0930\u0947 \u092E\u0947\u0902 \u0906\u092A\u0915\u0940 \u092E\u0926\u0926 \u0915\u0930 \u0938\u0915\u0924\u093E \u0939\u0942\u0901\u0964 \u0928\u0940\u091A\u0947 \u0915\u093F\u0938\u0940 \u0938\u0935\u093E\u0932 \u092A\u0930 \u0915\u094D\u0932\u093F\u0915 \u0915\u0930\u0947\u0902 \u092F\u093E \u0905\u092A\u0928\u093E \u0938\u0935\u093E\u0932 \u091F\u093E\u0907\u092A \u0915\u0930\u0947\u0902\u0964' : 'I can help you with careers, skills, education, and your future. Click any question below or type your own.'}
               </p>
               <div className="w-full max-w-lg space-y-2.5">
                 <p className="text-[10px] font-bold text-white/15 uppercase tracking-[0.2em] mb-4">{t('quickQuestions')}</p>
                 {quickPrompts.map((q, i) => (
-                  <button key={i} onClick={() => { setInput(q.text); inputRef.current?.focus(); }}
+                  <button key={i} onClick={() => sendMessage(q.text)}
                     className="w-full text-left px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/[0.05] text-sm text-white/45 hover:text-white/80 hover:bg-white/[0.06] hover:border-white/[0.1] transition-all duration-300 flex items-center gap-3 group"
                     style={{ animation: `fadeUp 0.4s ease ${0.15 + i * 0.06}s both` }}>
                     <span className="w-9 h-9 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-500/10 rounded-xl flex items-center justify-center text-sm shrink-0 group-hover:scale-110 transition-transform">{q.icon}</span>
@@ -185,17 +190,17 @@ export default function AICommunityPage() {
                   <span className="text-white text-[9px] font-bold">AI</span>
                 </div>
               )}
-              <div className={`rounded-2xl px-4 py-3 max-w-[78%] text-sm leading-relaxed whitespace-pre-line ${
+              <div className={`rounded-2xl px-4 py-3 max-w-[78%] text-sm leading-relaxed ${
                 m.role === 'user'
                   ? 'bg-gradient-to-br from-blue-600/25 to-indigo-600/25 border border-blue-500/10 text-white/90'
                   : 'bg-white/[0.03] border border-white/[0.05] text-white/70'
               }`}>
-                {m.content}
+                {m.role === 'ai' ? renderMarkdown(m.content) : <span className="whitespace-pre-line">{m.content}</span>}
               </div>
             </div>
           ))}
 
-          {loading && !isTyping && (
+          {waitingForFirst && (
             <div className="flex items-start" style={{ animation: 'msgSlideIn 0.3s ease' }}>
               <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center mr-2.5 shrink-0 shadow-lg shadow-violet-500/20">
                 <span className="text-white text-[9px] font-bold">AI</span>
@@ -210,13 +215,13 @@ export default function AICommunityPage() {
             </div>
           )}
 
-          {isTyping && (
+          {isStreaming && streamingText && (
             <div className="flex items-start" style={{ animation: 'msgSlideIn 0.3s ease' }}>
               <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center mr-2.5 shrink-0 shadow-lg shadow-violet-500/20 mt-0.5">
                 <span className="text-white text-[9px] font-bold">AI</span>
               </div>
-              <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-4 py-3 max-w-[78%] text-sm leading-relaxed whitespace-pre-line text-white/70">
-                {typingText}
+              <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-4 py-3 max-w-[78%] text-sm leading-relaxed text-white/70">
+                {renderMarkdown(streamingText)}
                 <span className="inline-block w-[2px] h-4 bg-violet-400 ml-0.5 align-middle" style={{ animation: 'blink 0.8s step-end infinite' }} />
               </div>
             </div>
@@ -231,7 +236,7 @@ export default function AICommunityPage() {
               <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                 placeholder={t('askAnything')}
-                disabled={loading || isTyping}
+                disabled={isStreaming}
                 className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3.5 pr-12 text-sm text-white placeholder:text-white/20 focus:bg-white/[0.06] focus:border-violet-500/20 focus:ring-2 focus:ring-violet-500/10 outline-none transition-all disabled:opacity-40" />
               {input.length > 0 && (
                 <button onClick={() => setInput('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/40 transition-colors">
@@ -239,7 +244,7 @@ export default function AICommunityPage() {
                 </button>
               )}
             </div>
-            <button onClick={sendMessage} disabled={!input.trim() || loading || isTyping}
+            <button onClick={() => sendMessage()} disabled={!input.trim() || isStreaming}
               className="w-12 h-12 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center hover:from-violet-500 hover:to-purple-500 disabled:opacity-25 transition-all shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 hover:-translate-y-0.5 active:scale-90">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
@@ -247,7 +252,7 @@ export default function AICommunityPage() {
             </button>
           </div>
           <p className="text-[10px] text-white/15 mt-2.5 text-center">
-            {lang === 'hi' ? 'AI जवाब सटीक नहीं हो सकते। महत्वपूर्ण निर्णयों के लिए विशेषज्ञों से सलाह लें।' : 'AI responses may not be accurate. Consult experts for important decisions.'}
+            {lang === 'hi' ? 'AI \u091C\u0935\u093E\u092C \u0938\u091F\u0940\u0915 \u0928\u0939\u0940\u0902 \u0939\u094B \u0938\u0915\u0924\u0947\u0964 \u092E\u0939\u0924\u094D\u0935\u092A\u0942\u0930\u094D \u0928\u093F\u0930\u094D\u0923\u092F\u094B\u0902 \u0915\u0947 \u0932\u093F\u090F \u0935\u093F\u0936\u0947\u0937\u091C\u094D\u0917\u094B\u0902 \u0938\u0947 \u0938\u0932\u093E\u0939 \u0932\u0947\u0902\u0964' : 'AI responses may not be accurate. Consult experts for important decisions.'}
           </p>
         </div>
       </div>

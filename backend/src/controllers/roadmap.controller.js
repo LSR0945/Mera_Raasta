@@ -260,16 +260,28 @@ const CAREER_ROADMAPS = {
 
 // ═══ INTEREST TO CAREER MAPPING ═══
 // User ki interests ke hisaab se best career suggest karo
-// Agar user ne "Technology" select kiya hai to Software Engineer suggest hoga
+// Har interest government-aligned stream ka career map hai
 const INTEREST_CAREER_MAP = {
-  'Technology': 'software-engineer',
-  'Science': 'data-scientist',
-  'Healthcare': 'doctor',
-  'Engineering': 'software-engineer',
-  'Business': 'data-scientist',
-  'Design': 'software-engineer',
-  'Arts': 'software-engineer',
-  'Law': 'doctor',
+  'Computer Science': 'software-engineer', 'Information Technology': 'software-engineer',
+  'Web Development': 'software-engineer', 'App Development': 'software-engineer',
+  'Data Science': 'data-scientist', 'Artificial Intelligence': 'data-scientist',
+  'Machine Learning': 'data-scientist', 'Cyber Security': 'software-engineer',
+  'Cloud Computing': 'software-engineer', 'DevOps': 'software-engineer',
+  'Software Engineering': 'software-engineer', 'Blockchain': 'software-engineer',
+  'Physics': 'data-scientist', 'Mathematics': 'data-scientist',
+  'Medicine (MBBS)': 'doctor', 'Dentistry (BDS)': 'doctor',
+  'Ayurveda (BAMS)': 'doctor', 'Homeopathy (BHMS)': 'doctor',
+  'Nursing': 'doctor', 'Pharmacy': 'doctor', 'Physiotherapy': 'doctor',
+  'Fashion Design': 'software-engineer', 'Interior Design': 'software-engineer',
+  'Graphic Design': 'software-engineer', 'UX/UI Design': 'software-engineer',
+  'Animation': 'software-engineer', 'Film Making': 'software-engineer',
+  'Agriculture': 'default', 'Horticulture': 'default',
+  'Law (LLB)': 'default', 'MBA': 'default', 'BBA': 'default',
+  'Commerce': 'default', 'Economics': 'default', 'Finance': 'default',
+  'Teaching': 'default', 'Journalism': 'default',
+  'Technology': 'software-engineer', 'Science': 'data-scientist',
+  'Healthcare': 'doctor', 'Engineering': 'software-engineer',
+  'Business': 'default', 'Design': 'software-engineer', 'Arts': 'default',
 };
 
 // ═══ getUserProfile — User ka profile fetch karo ═══
@@ -507,4 +519,116 @@ export const updateNodeProgress = async (req, res, next) => {
       } catch { next(error); }
     } else { next(error); }
   }
+};
+
+// ═══ generateFromForm — Form se roadmap banao ═══
+// POST /roadmap/generate — user career goal, timeline, budget choose karta hai
+// Backend uske hisaab se personalized roadmap generate karta hai
+export const generateFromForm = async (req, res, next) => {
+  try {
+    const { careerGoal, timeline, budget, specificInterests } = req.body;
+
+    // User ka profile lao
+    const profile = await getUserProfile(req.user._id);
+
+    // Career slug determine karo — form se ya profile se
+    let careerSlug = 'default';
+    if (careerGoal) {
+      careerSlug = careerGoal.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+    } else if (profile?.interests?.length > 0) {
+      careerSlug = getSuggestedCareer(profile.interests);
+    }
+
+    const profileData = {
+      educationLevel: profile?.educationLevel || '',
+      skills: (profile?.skills || []).map(s => s.name || s),
+      interests: specificInterests || profile?.interests || [],
+      budget: budget || profile?.budget || 'low',
+      timeline: timeline || 'moderate',
+    };
+
+    let careerDoc = await Career.findOne({ slug: careerSlug });
+    if (!careerDoc) careerDoc = await Career.findOne({ isActive: true });
+
+    const nodes = generatePersonalizedNodes(careerSlug, profileData);
+
+    // Timeline ke hisaab se duration adjust karo
+    if (timeline === 'fast') {
+      nodes.forEach(n => { if (n.estimatedDuration) n.estimatedDuration = n.estimatedDuration.replace(/(\d+)/, (m) => Math.max(1, Math.floor(parseInt(m) * 0.6))); });
+    } else if (timeline === 'relaxed') {
+      nodes.forEach(n => { if (n.estimatedDuration) n.estimatedDuration = n.estimatedDuration.replace(/(\d+)/, (m) => Math.ceil(parseInt(m) * 1.5)); });
+    }
+
+    const milestones = [
+      { percent: 25, reached: false }, { percent: 50, reached: false },
+      { percent: 75, reached: false }, { percent: 100, reached: false },
+    ];
+
+    const careerTitles = {
+      'software-engineer': 'Software Engineer', 'data-scientist': 'Data Scientist',
+      'doctor': 'Doctor', 'default': careerGoal || 'Your Career',
+    };
+    const careerTitle = careerDoc?.title || careerTitles[careerSlug] || careerGoal || 'Your Career';
+
+    await Roadmap.deleteMany({ student: req.user._id });
+
+    const roadmap = await Roadmap.create({
+      student: req.user._id,
+      career: careerDoc?._id || null,
+      title: `Path to ${careerTitle}`,
+      description: `Your personalized ${timeline || 'moderate'}-paced roadmap to become a ${careerTitle}`,
+      nodes, milestones, overallProgress: 0, userProfile: profileData,
+    });
+
+    logActivity(req.user._id, 'Generated roadmap from form', 'roadmap', { career: careerTitle, timeline, budget, steps: nodes.length });
+    res.status(201).json({ success: true, message: 'Roadmap generated successfully', data: { roadmap } });
+  } catch (error) { next(error); }
+};
+
+// ═══ updateRoadmap — Roadmap edit karo ═══
+// PUT /roadmap — title, description, nodes update kar sakte ho
+export const updateRoadmap = async (req, res, next) => {
+  try {
+    const { title, description, nodes: newNodes } = req.body;
+    const roadmap = await Roadmap.findOne({ student: req.user._id });
+    if (!roadmap) return res.status(404).json({ success: false, message: 'No roadmap found' });
+
+    if (title !== undefined) roadmap.title = title;
+    if (description !== undefined) roadmap.description = description;
+
+    if (newNodes && Array.isArray(newNodes)) {
+      const statusMap = {};
+      roadmap.nodes.forEach(n => { statusMap[n._id.toString()] = { status: n.status, progress: n.progress }; });
+
+      roadmap.nodes = newNodes.map((n, i) => {
+        const preserved = statusMap[n._id] || { status: 'pending', progress: 0 };
+        return {
+          title: n.title, description: n.description || '', type: n.type || 'general',
+          category: n.category || 'learning', status: n.status || preserved.status,
+          progress: n.progress !== undefined ? n.progress : preserved.progress,
+          difficulty: n.difficulty || 'medium', estimatedDuration: n.estimatedDuration || '',
+          resources: n.resources || [], tips: n.tips || '', whyThis: n.whyThis || '',
+          order: i + 1,
+        };
+      });
+
+      const completed = roadmap.nodes.filter(n => n.status === 'completed').length;
+      roadmap.overallProgress = Math.round((completed / roadmap.nodes.length) * 100);
+    }
+
+    await roadmap.save();
+    logActivity(req.user._id, 'Updated roadmap', 'roadmap', { title: roadmap.title });
+    res.status(200).json({ success: true, message: 'Roadmap updated', data: { roadmap } });
+  } catch (error) { next(error); }
+};
+
+// ═══ deleteRoadmap — Roadmap reset/delete karo ═══
+// DELETE /roadmap — pura roadmap delete, user naya bana sake
+export const deleteRoadmap = async (req, res, next) => {
+  try {
+    const roadmap = await Roadmap.findOneAndDelete({ student: req.user._id });
+    if (!roadmap) return res.status(404).json({ success: false, message: 'No roadmap found' });
+    logActivity(req.user._id, 'Reset roadmap', 'roadmap', { title: roadmap.title });
+    res.status(200).json({ success: true, message: 'Roadmap deleted. You can now create a new one.' });
+  } catch (error) { next(error); }
 };

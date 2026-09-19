@@ -2,15 +2,15 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import StudentProfile from '../models/StudentProfile.js';
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const genAI = GEMINI_KEY && GEMINI_KEY.startsWith('AIza')
+const genAI = GEMINI_KEY && GEMINI_KEY.length > 10
   ? new GoogleGenerativeAI(GEMINI_KEY)
   : null;
 
 if (genAI) {
-  console.log('Gemini AI initialized (AI Studio key detected)');
+  console.log('Gemini AI initialized');
+  console.log(`  Key: ${GEMINI_KEY.substring(0, 12)}...`);
 } else {
-  console.log('Gemini AI disabled — need AIzaSy... key from aistudio.google.com/apikey');
-  console.log(`  Current key prefix: ${(GEMINI_KEY || 'none').substring(0, 10)}...`);
+  console.log('Gemini AI disabled — need valid key from aistudio.google.com/apikey');
 }
 
 const chatSessions = new Map();

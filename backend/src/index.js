@@ -30,14 +30,16 @@ const start = async () => {
         console.log(`Port ${PORT} busy — killing old process...`);
         try {
           if (process.platform === 'win32') {
-            execSync(`for /f "tokens=5" %a in ('netstat -ano ^| findstr :${PORT} ^| findstr LISTENING') do taskkill /PID %a /F`, { stdio: 'ignore' });
+            try {
+              const result = execSync(`cmd /c "for /f \\"tokens=5\\" %a in ('netstat -ano ^| findstr :${PORT} ^| findstr LISTENING') do taskkill /PID %a /F"`, { stdio: 'pipe' }).toString();
+            } catch {}
           } else {
             execSync(`fuser -k ${PORT}/tcp`, { stdio: 'ignore' });
           }
-          setTimeout(() => { server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); }, 1000);
+          setTimeout(() => { server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); }, 2000);
         } catch {
-          console.error(`Cannot free port ${PORT}. Kill the old process manually.`);
-          process.exit(1);
+          console.error(`Cannot free port ${PORT}. Retrying in 3s...`);
+          setTimeout(() => { server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); }, 3000);
         }
       } else {
         console.error('Server error:', err.message);

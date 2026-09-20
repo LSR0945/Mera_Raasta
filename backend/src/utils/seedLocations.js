@@ -198,15 +198,15 @@ const seedGovtData = async () => {
     console.log('\n══ Government Data Seed — 100% Real Data ══');
 
     const existingCount = await Location.countDocuments();
-    const hasCities = await Location.findOne({ 'districts.0.cities.0': { $exists: true } });
-    if (existingCount >= 35 && hasCities) {
+    if (existingCount >= 35) {
       console.log(`  Data already exists (${existingCount} states). Skipping.`);
       return;
     }
 
     const states = await fetchGovtStatesDistricts();
     let cityMap = {};
-    try { cityMap = await fetchGovtCities(); } catch (e) { console.log('  Cities partial:', e.message); }
+    // City fetch disabled — causes server crash due to memory/rate limits
+    // try { cityMap = await fetchGovtCities(); } catch (e) { console.log('  Cities partial:', e.message); }
     const merged = mergeData(states, cityMap);
     await saveToDB(merged);
 

@@ -3,61 +3,63 @@ import { logActivity } from './activity.controller.js';
 
 const conversationHistory = new Map();
 
-// ===== Gemini API integration with automatic fallback =====
-// Google ka naya AQ key format abhi bug mein hai — jab tak fix hota hai,
-// Enhanced Fallback use hota hai. Jab Google fix karega, Gemini automatic chalega.
+// ===== Gemini API (Google) — user ki AQ key, auto-retry ke saath =====
+// Google ka AQ key rollout bug abhi chal raha hai (401) — code har 5 min retry
+// karta hai aur har retry par AGALA model try karta hai. Jab Google account
+// fix karega, Gemini TURANT automatic chalega — koi code change nahi lagega.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-let geminiStatus = { available: false, checkedAt: 0 };
-const GEMINI_RETRY_INTERVAL = 5 * 60 * 1000; // Retry every 5 minutes
+let geminiStatus = { available: false, checkedAt: 0, model: null };
+const GEMINI_RETRY_INTERVAL = 5 * 60 * 1000; // 5 min mein retry
+// Har retry par ek naya model rotate hota hai (kuch accounts par rollout bug
+// model-specific behave karta hai — forum reports ke hisaab se 3.6/3.7 par alag)
+const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
+let geminiModelIdx = 0;
 
-async function tryGeminiAPI(message, profile, lang) {
-  if (!GEMINI_API_KEY) return null;
-
-  // Agar abhi check nahi kiya ya 5 min ho gaye, dobara try karo
+function geminiShouldTry() {
+  if (!GEMINI_API_KEY) return false;
   const now = Date.now();
-  if (geminiStatus.available && now - geminiStatus.checkedAt < 60000) {
-    // Recently confirmed available, use it
-  } else if (!geminiStatus.available && now - geminiStatus.checkedAt < GEMINI_RETRY_INTERVAL) {
-    return null; // Recently failed, skip to avoid latency
+  if (geminiStatus.available) return true; // working model cached hai
+  if (now - geminiStatus.checkedAt < GEMINI_RETRY_INTERVAL) return false; // abhi retry mat karo
+  return true; // retry ka time ho gaya
+}
+
+function currentGeminiModel() {
+  if (geminiStatus.available && geminiStatus.model) return geminiStatus.model;
+  return GEMINI_MODELS[geminiModelIdx % GEMINI_MODELS.length];
+}
+
+function markGeminiFailed(httpStatus) {
+  geminiModelIdx++; // agle retry par agla model
+  geminiStatus = { available: false, checkedAt: Date.now(), model: null };
+  if (httpStatus) {
+    console.log(`[Gemini] HTTP ${httpStatus} — key abhi bhi rejected (Google ka AQ bug). Will retry in 5 min with next model.`);
   }
+}
 
+// Gemini request body — per-user history + same system prompt (free AI jaisa)
+function buildGeminiBody(message, userId, lang, profile) {
+  const contents = [];
   try {
-    // Build conversation context from history
-    const contents = [];
-    const userHist = Array.from(conversationHistory.values()).flat().slice(-8);
-    for (const h of userHist) {
-      if (h.role === 'user' || h.role === 'assistant') {
-        contents.push({
-          role: h.role === 'user' ? 'user' : 'model',
-          parts: [{ text: String(h.content).slice(0, 2000) }]
-        });
-      }
+    const hist = getHistory(userId).slice(-8);
+    for (const h of hist) {
+      contents.push({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: String(h.content).slice(0, 2000) }] });
     }
-    contents.push({ role: 'user', parts: [{ text: message }] });
+  } catch {}
+  contents.push({ role: 'user', parts: [{ text: message }] });
+  return {
+    contents,
+    systemInstruction: { parts: [{ text: buildSystemPrompt(lang, profile) }] },
+    generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+  };
+}
 
-    const systemInstruction = {
-      parts: [{
-        text: `You are Mera Raasta AI Career Coach — an expert Indian education and career guidance assistant. You help Indian students with career planning, exam preparation (JEE, NEET, UPSC, SSC, GATE), coding (Python, Java, C++, JavaScript, etc.), salary expectations in Indian LPA, college admissions, skill development, and motivation. 
-Language: Respond in ${lang === 'hi' ? 'Hindi' : lang === 'hinglish' ? 'Hinglish (Hindi written in English script)' : 'English'}.
-Style: Be helpful, encouraging, use markdown formatting with **bold** and code blocks. Keep responses concise but informative. Include emojis naturally.`
-      }]
-    };
-
-    const body = {
-      contents,
-      systemInstruction,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 2048,
-      }
-    };
-
-    // Try generateContent endpoint with AQ key
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+// Gemini HTTP call (query param method — AQ keys ke liye documented tarika)
+async function geminiFetch(pathAndQuery, body, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${pathAndQuery}${pathAndQuery.includes('?') ? '&' : '?'}key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -65,70 +67,97 @@ Style: Be helpful, encouraging, use markdown formatting with **bold** and code b
         signal: controller.signal,
       }
     );
-
+  } finally {
     clearTimeout(timeout);
+  }
+}
+
+// Non-streaming Gemini call
+async function tryGeminiAPI(message, userId, lang, profile) {
+  if (!geminiShouldTry()) return null;
+  try {
+    const model = currentGeminiModel();
+    const body = buildGeminiBody(message, userId, lang, profile);
+    const resp = await geminiFetch(`${model}:generateContent`, body, 6000);
 
     if (resp.ok) {
       const data = await resp.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) {
-        geminiStatus = { available: true, checkedAt: Date.now() };
-        console.log('[Gemini] API working! Using real AI response.');
+        geminiStatus = { available: true, checkedAt: Date.now(), model };
+        console.log(`[Gemini] WORKING via ${model}! Real Gemini response use ho raha hai.`);
         return text;
       }
     }
-
-    // Query param se HTTP error aaya (401/403) — header se bhi same aayega,
-    // isliye skip karke seedha mark failed (latency bachti hai)
-    if (resp.status && resp.status >= 400 && resp.status < 500) {
-      geminiStatus = { available: false, checkedAt: Date.now() };
-      console.log(`[Gemini] Key rejected (HTTP ${resp.status}) — free AI providers use honge. Will retry in 5 min.`);
+    if (resp.status >= 400 && resp.status < 500) {
+      markGeminiFailed(resp.status);
       return null;
     }
-
-    // Server/network error — header format se ek baar try karo
-    const controller2 = new AbortController();
-    const timeout2 = setTimeout(() => controller2.abort(), 5000);
-    const resp2 = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': GEMINI_API_KEY,
-        },
-        body: JSON.stringify(body),
-        signal: controller2.signal,
-      }
-    );
-    clearTimeout(timeout2);
-
-    if (resp2.ok) {
-      const data = await resp2.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) {
-        geminiStatus = { available: true, checkedAt: Date.now() };
-        console.log('[Gemini] API working via header! Using real AI response.');
-        return text;
-      }
-    }
-
-    // Both failed — mark as unavailable
-    geminiStatus = { available: false, checkedAt: Date.now() };
-    const status = resp.status || resp2.status;
-    if (now - geminiStatus.checkedAt > 0) {
-      console.log(`[Gemini] Key rejected (HTTP ${status}) — using Enhanced Fallback. Will retry in 5 min.`);
-    }
+    markGeminiFailed(null); // 5xx/network — baad mein retry
     return null;
   } catch (err) {
-    if (err.name === 'AbortError') {
-      geminiStatus = { available: false, checkedAt: Date.now() };
-      console.log('[Gemini] Timeout — using Enhanced Fallback.');
-    } else {
-      geminiStatus = { available: false, checkedAt: Date.now() };
-      console.log('[Gemini] Error:', err.message, '— using Enhanced Fallback.');
-    }
+    console.log('[Gemini] Error:', err.message, '— fallback use hoga.');
+    markGeminiFailed(null);
     return null;
+  }
+}
+
+// True streaming Gemini call (SSE) — real Gemini ki tarah token-by-token
+async function streamGeminiAPI(message, userId, lang, profile, onChunk) {
+  if (!geminiShouldTry()) return false;
+  try {
+    const model = currentGeminiModel();
+    const body = buildGeminiBody(message, userId, lang, profile);
+    const resp = await geminiFetch(`${model}:streamGenerateContent?alt=sse`, body, 8000);
+
+    if (!resp.ok) {
+      if (resp.status >= 400 && resp.status < 500) markGeminiFailed(resp.status);
+      else markGeminiFailed(null);
+      return false;
+    }
+
+    // SSE parse karo — har fragment ka text onChunk ko bhejo
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let gotAny = false;
+    while (true) {
+      let rdTimer;
+      const idle = new Promise((_, rej) => { rdTimer = setTimeout(() => rej(new Error('gemini stream idle')), 25000); });
+      let rd;
+      try {
+        rd = await Promise.race([reader.read(), idle]);
+      } finally {
+        clearTimeout(rdTimer);
+      }
+      const { done, value } = rd;
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const payload = trimmed.slice(5).trim();
+        if (!payload || payload === '[DONE]') continue;
+        try {
+          const json = JSON.parse(payload);
+          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) { gotAny = true; onChunk(text); }
+        } catch {}
+      }
+    }
+    if (gotAny) {
+      geminiStatus = { available: true, checkedAt: Date.now(), model };
+      console.log(`[Gemini] Stream WORKING via ${model}!`);
+      return true;
+    }
+    markGeminiFailed(null);
+    return false;
+  } catch (err) {
+    console.log('[Gemini] Stream error:', err.message, '— fallback use hoga.');
+    markGeminiFailed(null);
+    return false;
   }
 }
 
@@ -1079,7 +1108,7 @@ function getGeneralResponse(message, lang) {
 // (greeting/code/math) → 3) Real Free AI (koi bhi sawaal) → 4) Offline fallback
 async function generateResponse(message, profile, lang, userId) {
   // Step 1: Real Gemini API (jab Google AQ key bug fix karega, yeh chalega)
-  const geminiReply = await tryGeminiAPI(message, profile, lang);
+  const geminiReply = await tryGeminiAPI(message, userId, lang, profile);
   if (geminiReply) return geminiReply;
 
   const topic = detectTopic(message);
@@ -1173,9 +1202,18 @@ export const chatStream = async (req, res) => {
       res.end();
     };
 
-    // Step 1: Real Gemini (key working hone par)
-    const geminiReply = await tryGeminiAPI(message, profile, lang);
-    if (geminiReply) return await sendFull(geminiReply);
+    // Step 1: Real Gemini STREAMING (key fix hone par — token-by-token, bilkul Google jaisa)
+    let geminiFull = '';
+    const geminiStreamed = await streamGeminiAPI(message, userId, lang, profile, (chunk) => {
+      geminiFull += chunk;
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    });
+    if (geminiStreamed && geminiFull.trim()) {
+      addToHistory(userId, 'user', message);
+      addToHistory(userId, 'assistant', geminiFull);
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      return res.end();
+    }
 
     const topic = detectTopic(message);
 

@@ -3,6 +3,128 @@ import { logActivity } from './activity.controller.js';
 
 const conversationHistory = new Map();
 
+// ===== Gemini API integration with automatic fallback =====
+// Google ka naya AQ key format abhi bug mein hai — jab tak fix hota hai,
+// Enhanced Fallback use hota hai. Jab Google fix karega, Gemini automatic chalega.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+let geminiStatus = { available: false, checkedAt: 0 };
+const GEMINI_RETRY_INTERVAL = 5 * 60 * 1000; // Retry every 5 minutes
+
+async function tryGeminiAPI(message, profile, lang) {
+  if (!GEMINI_API_KEY) return null;
+
+  // Agar abhi check nahi kiya ya 5 min ho gaye, dobara try karo
+  const now = Date.now();
+  if (geminiStatus.available && now - geminiStatus.checkedAt < 60000) {
+    // Recently confirmed available, use it
+  } else if (!geminiStatus.available && now - geminiStatus.checkedAt < GEMINI_RETRY_INTERVAL) {
+    return null; // Recently failed, skip to avoid latency
+  }
+
+  try {
+    const history = getHistory(message ? undefined : undefined) || [];
+    // Build conversation context from history
+    const contents = [];
+    const userHist = Array.from(conversationHistory.values()).flat().slice(-8);
+    for (const h of userHist) {
+      if (h.role === 'user' || h.role === 'assistant') {
+        contents.push({
+          role: h.role === 'user' ? 'user' : 'model',
+          parts: [{ text: String(h.content).slice(0, 2000) }]
+        });
+      }
+    }
+    contents.push({ role: 'user', parts: [{ text: message }] });
+
+    const systemInstruction = {
+      parts: [{
+        text: `You are Mera Raasta AI Career Coach — an expert Indian education and career guidance assistant. You help Indian students with career planning, exam preparation (JEE, NEET, UPSC, SSC, GATE), coding (Python, Java, C++, JavaScript, etc.), salary expectations in Indian LPA, college admissions, skill development, and motivation. 
+Language: Respond in ${lang === 'hi' ? 'Hindi' : lang === 'hinglish' ? 'Hinglish (Hindi written in English script)' : 'English'}.
+Style: Be helpful, encouraging, use markdown formatting with **bold** and code blocks. Keep responses concise but informative. Include emojis naturally.`
+      }]
+    };
+
+    const body = {
+      contents,
+      systemInstruction,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+      }
+    };
+
+    // Try generateContent endpoint with AQ key
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeout);
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        geminiStatus = { available: true, checkedAt: Date.now() };
+        console.log('[Gemini] API working! Using real AI response.');
+        return text;
+      }
+    }
+
+    // Also try x-goog-api-key header format
+    const controller2 = new AbortController();
+    const timeout2 = setTimeout(() => controller2.abort(), 8000);
+    const resp2 = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': GEMINI_API_KEY,
+        },
+        body: JSON.stringify(body),
+        signal: controller2.signal,
+      }
+    );
+    clearTimeout(timeout2);
+
+    if (resp2.ok) {
+      const data = await resp2.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        geminiStatus = { available: true, checkedAt: Date.now() };
+        console.log('[Gemini] API working via header! Using real AI response.');
+        return text;
+      }
+    }
+
+    // Both failed — mark as unavailable
+    geminiStatus = { available: false, checkedAt: Date.now() };
+    const status = resp.status || resp2.status;
+    if (now - geminiStatus.checkedAt > 0) {
+      console.log(`[Gemini] Key rejected (HTTP ${status}) — using Enhanced Fallback. Will retry in 5 min.`);
+    }
+    return null;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      geminiStatus = { available: false, checkedAt: Date.now() };
+      console.log('[Gemini] Timeout — using Enhanced Fallback.');
+    } else {
+      geminiStatus = { available: false, checkedAt: Date.now() };
+      console.log('[Gemini] Error:', err.message, '— using Enhanced Fallback.');
+    }
+    return null;
+  }
+}
+
 function detectLanguage(text) {
   if (!text || !text.trim()) return 'en';
   const hindiChars = text.match(/[\u0900-\u097F]/g);
@@ -682,7 +804,12 @@ function getGeneralResponse(message, lang) {
 }
 
 // ===== Generate response based on topic =====
-function generateResponse(message, profile, lang) {
+async function generateResponse(message, profile, lang) {
+  // Step 1: Try Gemini API first (auto-fallback if key not working)
+  const geminiReply = await tryGeminiAPI(message, profile, lang);
+  if (geminiReply) return geminiReply;
+
+  // Step 2: Enhanced Fallback (100% working without external API)
   const topic = detectTopic(message);
 
   switch (topic) {
@@ -723,7 +850,7 @@ export const chat = async (req, res) => {
       profile = await StudentProfile.findOne({ user: req.user._id }).populate('user', 'name email');
     } catch {}
 
-    const response = generateResponse(message, profile, lang);
+    const response = await generateResponse(message, profile, lang);
     addToHistory(req.user._id, 'user', message);
     addToHistory(req.user._id, 'assistant', response);
 
@@ -755,7 +882,7 @@ export const chatStream = async (req, res) => {
       profile = await StudentProfile.findOne({ user: req.user._id }).populate('user', 'name email');
     } catch {}
 
-    const fullResponse = generateResponse(message, profile, lang);
+    const fullResponse = await generateResponse(message, profile, lang);
     addToHistory(req.user._id, 'user', message);
     addToHistory(req.user._id, 'assistant', fullResponse);
 

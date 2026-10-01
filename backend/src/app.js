@@ -9,6 +9,7 @@ import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { logger } from './utils/logger.js';
 import { sanitizeInput } from './middleware/sanitize.js';
 import apiRoutes from './routes/index.js';
+import chatRoutes from './routes/chat.routes.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -22,6 +23,7 @@ app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, max: config.nodeEnv === 'd
 app.use(morgan('combined', { stream: { write: (msg) => logger.info(msg.trim()) } }));
 app.get('/health', (req, res) => res.status(200).json({ success: true, message: 'API is running', timestamp: new Date().toISOString() }));
 app.use('/api/v1', apiRoutes);
+app.use('/api/chat', chatRoutes);
 app.use(notFound);
 app.use(errorHandler);
 export default app;

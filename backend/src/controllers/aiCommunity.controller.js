@@ -114,10 +114,10 @@ async function tryGeminiAPI(message, userId, lang, profile) {
 async function streamGeminiAPI(message, userId, lang, profile, onChunk) {
   if (!geminiShouldTry()) return false;
   const model = currentGeminiModel();
+  let gotAny = false; // try ke BAHAR — catch mein pata chale partial answer bheja ya nahi
   try {
     const params = buildGeminiParams(message, userId, lang, profile);
     const stream = await withTimeout(geminiAI.models.generateContentStream({ model, ...params }), 8000);
-    let gotAny = false;
     for await (const chunk of stream) {
       const t = chunk?.text;
       if (t) { gotAny = true; onChunk(t); }
@@ -130,6 +130,13 @@ async function streamGeminiAPI(message, userId, lang, profile, onChunk) {
     markGeminiFailed(null);
     return false;
   } catch (err) {
+    if (gotAny) {
+      // Partial answer already streamed — doosra AI chalana duplicate text
+      // bana deta, isliye yahin graceful success maano (thoda sa answer gaya)
+      console.log('[Gemini] Stream broke mid-answer after partial chunks — accepting partial response');
+      geminiStatus = { available: true, checkedAt: Date.now(), model };
+      return true;
+    }
     const status = geminiErrStatus(err);
     if (!status || status >= 500) {
       console.log('[Gemini] Stream error:', String(err?.message || err).replace(/\s+/g, ' ').slice(0, 100), '— fallback use hoga.');

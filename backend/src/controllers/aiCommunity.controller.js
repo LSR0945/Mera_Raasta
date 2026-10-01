@@ -125,6 +125,156 @@ Style: Be helpful, encouraging, use markdown formatting with **bold** and code b
   }
 }
 
+// ===== Free AI (Kilo Code) — bina kisi API key ke real AI answers =====
+// Gemini AQ key abhi Google ke bug se 401 de raha hai, isliye Kilo Code ka
+// free gateway use hota hai — yeh REAL AI hai jo koi bhi sawaal jawab deta hai.
+const FREE_AI_ENDPOINT = 'https://api.kilo.ai/api/gateway/chat/completions';
+const FREE_AI_MODEL = 'kilo-auto/free';
+let freeAIStatus = { failedUntil: 0 }; // Failure ke baad cooldown
+// Kilo ek time par ek hi request allow karta hai (429 rate limit),
+// isliye sab requests ek queue mein serial chalte hain
+let freeAISerial = Promise.resolve();
+function enqueueFreeAI(fn) {
+  const run = freeAISerial.then(fn, fn);
+  freeAISerial = run.then(() => {}, () => {});
+  return run;
+}
+
+function buildSystemPrompt(lang, profile) {
+  const langName = lang === 'hi' ? 'Hindi' : lang === 'hinglish' ? 'Hinglish (Hindi written in English script)' : 'English';
+  let profileLine = '';
+  try {
+    if (profile) {
+      const bits = [];
+      if (profile.user?.name) bits.push(profile.user.name);
+      if (profile.educationLevel) bits.push('studying ' + profile.educationLevel);
+      if (profile.stream) bits.push('stream ' + profile.stream);
+      if (profile.interests?.length) bits.push('interests: ' + profile.interests.slice(0, 8).join(', '));
+      if (profile.careerGoals?.dreamJob) bits.push('dream job: ' + profile.careerGoals.dreamJob);
+      if (bits.length) profileLine = `\nStudent info: ${bits.join('; ')}. Personalize the answer when it helps.`;
+    }
+  } catch {}
+  return `You are Mera Raasta AI — a friendly, smart Indian education and career guidance assistant, similar to Google Gemini. You answer EVERY question well: general knowledge, science, math, coding, career advice, Indian exams (JEE/NEET/UPSC/SSC/GATE), college choices, life advice, definitions, and casual conversation.
+Language: Always respond in ${langName}.${profileLine}
+Style: Use markdown (**bold**, lists, code blocks). Be concise but complete and accurate. Add emojis naturally. Never say you cannot help — always give a real answer.`;
+}
+
+function buildMessages(message, userId, lang, profile) {
+  const messages = [{ role: 'system', content: buildSystemPrompt(lang, profile) }];
+  try {
+    const hist = getHistory(userId).slice(-8);
+    for (const h of hist) {
+      if (h.content) messages.push({ role: h.role === 'user' ? 'user' : 'assistant', content: String(h.content).slice(0, 1500) });
+    }
+  } catch {}
+  messages.push({ role: 'user', content: message });
+  return messages;
+}
+
+// Ek baar ka AI HTTP call — 429 (rate limit) hone par ek baar retry karta hai
+async function callFreeAI(body, timeoutMs) {
+  const doFetch = async (signal) => {
+    return await fetch(FREE_AI_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    });
+  };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await doFetch(controller.signal);
+    if (resp.status === 429) {
+      // Rate limit — 2.5 sec wait karke ek baar aur try
+      await new Promise(r => setTimeout(r, 2500));
+      const resp2 = await doFetch(undefined);
+      if (!resp2.ok) { const e = new Error(`HTTP ${resp2.status}`); e.status = resp2.status; throw e; }
+      return resp2;
+    }
+    if (!resp.ok) { const e = new Error(`HTTP ${resp.status}`); e.status = resp.status; throw e; }
+    return resp;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function markFreeAIFailure(err) {
+  // 429 = sirf rate limit, jaldi wapas try karo; baaki errors = thoda lamba cooldown
+  const cooldown = err?.status === 429 ? 15000 : 30000;
+  freeAIStatus.failedUntil = Date.now() + cooldown;
+  console.log(`[FreeAI] Failed: ${err.message} — cooldown ${cooldown / 1000}s, offline fallback use hoga.`);
+}
+
+// Non-streaming free AI call — poori response text return karta hai
+async function tryFreeAI(message, userId, lang, profile) {
+  if (Date.now() < freeAIStatus.failedUntil) return null; // cooldown active
+  return await enqueueFreeAI(async () => {
+    if (Date.now() < freeAIStatus.failedUntil) return null; // queue mein wait karte waqt cooldown lag gaya
+    try {
+      const resp = await callFreeAI(
+        { model: FREE_AI_MODEL, messages: buildMessages(message, userId, lang, profile) },
+        30000
+      );
+      const data = await resp.json();
+      const text = data?.choices?.[0]?.message?.content;
+      if (text && text.trim()) {
+        console.log('[FreeAI] Real AI answer received (Kilo Code).');
+        return text;
+      }
+      throw new Error('empty response');
+    } catch (err) {
+      markFreeAIFailure(err);
+      return null;
+    }
+  });
+}
+
+// Streaming free AI call — har token turant onChunk ko bhejta hai (real Gemini jaisa)
+async function streamFreeAI(message, userId, lang, profile, onChunk) {
+  if (Date.now() < freeAIStatus.failedUntil) return false;
+  return await enqueueFreeAI(async () => {
+    if (Date.now() < freeAIStatus.failedUntil) return false;
+    try {
+      const resp = await callFreeAI(
+        { model: FREE_AI_MODEL, stream: true, messages: buildMessages(message, userId, lang, profile) },
+        45000
+      );
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let gotAny = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // last incomplete line ko agle chunk mein complete karo
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const payload = trimmed.slice(5).trim();
+          if (payload === '[DONE]') continue;
+          try {
+            const json = JSON.parse(payload);
+            const delta = json?.choices?.[0]?.delta?.content;
+            if (delta) { gotAny = true; onChunk(delta); }
+          } catch {}
+        }
+      }
+      if (gotAny) {
+        console.log('[FreeAI] Streamed real AI response.');
+        return true;
+      }
+      throw new Error('empty stream');
+    } catch (err) {
+      markFreeAIFailure(err);
+      return false;
+    }
+  });
+}
+
 function detectLanguage(text) {
   if (!text || !text.trim()) return 'en';
   const hindiChars = text.match(/[\u0900-\u097F]/g);
@@ -140,7 +290,7 @@ function detectTopic(message) {
   const m = message.toLowerCase();
   if (/^(hi|hello|hey|namaste|namaskar|good morning|good evening|good afternoon|good night|kaise ho|how are you|bye|thank|thanks|dhanyavad|ok|okay|theek hai|accha|ji|haan|nahi|yes|no|sure|help|help me|help karo|meri help|mujhe help|bachao)/i.test(m)) return 'conversation';
   if (/\b(joke|funny|comedy|hasa|hasao|mazak|masti|humour|humor|witty)\b/i.test(m)) return 'joke';
-  if (/\b(motivat|inspir|success|fail|failure|never give up|hard work|dream|goal|stress|stressed|depress|depressed|anxiety|anxious|worried|sad|sadness|hopeless|tension|pressure|upset|unhappy|crying|cry|lonely|alone|scared|afraid|fear|panic|overwhelmed|burnout|burn out)\b/i.test(m)) return 'motivation';
+  if (/\b(motivat|inspir|success|fail|failure|never give up|hard work|dream|goal|stress|stressed|depress|depressed|anxiety|anxious|worried|sad|sadness|hopeless|tension|pressure|upset|unhappy|crying|cry|lonely|alone|scared|afraid|fear|panic|overwhelmed|burnout|burn out|mann nahi lag|mann nahin lag|padhai ka mann|energy nahi|give up chhod)\b/i.test(m)) return 'motivation';
   if (/\b(recipe|cook|food|dish|meal|biryani|pizza|burger|chai|coffee|pakora|samosa|dosa|idli|paratha|roti|rice|dal|curry|paneer|chicken|noodles)\b/i.test(m)) return 'recipe';
   if (/\b(java|python|javascript|typescript|c\+\+|cpp|c#|ruby|php|swift|kotlin|dart|golang|rust|sql|mysql|html|css|react|angular|vue|next\.?js|node\.?js|express|django|flask|spring|laravel)\b/i.test(m)) return 'programming';
   if (/\b(code|program|function|class|loop|array|print|return|import|export|def |int |void |static |public |private|api|endpoint|route|component|query|database)\b/i.test(m) && /\b(write|create|build|make|code|program|implement|develop|design|show|tell|how to|write a|create a)\b/i.test(m)) return 'programming';
@@ -797,34 +947,41 @@ function getRecipeResponse(message, lang) {
   return hi ? '**Indian Khana** \uD83C\uDF5B\n\nAapko kis dish ke baare mein jaanna hai?\n\n- **Biryani** - Hyderabadi style\n- **Chai** - Perfect masala chai\n- **Paneer Butter Masala** - Restaurant style\n- **Dal Makhani** - creamy dal\n- **Samosa** - crispy snack\n- **Dosa** - South Indian favorite\n\nKoi bhi dish batao, recipe de dunga!' : '**Indian Food** \uD83C\uDF5B\n\nWhich dish would you like to know about?\n\n- **Biryani** - Hyderabadi style\n- **Chai** - Perfect masala chai\n- **Paneer Butter Masala** - Restaurant style\n- **Dal Makhani** - Creamy dal\n- **Samosa** - Crispy snack\n- **Dosa** - South Indian favorite\n\nTell me any dish, I will give you the recipe!';
 }
 
-// ===== General fallback response =====
+// ===== General fallback response (tab use hota hai jab dono AI down ho) =====
 function getGeneralResponse(message, lang) {
   const hi = lang === 'hi';
-  return hi ? '**Main aapki madad karna chahta hoon!** \uD83D\uDE0A\n\nAap mujhse ye sab puch sakte hain:\n\n\uD83C\uDFAF **Career Guidance** - Kya karein after 10th/12th/graduation?\n\uD83D\uDCBB **Coding** - Python, Java, C++ programs\n\uD83D\uDCB0 **Salary** - India mein kitna milta hai?\n\uD83D\uDCDD **Exams** - JEE, NEET, UPSC, GATE\n\uD83E\uDDE0 **Skills** - Kya seekhein job ke liye?\n\uD83C\uDFAF **Motivation** - Mann nahi lag raha\n\nKoi bhi sawaal pucho!' : '**I am here to help!** \uD83D\uDE0A\n\nYou can ask me anything about:\n\n\uD83C\uDFAF **Career Guidance** - What to do after 10th/12th/graduation?\n\uD83D\uDCBB **Coding** - Python, Java, C++ programs\n\uD83D\uDCB0 **Salary** - How much in India?\n\uD83D\uDCDD **Exams** - JEE, NEET, UPSC, GATE\n\uD83E\uDDE0 **Skills** - What to learn for jobs?\n\uD83C\uDFAF **Motivation** - Feeling down\n\nAsk me anything!';
+  const q = String(message || '').slice(0, 80);
+  return hi ? `**Aapka sawaal:** "${q}"\n\nAbhi AI thoda busy hai, isliye main offline mode mein hoon \uD83D\uDE0A\n\nThodi der baad try karo — tab tak yeh puch sakte ho:\n\n\uD83C\uDFAF **Career Guidance** - 10th/12th/graduation ke baad kya?\n\uD83D\uDCBB **Coding** - Python, Java, C++ programs\n\uD83D\uDCB0 **Salary** - India mein kitna milta hai?\n\uD83D\uDCDD **Exams** - JEE, NEET, UPSC, GATE\n\uD83E\uDDE0 **Skills** - Job ke liye kya seekhein?\n\uD83C\uDFAF **Motivation** - Mann nahi lag raha\n\n*Sawaal ka jawab AI chalu hote hi mil jayega!*` : `**You asked:** "${q}"\n\nOur AI is briefly busy right now, so I am in offline mode \uD83D\uDE0A\n\nPlease try again in a moment — meanwhile you can ask:\n\n\uD83C\uDFAF **Career Guidance** - What after 10th/12th/graduation?\n\uD83D\uDCBB **Coding** - Python, Java, C++ programs\n\uD83D\uDCB0 **Salary** - How much in India?\n\uD83D\uDCDD **Exams** - JEE, NEET, UPSC, GATE\n\uD83E\uDDE0 **Skills** - What to learn for jobs?\n\uD83C\uDFAF **Motivation** - Feeling down\n\n*You will get the AI answer as soon as it is back!*`;
 }
 
 // ===== Generate response based on topic =====
-async function generateResponse(message, profile, lang) {
-  // Step 1: Try Gemini API first (auto-fallback if key not working)
+// Order: 1) Real Gemini (key fix hone par) → 2) Instant exact handlers
+// (greeting/code/math) → 3) Real Free AI (koi bhi sawaal) → 4) Offline fallback
+async function generateResponse(message, profile, lang, userId) {
+  // Step 1: Real Gemini API (jab Google AQ key bug fix karega, yeh chalega)
   const geminiReply = await tryGeminiAPI(message, profile, lang);
   if (geminiReply) return geminiReply;
 
-  // Step 2: Enhanced Fallback (100% working without external API)
   const topic = detectTopic(message);
 
+  // Step 2: Instant reliable handlers — greetings, jokes, motivation, recipes,
+  // code aur simple math yahan exact aur fast milte hain
+  if (topic === 'conversation') return getConversationResponse(message, lang);
+  if (topic === 'joke') return getJokeResponse(lang);
+  if (topic === 'motivation') return getMotivationResponse(message, lang);
+  if (topic === 'recipe') return getRecipeResponse(message, lang);
+  if (topic === 'programming') return generateCodeResponse(message, lang);
+  if (/\d\s*[+\-*/^%]\s*\d/.test(message) || topic === 'math') {
+    const mathAns = solveMath(message);
+    if (mathAns) return mathAns;
+  }
+
+  // Step 3: Real AI — science, career, exam, general ya koi bhi doosra sawaal
+  const aiReply = await tryFreeAI(message, userId, lang, profile);
+  if (aiReply) return aiReply;
+
+  // Step 4: Offline keyword fallback (jab dono AI na chalein)
   switch (topic) {
-    case 'conversation':
-      return getConversationResponse(message, lang);
-    case 'joke':
-      return getJokeResponse(lang);
-    case 'motivation':
-      return getMotivationResponse(message, lang);
-    case 'recipe':
-      return getRecipeResponse(message, lang);
-    case 'programming':
-      return generateCodeResponse(message, lang);
-    case 'math':
-      return solveMath(message);
     case 'science':
       return getScienceResponse(message, lang);
     case 'career':
@@ -850,7 +1007,7 @@ export const chat = async (req, res) => {
       profile = await StudentProfile.findOne({ user: req.user._id }).populate('user', 'name email');
     } catch {}
 
-    const response = await generateResponse(message, profile, lang);
+    const response = await generateResponse(message, profile, lang, req.user._id);
     addToHistory(req.user._id, 'user', message);
     addToHistory(req.user._id, 'assistant', response);
 
@@ -861,7 +1018,7 @@ export const chat = async (req, res) => {
   }
 };
 
-// ===== chatStream (SSE) =====
+// ===== chatStream (SSE) — real-time streaming like real Gemini =====
 export const chatStream = async (req, res) => {
   try {
     const { message } = req.body;
@@ -877,24 +1034,64 @@ export const chatStream = async (req, res) => {
     });
 
     const lang = detectLanguage(message);
+    const userId = req.user._id;
     let profile = null;
     try {
-      profile = await StudentProfile.findOne({ user: req.user._id }).populate('user', 'name email');
+      profile = await StudentProfile.findOne({ user: userId }).populate('user', 'name email');
     } catch {}
 
-    const fullResponse = await generateResponse(message, profile, lang);
-    addToHistory(req.user._id, 'user', message);
-    addToHistory(req.user._id, 'assistant', fullResponse);
+    // Pehle se bana hua response bhejne ke liye helper (chunk-by-chunk typing effect)
+    const sendFull = async (fullResponse) => {
+      addToHistory(userId, 'user', message);
+      addToHistory(userId, 'assistant', fullResponse);
+      const chunkSize = 15;
+      for (let i = 0; i < fullResponse.length; i += chunkSize) {
+        res.write(`data: ${JSON.stringify({ chunk: fullResponse.slice(i, i + chunkSize) })}\n\n`);
+        await new Promise(r => setTimeout(r, 20));
+      }
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    };
 
-    const chunkSize = 15;
-    for (let i = 0; i < fullResponse.length; i += chunkSize) {
-      const chunk = fullResponse.slice(i, i + chunkSize);
+    // Step 1: Real Gemini (key working hone par)
+    const geminiReply = await tryGeminiAPI(message, profile, lang);
+    if (geminiReply) return await sendFull(geminiReply);
+
+    const topic = detectTopic(message);
+
+    // Step 2: Instant handlers — greeting, joke, motivation, recipe, code, math
+    let instant = null;
+    if (topic === 'conversation') instant = getConversationResponse(message, lang);
+    else if (topic === 'joke') instant = getJokeResponse(lang);
+    else if (topic === 'motivation') instant = getMotivationResponse(message, lang);
+    else if (topic === 'recipe') instant = getRecipeResponse(message, lang);
+    else if (topic === 'programming') instant = generateCodeResponse(message, lang);
+    else if (/\d\s*[+\-*/^%]\s*\d/.test(message) || topic === 'math') instant = solveMath(message);
+    if (instant) return await sendFull(instant);
+
+    // Step 3: Real AI streaming — har token turant stream hota hai (Gemini jaisa)
+    let fullAI = '';
+    const streamed = await streamFreeAI(message, userId, lang, profile, (chunk) => {
+      fullAI += chunk;
       res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
-      await new Promise(r => setTimeout(r, 20));
+    });
+
+    if (streamed && fullAI.trim()) {
+      addToHistory(userId, 'user', message);
+      addToHistory(userId, 'assistant', fullAI);
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      return res.end();
     }
 
-    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-    res.end();
+    // Step 4: Offline fallback (jab AI down ho)
+    let fallback;
+    switch (topic) {
+      case 'science': fallback = getScienceResponse(message, lang); break;
+      case 'career': fallback = getCareerResponse(message, profile, lang); break;
+      case 'exam': fallback = getExamResponse(message, lang); break;
+      default: fallback = getGeneralResponse(message, lang);
+    }
+    return await sendFull(fallback);
   } catch (error) {
     console.error('AI Stream error:', error);
     try {

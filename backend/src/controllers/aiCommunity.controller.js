@@ -5,17 +5,26 @@ import { GoogleGenAI } from '@google/genai';
 const conversationHistory = new Map();
 
 // ===== Gemini (official @google/genai SDK) — user ki AQ key, auto-retry =====
-// Google ka AQ key rollout bug abhi chal raha hai (401) — code har 5 min retry
-// karta hai aur har retry par AGALA model try karta hai. Jab Google account
-// fix karega, Gemini TURANT automatic chalega — koi code change nahi lagega.
+// Naya key (AQ.Ab8RN6Iq...) chal raha hai confirmed — model rotation + 5 min
+// retry ka support fallback safety ke liye banaya hua hai.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-// SDK sirf key hone par banta hai — construction par koi network call nahi hoti
+// SDK sirf key hone par banta hai (construction par koi network call nahi hoti)
 const geminiAI = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 let geminiStatus = { available: false, checkedAt: 0, model: null };
 const GEMINI_RETRY_INTERVAL = 5 * 60 * 1000; // 5 min mein retry
-// Har retry par ek naya model rotate hota hai (kuch accounts par rollout bug
-// model-specific behave karta hai — forum reports ke hisaab se 3.6/3.7 par alag)
-const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
+// Har retry par ek naya model rotate hota hai — confirmed working models pehle
+const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.7-flash'];
+
+// Warm-up: server start par pehli Gemini request slow hoti hai (DNS/TLS handshake)
+// — timeouts miss na hon, isliye 1.5s mein connection warm kar lete hain
+if (geminiAI) {
+  setTimeout(() => {
+    geminiAI.models
+      .generateContent({ model: GEMINI_MODELS[0], contents: 'hi', config: { maxOutputTokens: 4 } })
+      .then(() => console.log('[Gemini] Connection warmed up'))
+      .catch((e) => console.log('[Gemini] Warmup skipped:', String(e?.message || e).replace(/\s+/g, ' ').slice(0, 80)));
+  }, 1500);
+}
 let geminiModelIdx = 0;
 
 function geminiShouldTry() {

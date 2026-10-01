@@ -7,7 +7,7 @@
 import { GoogleGenAI } from '@google/genai';
 
 // ===== Config =====
-const GEMINI_MODEL = process.env.GEMINI_MODEL_NAME || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL_NAME || 'gemini-3.6-flash';
 const GEMINI_TIMEOUT_MS = 5000; // 5 second fast-fail — fail/rate-limit/timeout → turant backup
 const MAX_HISTORY = 8; // context memory — last 8 messages yaad rakhte hain
 
@@ -41,6 +41,17 @@ const SYSTEM_PROMPT =
 
 // Gemini client — sirf key hone par banta hai (construction par koi network call nahi hoti)
 const geminiAI = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
+
+// Warm-up: server start par pehli Gemini request slow hoti hai (DNS/TLS handshake)
+// — 5s timeout miss na ho, isliye 1.5s mein ek halka sa request bhej ke connection warm karte hain
+if (geminiAI) {
+  setTimeout(() => {
+    geminiAI.models
+      .generateContent({ model: GEMINI_MODEL, contents: 'hi', config: { maxOutputTokens: 4 } })
+      .then(() => console.log('[Chat] Gemini connection warmed up'))
+      .catch((e) => console.log('[Chat] Gemini warmup skipped:', String(e?.message || e).replace(/\s+/g, ' ').slice(0, 80)));
+  }, 1500);
+}
 
 // ===== Context memory converters =====
 // Frontend chatHistory → Gemini format (assistant = "model")
@@ -164,7 +175,11 @@ export const chatStream = async (req, res) => {
         for await (const chunk of stream) {
           clearTimeout(failTimer); // pehla chunk aa gaya — ab ruko mat
           const text = chunk?.text;
-          if (text) { geminiAnswered = true; send(text); }
+          if (text) {
+            if (!geminiAnswered) console.log(`[Chat] Gemini answered (${GEMINI_MODEL})`);
+            geminiAnswered = true;
+            send(text);
+          }
           if (closed) break;
         }
         clearTimeout(failTimer);

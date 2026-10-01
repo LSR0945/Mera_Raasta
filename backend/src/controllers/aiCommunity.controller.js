@@ -22,7 +22,6 @@ async function tryGeminiAPI(message, profile, lang) {
   }
 
   try {
-    const history = getHistory(message ? undefined : undefined) || [];
     // Build conversation context from history
     const contents = [];
     const userHist = Array.from(conversationHistory.values()).flat().slice(-8);
@@ -151,11 +150,12 @@ function buildSystemPrompt(lang, profile) {
       if (profile.stream) bits.push('stream ' + profile.stream);
       if (profile.interests?.length) bits.push('interests: ' + profile.interests.slice(0, 8).join(', '));
       if (profile.careerGoals?.dreamJob) bits.push('dream job: ' + profile.careerGoals.dreamJob);
-      if (bits.length) profileLine = `\nStudent info: ${bits.join('; ')}. Personalize the answer when it helps.`;
+      if (bits.length) profileLine = `\nStudent background info (use only to personalize answers): ${bits.join('; ')}.`;
     }
   } catch {}
   return `You are Mera Raasta AI — a friendly, smart Indian education and career guidance assistant, similar to Google Gemini. You answer EVERY question well: general knowledge, science, math, coding, career advice, Indian exams (JEE/NEET/UPSC/SSC/GATE), college choices, life advice, definitions, and casual conversation.
 Language: Always respond in ${langName}.${profileLine}
+IMPORTANT: The conversation history below shows what the user ACTUALLY said — when the user asks about something they told you earlier, always trust the conversation history over the background info above.
 Style: Use markdown (**bold**, lists, code blocks). Be concise but complete and accurate. Add emojis naturally. Never say you cannot help — always give a real answer.`;
 }
 
@@ -410,12 +410,15 @@ function detectCodeTask(message) {
   return 'generalCode';
 }
 function getHistory(userId) {
-  if (!conversationHistory.has(userId)) conversationHistory.set(userId, []);
-  return conversationHistory.get(userId);
+  // ObjectId har request mein naya instance hota hai — Map key ke liye
+  // hamesha string use karo warna purani history kabhi nahi milegi
+  const key = String(userId);
+  if (!conversationHistory.has(key)) conversationHistory.set(key, []);
+  return conversationHistory.get(key);
 }
 
 function addToHistory(userId, role, content) {
-  const hist = getHistory(userId);
+  const hist = getHistory(String(userId));
   hist.push({ role, content, timestamp: Date.now() });
   if (hist.length > 20) hist.splice(0, hist.length - 20);
 }
@@ -1105,7 +1108,7 @@ export const chatStream = async (req, res) => {
 // ===== clearHistory =====
 export const clearHistory = async (req, res) => {
   try {
-    conversationHistory.delete(req.user._id);
+    conversationHistory.delete(String(req.user._id));
     return res.status(200).json({ success: true, message: 'History cleared' });
   } catch (error) {
     console.error('Clear history error:', error);

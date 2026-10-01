@@ -54,7 +54,7 @@ Style: Be helpful, encouraging, use markdown formatting with **bold** and code b
 
     // Try generateContent endpoint with AQ key
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -78,9 +78,17 @@ Style: Be helpful, encouraging, use markdown formatting with **bold** and code b
       }
     }
 
-    // Also try x-goog-api-key header format
+    // Query param se HTTP error aaya (401/403) — header se bhi same aayega,
+    // isliye skip karke seedha mark failed (latency bachti hai)
+    if (resp.status && resp.status >= 400 && resp.status < 500) {
+      geminiStatus = { available: false, checkedAt: Date.now() };
+      console.log(`[Gemini] Key rejected (HTTP ${resp.status}) — free AI providers use honge. Will retry in 5 min.`);
+      return null;
+    }
+
+    // Server/network error — header format se ek baar try karo
     const controller2 = new AbortController();
-    const timeout2 = setTimeout(() => controller2.abort(), 8000);
+    const timeout2 = setTimeout(() => controller2.abort(), 5000);
     const resp2 = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`,
       {
@@ -124,19 +132,26 @@ Style: Be helpful, encouraging, use markdown formatting with **bold** and code b
   }
 }
 
-// ===== Free AI (Kilo Code) — bina kisi API key ke real AI answers =====
-// Gemini AQ key abhi Google ke bug se 401 de raha hai, isliye Kilo Code ka
-// free gateway use hota hai — yeh REAL AI hai jo koi bhi sawaal jawab deta hai.
-const FREE_AI_ENDPOINT = 'https://api.kilo.ai/api/gateway/chat/completions';
-const FREE_AI_MODEL = 'kilo-auto/free';
-let freeAIStatus = { failedUntil: 0 }; // Failure ke baad cooldown
-// Kilo ek time par ek hi request allow karta hai (429 rate limit),
-// isliye sab requests ek queue mein serial chalte hain
+// ===== Free AI — multi-provider chain (bina kisi API key ke REAL AI) =====
+// Gemini AQ key abhi Google ke bug se 401 deta hai. Isliye 3 free AI providers
+// automatic use hote hain — ek down ho toh doosra TURANT jawab deta hai.
+// Offline mode sirf tab aata hai jab TEENO providers ek saath down hon.
+const FREE_AI_PROVIDERS = [
+  { name: 'KiloCode', url: 'https://api.kilo.ai/api/gateway/chat/completions', model: 'kilo-auto/free', timeoutMs: 18000, failedUntil: 0 },
+  { name: 'LLM7', url: 'https://api.llm7.io/v1/chat/completions', model: 'mistral-Nemo-Instruct-2407', timeoutMs: 20000, failedUntil: 0 },
+  { name: 'OVH', url: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', model: 'Mistral-7B-Instruct-v0.3', timeoutMs: 15000, failedUntil: 0 },
+];
+// Providers par ek time par ek hi request jaye (429 rate limit se bachne ke liye)
 let freeAISerial = Promise.resolve();
 function enqueueFreeAI(fn) {
   const run = freeAISerial.then(fn, fn);
   freeAISerial = run.then(() => {}, () => {});
   return run;
+}
+// Jo provider abhi cooldown mein nahi hai
+function availableProviders() {
+  const now = Date.now();
+  return FREE_AI_PROVIDERS.filter(p => now >= p.failedUntil);
 }
 
 function buildSystemPrompt(lang, profile) {
@@ -171,107 +186,209 @@ function buildMessages(message, userId, lang, profile) {
   return messages;
 }
 
-// Ek baar ka AI HTTP call — 429 (rate limit) hone par ek baar retry karta hai
-async function callFreeAI(body, timeoutMs) {
-  const doFetch = async (signal) => {
-    return await fetch(FREE_AI_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal,
-    });
-  };
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const resp = await doFetch(controller.signal);
-    if (resp.status === 429) {
-      // Rate limit — 2.5 sec wait karke ek baar aur try
-      await new Promise(r => setTimeout(r, 2500));
-      const resp2 = await doFetch(undefined);
-      if (!resp2.ok) { const e = new Error(`HTTP ${resp2.status}`); e.status = resp2.status; throw e; }
-      return resp2;
-    }
-    if (!resp.ok) { const e = new Error(`HTTP ${resp.status}`); e.status = resp.status; throw e; }
-    return resp;
-  } finally {
-    clearTimeout(timeout);
+function markProviderFailure(provider, err) {
+  // 429 = rate limit (8s cooldown); baaki errors (timeout/network) = 12s.
+  // Sirf YEH provider cool hota hai — race mein baaki providers already chal rahe hain.
+  const cooldown = err?.status === 429 ? 8000 : 12000;
+  provider.failedUntil = Date.now() + cooldown;
+  console.log(`[FreeAI:${provider.name}] ${err.message} — ${cooldown / 1000}s cooldown.`);
+}
+
+// Agar SAB providers cooldown mein hain toh sabse jaldi expire hone wale ka wait (max 6s)
+async function waitForCoolingProviders() {
+  const now = Date.now();
+  const soonest = Math.min(...FREE_AI_PROVIDERS.map(p => p.failedUntil));
+  if (soonest > now && soonest - now <= 6000) {
+    await new Promise(r => setTimeout(r, soonest - now + 200));
+    return true;
   }
+  return false;
 }
 
-function markFreeAIFailure(err) {
-  // 429 = sirf rate limit, jaldi wapas try karo; baaki errors = thoda lamba cooldown
-  const cooldown = err?.status === 429 ? 15000 : 30000;
-  freeAIStatus.failedUntil = Date.now() + cooldown;
-  console.log(`[FreeAI] Failed: ${err.message} — cooldown ${cooldown / 1000}s, offline fallback use hoga.`);
-}
-
-// Non-streaming free AI call — poori response text return karta hai
-async function tryFreeAI(message, userId, lang, profile) {
-  if (Date.now() < freeAIStatus.failedUntil) return null; // cooldown active
-  return await enqueueFreeAI(async () => {
-    if (Date.now() < freeAIStatus.failedUntil) return null; // queue mein wait karte waqt cooldown lag gaya
-    try {
-      const resp = await callFreeAI(
-        { model: FREE_AI_MODEL, messages: buildMessages(message, userId, lang, profile) },
-        30000
-      );
-      const data = await resp.json();
-      const text = data?.choices?.[0]?.message?.content;
-      if (text && text.trim()) {
-        console.log('[FreeAI] Real AI answer received (Kilo Code).');
-        return text;
-      }
-      throw new Error('empty response');
-    } catch (err) {
-      markFreeAIFailure(err);
-      return null;
+// Non-streaming RACE: providers EK SAATH call hote hain, pehla complete jawab
+// jeet jata hai aur baaki abort ho jate hain. Ek provider slow/429 ho toh
+// koi na koi provider turant jawab deta hai.
+function raceAnswer(msgs, providers) {
+  return new Promise((resolve) => {
+    if (!providers.length) return resolve(null);
+    let settled = false;
+    let pending = providers.length;
+    const aborters = [];
+    const finish = (val) => {
+      if (settled) return;
+      settled = true;
+      for (const c of aborters) { try { c.abort(); } catch {} }
+      resolve(val);
+    };
+    for (const p of providers) {
+      (async () => {
+        const controller = new AbortController();
+        aborters.push(controller);
+        const timer = setTimeout(() => controller.abort(), p.timeoutMs);
+        try {
+          const resp = await fetch(p.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: p.model, messages: msgs }),
+            signal: controller.signal,
+          });
+          if (!resp.ok) { const e = new Error(`HTTP ${resp.status}`); e.status = resp.status; throw e; }
+          const data = await resp.json();
+          clearTimeout(timer);
+          const text = data?.choices?.[0]?.message?.content;
+          if (text && text.trim()) {
+            console.log(`[FreeAI] Real AI answer via ${p.name} (race won).`);
+            finish(text);
+            return;
+          }
+          throw new Error('empty response');
+        } catch (err) {
+          clearTimeout(timer);
+          if (!settled) markProviderFailure(p, err);
+        } finally {
+          pending--;
+          if (pending === 0 && !settled) finish(null);
+        }
+      })();
     }
   });
 }
 
-// Streaming free AI call — har token turant onChunk ko bhejta hai (real Gemini jaisa)
-async function streamFreeAI(message, userId, lang, profile, onChunk) {
-  if (Date.now() < freeAIStatus.failedUntil) return false;
+// Non-streaming: race chalao; sab fail ho toh 2s baad DOBARA (force) —
+// 429 burst aksar 2-3 second mein clear ho jata hai. Offline bahut kam hi dikhega.
+async function tryFreeAI(message, userId, lang, profile) {
+  if (availableProviders().length === 0) {
+    if (!(await waitForCoolingProviders())) { /* force retry neeche handle karega */ }
+  }
   return await enqueueFreeAI(async () => {
-    if (Date.now() < freeAIStatus.failedUntil) return false;
-    try {
-      const resp = await callFreeAI(
-        { model: FREE_AI_MODEL, stream: true, messages: buildMessages(message, userId, lang, profile) },
-        45000
-      );
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let gotAny = false;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // last incomplete line ko agle chunk mein complete karo
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith('data:')) continue;
-          const payload = trimmed.slice(5).trim();
-          if (payload === '[DONE]') continue;
-          try {
-            const json = JSON.parse(payload);
-            const delta = json?.choices?.[0]?.delta?.content;
-            if (delta) { gotAny = true; onChunk(delta); }
-          } catch {}
-        }
-      }
-      if (gotAny) {
-        console.log('[FreeAI] Streamed real AI response.');
-        return true;
-      }
-      throw new Error('empty stream');
-    } catch (err) {
-      markFreeAIFailure(err);
-      return false;
+    const msgs = buildMessages(message, userId, lang, profile);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+      // Attempt 0: available providers; retries: SAB providers (cooldown ignore)
+      const providers = attempt === 0 && availableProviders().length
+        ? availableProviders()
+        : FREE_AI_PROVIDERS;
+      const text = await raceAnswer(msgs, providers);
+      if (text) return text;
     }
+    return null; // teeno attempts fail → offline fallback
+  });
+}
+
+// Streaming RACE: providers ka stream ek saath chalu — pehla provider jo pehla
+// token de wahi winner; sirf uske chunks client ko jaate hain, baaki abort.
+// Agar kisi ne pehla chunk nahi bheja (sab fail) toh false return hota hai.
+function raceStreamOnce(msgs, providers, onChunk) {
+  return new Promise((resolve) => {
+    if (!providers.length) return resolve(false);
+    let winner = null;
+    let settled = false;
+    let pending = providers.length;
+    const aborters = [];
+    const finish = (val) => {
+      if (settled) return;
+      settled = true;
+      for (const c of aborters) { try { c.abort(); } catch {} }
+      resolve(val);
+    };
+    for (const p of providers) {
+      (async () => {
+        const controller = new AbortController();
+        aborters.push(controller);
+        const headerTimer = setTimeout(() => controller.abort(), p.timeoutMs);
+        let gotAny = false;
+        try {
+          const resp = await fetch(p.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: p.model, stream: true, messages: msgs }),
+            signal: controller.signal,
+          });
+          if (!resp.ok) { const e = new Error(`HTTP ${resp.status}`); e.status = resp.status; throw e; }
+          clearTimeout(headerTimer);
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          while (true) {
+            // First chunk tak 20s, uske baad har read par 25s idle timeout
+            const idleMs = gotAny ? 25000 : 20000;
+            let rdTimer;
+            const idle = new Promise((_, rej) => { rdTimer = setTimeout(() => rej(new Error(gotAny ? 'stream idle timeout' : 'no first chunk')), idleMs); });
+            let rd;
+            try {
+              rd = await Promise.race([reader.read(), idle]);
+            } finally {
+              clearTimeout(rdTimer);
+            }
+            const { done, value } = rd;
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // last incomplete line ko agle chunk mein complete karo
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith('data:')) continue;
+              const payload = trimmed.slice(5).trim();
+              if (payload === '[DONE]') continue;
+              try {
+                const json = JSON.parse(payload);
+                const delta = json?.choices?.[0]?.delta?.content;
+                if (delta) {
+                  if (!winner) {
+                    winner = p; // pehla token dene wala provider jeet gaya
+                    console.log(`[FreeAI] Stream race won by ${p.name}.`);
+                  }
+                  if (winner === p && !settled) {
+                    gotAny = true;
+                    onChunk(delta);
+                  }
+                }
+              } catch {}
+            }
+            if (settled && winner !== p) return; // koi aur jeet chuka hai — band karo
+          }
+          if (winner === p && gotAny) {
+            console.log(`[FreeAI] Stream complete via ${p.name}.`);
+            finish(true);
+          } else if (!winner && !gotAny) {
+            markProviderFailure(p, new Error('empty stream'));
+          }
+        } catch (err) {
+          if (winner === p && gotAny) {
+            // Winner ke beech mein connection toota — bheje hue chunks accept karo
+            console.log(`[FreeAI] Partial stream from ${p.name} accepted.`);
+            finish(true);
+          } else if (!winner) {
+            markProviderFailure(p, err);
+          }
+          // Agar koi aur winner hai toh yeh error ignore (loser tha)
+        } finally {
+          clearTimeout(headerTimer);
+          pending--;
+          if (pending === 0 && !settled) finish(false);
+        }
+      })();
+    }
+  });
+}
+
+// Streaming: race + sab fail hone par 2s baad force retry (chunks tab tak nahi
+// gaye the, isliye retry safe hai) — pehla chunk aaye tab tak offline nahi dikhta.
+async function streamFreeAI(message, userId, lang, profile, onChunk) {
+  if (availableProviders().length === 0) {
+    await waitForCoolingProviders(); // force retry neeche handle karega
+  }
+  return await enqueueFreeAI(async () => {
+    const msgs = buildMessages(message, userId, lang, profile);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+      const providers = attempt === 0 && availableProviders().length
+        ? availableProviders()
+        : FREE_AI_PROVIDERS;
+      const ok = await raceStreamOnce(msgs, providers, onChunk);
+      if (ok) return true;
+    }
+    return false; // teeno attempts fail → offline fallback
   });
 }
 

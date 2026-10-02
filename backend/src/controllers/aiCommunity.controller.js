@@ -1,69 +1,13 @@
 import StudentProfile from '../models/StudentProfile.js';
 import { logActivity } from './activity.controller.js';
-import { GoogleGenAI } from '@google/genai';
+import { geminiStreamAttempt, geminiCompleteAttempt, hasUsableGeminiKey } from '../utils/geminiPool.js';
 
 const conversationHistory = new Map();
 
-// ===== Gemini (official @google/genai SDK) — user ki AQ key, auto-retry =====
-// Naya key (AQ.Ab8RN6Iq...) chal raha hai confirmed — model rotation + 5 min
-// retry ka support fallback safety ke liye banaya hua hai.
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-// SDK sirf key hone par banta hai (construction par koi network call nahi hoti)
-const geminiAI = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
-let geminiStatus = { available: false, checkedAt: 0, model: null };
-const GEMINI_RETRY_INTERVAL = 5 * 60 * 1000; // 5 min mein retry
-// Har retry par ek naya model rotate hota hai — confirmed working models pehle
-const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.7-flash'];
-
-// Warm-up: server start par pehli Gemini request slow hoti hai (DNS/TLS handshake)
-// — timeouts miss na hon, isliye 1.5s mein connection warm kar lete hain
-if (geminiAI) {
-  setTimeout(() => {
-    geminiAI.models
-      .generateContent({ model: GEMINI_MODELS[0], contents: 'hi', config: { maxOutputTokens: 4 } })
-      .then(() => console.log('[Gemini] Connection warmed up'))
-      .catch((e) => console.log('[Gemini] Warmup skipped:', String(e?.message || e).replace(/\s+/g, ' ').slice(0, 80)));
-  }, 1500);
-}
-let geminiModelIdx = 0;
-
-function geminiShouldTry() {
-  if (!GEMINI_API_KEY) return false;
-  const now = Date.now();
-  if (geminiStatus.available) return true; // working model cached hai
-  if (now - geminiStatus.checkedAt < GEMINI_RETRY_INTERVAL) return false; // abhi retry mat karo
-  return true; // retry ka time ho gaya
-}
-
-function currentGeminiModel() {
-  if (geminiStatus.available && geminiStatus.model) return geminiStatus.model;
-  return GEMINI_MODELS[geminiModelIdx % GEMINI_MODELS.length];
-}
-
-function markGeminiFailed(httpStatus) {
-  geminiModelIdx++; // agle retry par agla model
-  geminiStatus = { available: false, checkedAt: Date.now(), model: null };
-  if (httpStatus) {
-    console.log(`[Gemini] HTTP ${httpStatus} — key abhi bhi rejected (Google ka AQ bug). Will retry in 5 min with next model.`);
-  }
-}
-
-// SDK error ke andar se HTTP status nikalo (401/403 = key rejected)
-function geminiErrStatus(err) {
-  const msg = String(err?.message || err || '');
-  const m = msg.match(/"code"\s*:\s*(\d{3})/) || msg.match(/\b(?:HTTP\s*|status\s*:?\s*)(4\d\d|5\d\d)\b/);
-  if (m) return Number(m[1]);
-  if (/\b40[0-9]\b/.test(msg)) return 401;
-  if (/\b50[0-9]\b/.test(msg)) return 503;
-  return null;
-}
-
-// SDK call ko timeout mein wrap karo (fallback fast rahe)
-function withTimeout(promise, ms) {
-  let timer;
-  const t = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('gemini timeout ' + ms + 'ms')), ms); });
-  return Promise.race([promise, t]).finally(() => clearTimeout(timer));
-}
+// ===== Gemini — har haal mein (src/utils/geminiPool.js) =====
+// Pool karta hai: multiple keys (GEMINI_API_KEY + GEMINI_API_KEYS_EXTRA),
+// model rotation, 429 quota auto-block + auto-resume, 60s soft cooldown,
+// connection warm-up. Yahan sirf is controller ke thin wrappers hain.
 
 // Gemini request params — per-user history + same system prompt (free AI jaisa)
 function buildGeminiParams(message, userId, lang, profile) {
@@ -85,65 +29,20 @@ function buildGeminiParams(message, userId, lang, profile) {
   };
 }
 
-// Non-streaming Gemini call (official SDK)
+// Non-streaming Gemini call — pool sab keys/models try karta hai
 async function tryGeminiAPI(message, userId, lang, profile) {
-  if (!geminiShouldTry()) return null;
-  const model = currentGeminiModel();
-  try {
-    const params = buildGeminiParams(message, userId, lang, profile);
-    const res = await withTimeout(geminiAI.models.generateContent({ model, ...params }), 6000);
-    const text = res?.text; // SDK ka convenience getter — candidates se text nikalta hai
-    if (text) {
-      geminiStatus = { available: true, checkedAt: Date.now(), model };
-      console.log(`[Gemini] WORKING via official SDK (${model})! Real Gemini response use ho raha hai.`);
-      return text;
-    }
-    markGeminiFailed(null);
-    return null;
-  } catch (err) {
-    const status = geminiErrStatus(err);
-    if (!status || status >= 500) {
-      console.log('[Gemini] Error:', String(err?.message || err).replace(/\s+/g, ' ').slice(0, 100), '— fallback use hoga.');
-    }
-    markGeminiFailed(status && status < 500 ? status : null);
-    return null;
-  }
+  if (!hasUsableGeminiKey()) return null; // sab blocked/cooling — fallback chain use hogi
+  const params = buildGeminiParams(message, userId, lang, profile);
+  const r = await geminiCompleteAttempt({ ...params, timeoutMs: 6000 });
+  return r.ok ? r.text : null;
 }
 
-// Streaming Gemini call (official SDK — generateContentStream, token-by-token)
+// Streaming Gemini call — pool ke through token-by-token (partial bhi safe)
 async function streamGeminiAPI(message, userId, lang, profile, onChunk) {
-  if (!geminiShouldTry()) return false;
-  const model = currentGeminiModel();
-  let gotAny = false; // try ke BAHAR — catch mein pata chale partial answer bheja ya nahi
-  try {
-    const params = buildGeminiParams(message, userId, lang, profile);
-    const stream = await withTimeout(geminiAI.models.generateContentStream({ model, ...params }), 8000);
-    for await (const chunk of stream) {
-      const t = chunk?.text;
-      if (t) { gotAny = true; onChunk(t); }
-    }
-    if (gotAny) {
-      geminiStatus = { available: true, checkedAt: Date.now(), model };
-      console.log(`[Gemini] Stream WORKING via official SDK (${model})!`);
-      return true;
-    }
-    markGeminiFailed(null);
-    return false;
-  } catch (err) {
-    if (gotAny) {
-      // Partial answer already streamed — doosra AI chalana duplicate text
-      // bana deta, isliye yahin graceful success maano (thoda sa answer gaya)
-      console.log('[Gemini] Stream broke mid-answer after partial chunks — accepting partial response');
-      geminiStatus = { available: true, checkedAt: Date.now(), model };
-      return true;
-    }
-    const status = geminiErrStatus(err);
-    if (!status || status >= 500) {
-      console.log('[Gemini] Stream error:', String(err?.message || err).replace(/\s+/g, ' ').slice(0, 100), '— fallback use hoga.');
-    }
-    markGeminiFailed(status && status < 500 ? status : null);
-    return false;
-  }
+  if (!hasUsableGeminiKey()) return false;
+  const params = buildGeminiParams(message, userId, lang, profile);
+  const r = await geminiStreamAttempt({ ...params, timeoutMs: 8000, onChunk });
+  return r.ok;
 }
 
 // ===== Free AI — multi-provider chain (bina kisi API key ke REAL AI) =====

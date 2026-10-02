@@ -4,10 +4,9 @@
 //  kare toh bhi chat kabhi dead nahi hoti)
 // Frontend ko SSE stream milta hai: data: {"chunk":"..."} + data: {"done":true}
 // Request body: { message: string, chatHistory: [{role, content}] }
-import { GoogleGenAI } from '@google/genai';
+import { geminiStreamAttempt, hasUsableGeminiKey } from '../utils/geminiPool.js';
 
 // ===== Config =====
-const GEMINI_MODEL = process.env.GEMINI_MODEL_NAME || 'gemini-3.6-flash';
 const GEMINI_TIMEOUT_MS = 5000; // 5 second fast-fail — fail/rate-limit/timeout → turant backup
 const MAX_HISTORY = 8; // context memory — last 8 messages yaad rakhte hain
 
@@ -39,19 +38,8 @@ const SYSTEM_PROMPT =
   'college admissions and motivation. Respond in the same language the user writes in ' +
   '(Hindi/Hinglish/English). Use markdown with **bold** and code blocks. Be concise and encouraging.';
 
-// Gemini client — sirf key hone par banta hai (construction par koi network call nahi hoti)
-const geminiAI = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
-
-// Warm-up: server start par pehli Gemini request slow hoti hai (DNS/TLS handshake)
-// — 5s timeout miss na ho, isliye 1.5s mein ek halka sa request bhej ke connection warm karte hain
-if (geminiAI) {
-  setTimeout(() => {
-    geminiAI.models
-      .generateContent({ model: GEMINI_MODEL, contents: 'hi', config: { maxOutputTokens: 4 } })
-      .then(() => console.log('[Chat] Gemini connection warmed up'))
-      .catch((e) => console.log('[Chat] Gemini warmup skipped:', String(e?.message || e).replace(/\s+/g, ' ').slice(0, 80)));
-  }, 1500);
-}
+// Gemini client/warm-up sab src/utils/geminiPool.js mein hai (multi-key pool,
+// model rotation, 429 auto-block, auto-resume, warm-up) — yahan nahi dohrana.
 
 // ===== Context memory converters =====
 // Frontend chatHistory → Gemini format (assistant = "model")
@@ -154,49 +142,20 @@ export const chatStream = async (req, res) => {
     }
     const history = Array.isArray(chatHistory) ? chatHistory.slice(-MAX_HISTORY) : [];
 
-    // ===== Step 1: PRIMARY — Gemini (5 second fast-fail) =====
-    let geminiAnswered = false;
-    if (geminiAI) {
-      try {
-        // AbortController: 5s mein pehla chunk nahi aaya → abort → backup par jao
-        const controller = new AbortController();
-        const failTimer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
-
-        const stream = await geminiAI.models.generateContentStream({
-          model: GEMINI_MODEL,
-          contents: toGeminiContents(String(message).trim(), history),
-          config: {
-            systemInstruction: SYSTEM_PROMPT,
-            temperature: 0.7,
-            abortSignal: controller.signal,
-          },
-        });
-
-        for await (const chunk of stream) {
-          clearTimeout(failTimer); // pehla chunk aa gaya — ab ruko mat
-          const text = chunk?.text;
-          if (text) {
-            if (!geminiAnswered) console.log(`[Chat] Gemini answered (${GEMINI_MODEL})`);
-            geminiAnswered = true;
-            send(text);
-          }
-          if (closed) break;
-        }
-        clearTimeout(failTimer);
-        if (geminiAnswered) return finish(); // Gemini ne poora jawab diya
-        // Gemini ne empty diya → backup try karo (kuch bheja nahi, safe hai)
-      } catch (err) {
-        // fail / rate-limit / timeout — kuch bhi bheja nahi toh safe fallback
-        if (!geminiAnswered) {
-          const reason = err?.name === 'AbortError' || /abort/i.test(String(err?.message)) ? `timeout ${GEMINI_TIMEOUT_MS}ms` : String(err?.message || err).replace(/\s+/g, ' ').slice(0, 120);
-          console.log(`[Chat] Gemini failed (${reason}) → switching to backup chain`);
-        } else {
-          // beech mein toota (partial bhej chuke the) — doosra AI chalana
-          // text ko dobara shuru karta, isliye yahin graceful end
-          console.log('[Chat] Gemini stream broke mid-way after partial answer — ending stream');
-          return finish();
-        }
-      }
+    // ===== Step 1: PRIMARY — Gemini (pool: multi-key + model rotation, 5s budget) =====
+    if (hasUsableGeminiKey()) {
+      let firstChunk = true;
+      const r = await geminiStreamAttempt({
+        contents: toGeminiContents(String(message).trim(), history),
+        config: { systemInstruction: SYSTEM_PROMPT, temperature: 0.7 },
+        timeoutMs: GEMINI_TIMEOUT_MS, // 5 second fast-fail (requirement)
+        onChunk: (text) => {
+          if (firstChunk) { firstChunk = false; console.log('[Chat] Gemini answered (pool)'); }
+          send(text);
+        },
+      });
+      if (r.ok) return finish(); // Gemini ne jawab diya (partial ho toh bhi safe)
+      console.log('[Chat] Gemini unavailable (quota/cooldown) → switching to backup chain');
     }
 
     // ===== Step 2+: BACKUP chain — LLM7 → KiloCode → OVH (jo pehle chale, wahi) =====

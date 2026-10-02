@@ -50,9 +50,12 @@ async function streamGeminiAPI(message, userId, lang, profile, onChunk) {
 // automatic use hote hain — ek down ho toh doosra TURANT jawab deta hai.
 // Offline mode sirf tab aata hai jab TEENO providers ek saath down hon.
 const FREE_AI_PROVIDERS = [
-  { name: 'KiloCode', url: 'https://api.kilo.ai/api/gateway/chat/completions', model: 'kilo-auto/free', timeoutMs: 18000, failedUntil: 0 },
-  { name: 'LLM7', url: 'https://api.llm7.io/v1/chat/completions', model: 'mistral-Nemo-Instruct-2407', timeoutMs: 20000, failedUntil: 0 },
-  { name: 'OVH', url: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', model: 'Mistral-7B-Instruct-v0.3', timeoutMs: 15000, failedUntil: 0 },
+  // startDelayMs: strong models pehle race karein — OVH (Mistral-7B, sabse
+  // kamzor) ko 1.6s ki head start delay milti hai taaki wo sirf tab jeete jab
+  // baaki fail hon — warna kabhi-kabhi ajeeb jawab de tha (quality fix).
+  { name: 'KiloCode', url: 'https://api.kilo.ai/api/gateway/chat/completions', model: 'kilo-auto/free', timeoutMs: 18000, failedUntil: 0, startDelayMs: 0 },
+  { name: 'LLM7', url: 'https://api.llm7.io/v1/chat/completions', model: 'mistral-Nemo-Instruct-2407', timeoutMs: 20000, failedUntil: 0, startDelayMs: 150 },
+  { name: 'OVH', url: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', model: 'Mistral-7B-Instruct-v0.3', timeoutMs: 15000, failedUntil: 0, startDelayMs: 1600 },
 ];
 // Providers par ek time par ek hi request jaye (429 rate limit se bachne ke liye)
 let freeAISerial = Promise.resolve();
@@ -141,6 +144,11 @@ function raceAnswer(msgs, providers) {
     };
     for (const p of providers) {
       (async () => {
+        // Staggered start — pehle strong providers, phir weak (quality fix)
+        if (p.startDelayMs) {
+          await new Promise(r => setTimeout(r, p.startDelayMs));
+          if (settled) { pending--; if (pending === 0 && !settled) finish(null); return; }
+        }
         const controller = new AbortController();
         aborters.push(controller);
         const timer = setTimeout(() => controller.abort(), p.timeoutMs);
@@ -212,6 +220,11 @@ function raceStreamOnce(msgs, providers, onChunk) {
     };
     for (const p of providers) {
       (async () => {
+        // Staggered start — pehle strong providers, phir weak (quality fix)
+        if (p.startDelayMs) {
+          await new Promise(r => setTimeout(r, p.startDelayMs));
+          if (settled || winner) { pending--; if (pending === 0 && !settled) finish(false); return; }
+        }
         const controller = new AbortController();
         aborters.push(controller);
         const headerTimer = setTimeout(() => controller.abort(), p.timeoutMs);

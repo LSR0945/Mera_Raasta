@@ -423,7 +423,9 @@ function detectTopic(message) {
   if (/\b(joke|funny|comedy|hasa|hasao|mazak|masti|humour|humor|witty)\b/i.test(m)) return 'joke';
   if (/\b(motivat|inspir|success|fail|failure|never give up|hard work|dream|goal|stress|stressed|depress|depressed|anxiety|anxious|worried|sad|sadness|hopeless|tension|pressure|upset|unhappy|crying|cry|lonely|alone|scared|afraid|fear|panic|overwhelmed|burnout|burn out|mann nahi lag|mann nahin lag|padhai ka mann|energy nahi|give up chhod)\b/i.test(m)) return 'motivation';
   if (/\b(recipe|cook|food|dish|meal|biryani|pizza|burger|chai|coffee|pakora|samosa|dosa|idli|paratha|roti|rice|dal|curry|paneer|chicken|noodles)\b/i.test(m)) return 'recipe';
-  if (/\b(java|python|javascript|typescript|c\+\+|cpp|c#|ruby|php|swift|kotlin|dart|golang|rust|sql|mysql|html|css|react|angular|vue|next\.?js|node\.?js|express|django|flask|spring|laravel)\b/i.test(m)) return 'programming';
+  // Language ka naam AKELA kaafi nahi — likhne/banane ka intent chahiye.
+  // "what is java language" → programming NAHI (warna canned code chala jaata)
+  if (/\b(java|python|javascript|typescript|c\+\+|cpp|c#|ruby|php|swift|kotlin|dart|golang|rust|sql|mysql|html|css|react|angular|vue|next\.?js|node\.?js|express|django|flask|spring|laravel)\b/i.test(m) && /\b(write|create|build|make|code|program|implement|develop|bana|banao|likho|likh do|print)\b/i.test(m)) return 'programming';
   if (/\b(code|program|function|class|loop|array|print|return|import|export|def |int |void |static |public |private|api|endpoint|route|component|query|database)\b/i.test(m) && /\b(write|create|build|make|code|program|implement|develop|design|show|tell|how to|write a|create a)\b/i.test(m)) return 'programming';
   if (/\b(math|maths|calculate|solve|equation|algebra|geometry|trigonometry|calculus|derivative|integral|matrix|probability|statistics|factorial|quadratic|linear|arithmetic|percentage|fraction|decimal|ratio|lcm|hcf|gcd|prime|square root|pythagoras)\b/i.test(m)) return 'math';
   if (/\d+\s*[+\-*/^%]\s*\d+/.test(m)) return 'math';
@@ -1089,17 +1091,22 @@ function getGeneralResponse(message, lang) {
 }
 
 // ===== Generate response based on topic =====
-// Order: 1) Real Gemini (key fix hone par) → 2) Instant exact handlers
-// (greeting/code/math) → 3) Real Free AI (koi bhi sawaal) → 4) Offline fallback
+// Order: 1) Real Gemini → 2) Real Free AI (race) → 3) Instant canned handlers
+// (greeting/code/math — sirf jab dono AI down ho) → 4) Offline fallback
+// IMPORTANT: canned handlers kabhi real AI se pehle nahi chalte — warna
+// "what is java language" jaise sawaal par random canned code chala jaata tha.
 async function generateResponse(message, profile, lang, userId) {
-  // Step 1: Real Gemini API (jab Google AQ key bug fix karega, yeh chalega)
+  // Step 1: Real Gemini API (official SDK)
   const geminiReply = await tryGeminiAPI(message, userId, lang, profile);
   if (geminiReply) return geminiReply;
 
   const topic = detectTopic(message);
 
-  // Step 2: Instant reliable handlers — greetings, jokes, motivation, recipes,
-  // code aur simple math yahan exact aur fast milte hain
+  // Step 2: Real Free AI — KiloCode/LLM7/OVH race, HAR sawaal ke liye asli jawab
+  const aiReply = await tryFreeAI(message, userId, lang, profile);
+  if (aiReply) return aiReply;
+
+  // Step 3: Instant handlers — sirf offline mode (dono AI down) ke liye fast answers
   if (topic === 'conversation') return getConversationResponse(message, lang);
   if (topic === 'joke') return getJokeResponse(lang);
   if (topic === 'motivation') return getMotivationResponse(message, lang);
@@ -1110,11 +1117,7 @@ async function generateResponse(message, profile, lang, userId) {
     if (mathAns) return mathAns;
   }
 
-  // Step 3: Real AI — science, career, exam, general ya koi bhi doosra sawaal
-  const aiReply = await tryFreeAI(message, userId, lang, profile);
-  if (aiReply) return aiReply;
-
-  // Step 4: Offline keyword fallback (jab dono AI na chalein)
+  // Step 4: Offline keyword fallback (jab AI down ho)
   switch (topic) {
     case 'science':
       return getScienceResponse(message, lang);
@@ -1202,17 +1205,7 @@ export const chatStream = async (req, res) => {
 
     const topic = detectTopic(message);
 
-    // Step 2: Instant handlers — greeting, joke, motivation, recipe, code, math
-    let instant = null;
-    if (topic === 'conversation') instant = getConversationResponse(message, lang);
-    else if (topic === 'joke') instant = getJokeResponse(lang);
-    else if (topic === 'motivation') instant = getMotivationResponse(message, lang);
-    else if (topic === 'recipe') instant = getRecipeResponse(message, lang);
-    else if (topic === 'programming') instant = generateCodeResponse(message, lang);
-    else if (/\d\s*[+\-*/^%]\s*\d/.test(message) || topic === 'math') instant = solveMath(message);
-    if (instant) return await sendFull(instant);
-
-    // Step 3: Real AI streaming — har token turant stream hota hai (Gemini jaisa)
+    // Step 2: Real AI streaming — asli AI (KiloCode/LLM7/OVH race), canned se pehle
     let fullAI = '';
     const streamed = await streamFreeAI(message, userId, lang, profile, (chunk) => {
       fullAI += chunk;
@@ -1225,6 +1218,16 @@ export const chatStream = async (req, res) => {
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       return res.end();
     }
+
+    // Step 3: Instant handlers — sirf offline mode (dono AI down) ke liye
+    let instant = null;
+    if (topic === 'conversation') instant = getConversationResponse(message, lang);
+    else if (topic === 'joke') instant = getJokeResponse(lang);
+    else if (topic === 'motivation') instant = getMotivationResponse(message, lang);
+    else if (topic === 'recipe') instant = getRecipeResponse(message, lang);
+    else if (topic === 'programming') instant = generateCodeResponse(message, lang);
+    else if (/\d\s*[+\-*/^%]\s*\d/.test(message) || topic === 'math') instant = solveMath(message);
+    if (instant) return await sendFull(instant);
 
     // Step 4: Offline fallback (jab AI down ho)
     let fallback;

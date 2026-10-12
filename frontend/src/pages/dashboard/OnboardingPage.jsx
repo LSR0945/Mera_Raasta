@@ -277,6 +277,14 @@ export default function OnboardingPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Back to dashboard — onboarding ke HAR step se wapas ja sako */}
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+        <button onClick={() => navigate('/dashboard')}
+          className="flex items-center gap-2 text-gray-300 hover:text-white text-sm font-bold bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl transition-all">
+          {'\u2190'} Back to Dashboard
+        </button>
+        <span className="text-xs text-gray-500 font-semibold">Step {step + 1} of 5</span>
+      </div>
       <div className="flex gap-2 mb-8">
         {stepLabels.map((l, i) => (
           <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i <= step ? 'bg-blue-500' : 'bg-gray-700'}`} />

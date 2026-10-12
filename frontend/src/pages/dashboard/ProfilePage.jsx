@@ -209,6 +209,10 @@ export default function ProfilePage() {
       } else if (section === 'preferences') {
         await api.put('/profile', { ...prefs, location });
       }
+      // Save ke baad profile dobara load karo — warna Personal tab ki summary cards
+      // purani interests/skills/goals hi dikhate rehti thi (stale data fix)
+      const { data } = await api.get('/profile');
+      if (data?.data?.profile) setProfile(data.data.profile);
       toast.success('Saved!');
     } catch (err) { toast.error(err.response?.data?.message || 'Save failed'); }
     finally { setSaving(false); }

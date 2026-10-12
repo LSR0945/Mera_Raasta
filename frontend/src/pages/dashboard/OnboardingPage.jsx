@@ -179,7 +179,7 @@ const GOVT_SKILLS = [
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState({ educationLevel: '12th', interests: [], skills: [], budget: 'medium', state: '', district: '', city: '' });
+  const [form, setForm] = useState({ educationLevel: '12th', interests: [], skills: [], budget: 'medium', state: '', district: '', city: '', careerGoals: { dreamJob: '', shortTerm: '', longTerm: '' } });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -199,6 +199,7 @@ export default function OnboardingPage() {
         state: p.location?.state || f.state,
         district: p.location?.district || f.district,
         city: p.location?.city || f.city,
+        careerGoals: { dreamJob: '', shortTerm: '', longTerm: '', ...(p.careerGoals || {}) },
       }));
     }).catch(() => { /* naya user hai toh default form rehne do */ });
   }, []);
@@ -273,7 +274,8 @@ export default function OnboardingPage() {
     finally { setLoading(false); }
   };
 
-  const stepLabels = ['Level', 'Location', 'Interests', 'Skills', 'Budget', 'Done'];
+  // Goals PEHLE (interest se pahle) — taki interest/skills goal ke hisaab se chune jayein
+  const stepLabels = ['Level', 'Location', 'Goals', 'Interests', 'Skills', 'Budget', 'Done'];
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -283,7 +285,7 @@ export default function OnboardingPage() {
           className="flex items-center gap-2 text-gray-300 hover:text-white text-sm font-bold bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl transition-all">
           {'\u2190'} Back to Dashboard
         </button>
-        <span className="text-xs text-gray-500 font-semibold">Step {step + 1} of 5</span>
+        <span className="text-xs text-gray-500 font-semibold">Step {step + 1} of 6</span>
       </div>
       <div className="flex gap-2 mb-8">
         {stepLabels.map((l, i) => (
@@ -330,24 +332,60 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* Step 2: Interests — Multi Select Dropdown */}
+      {/* Step 2: Career Goals — INTEREST SE PEHLE poochha jata hai */}
       {step === 2 && (
         <div>
-          <h1 className="text-2xl font-bold mb-2 text-white">Select your interests</h1>
-          <p className="text-xs text-gray-400 mb-4">CBSE, UGC, AICTE — India ke saare streams aur career fields</p>
-          <MultiSelectDropdown label="Interests *" values={form.interests} options={GOVT_INTERESTS}
-            placeholder="Click to select interests..." searchPlaceholder="Search interests..."
-            onToggle={(item) => toggleItem('interests', item)} />
+          <h1 className="text-2xl font-bold mb-2 text-white">What's your career goal?</h1>
+          <p className="text-xs text-gray-400 mb-4">Pehle batao banna kya hai — interests aur skills goal ke hisaab se chune jayenge</p>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-gray-400 mb-1 block">Dream Job / Career *</label>
+              <input type="text" value={form.careerGoals.dreamJob}
+                onChange={e => setForm({ ...form, careerGoals: { ...form.careerGoals, dreamJob: e.target.value } })}
+                placeholder="e.g. Doctor, Software Engineer, Chartered Accountant"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50" />
+            </div>
+            <div>
+              <label className="text-sm text-gray-400 mb-1 block">Short-term goal (optional)</label>
+              <input type="text" value={form.careerGoals.shortTerm}
+                onChange={e => setForm({ ...form, careerGoals: { ...form.careerGoals, shortTerm: e.target.value } })}
+                placeholder="e.g. Score 90% in 12th, crack NEET"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50" />
+            </div>
+            <div>
+              <label className="text-sm text-gray-400 mb-1 block">Long-term goal (optional)</label>
+              <input type="text" value={form.careerGoals.longTerm}
+                onChange={e => setForm({ ...form, careerGoals: { ...form.careerGoals, longTerm: e.target.value } })}
+                placeholder="e.g. Become a cardiologist and run my own hospital"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50" />
+            </div>
+          </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setStep(1)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>
-            <button onClick={() => setStep(3)} disabled={form.interests.length === 0}
+            <button onClick={() => setStep(3)} disabled={!form.careerGoals.dreamJob.trim()}
               className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">Next</button>
           </div>
         </div>
       )}
 
-      {/* Step 3: Skills — Multi Select Dropdown */}
+      {/* Step 3: Interests — Multi Select Dropdown */}
       {step === 3 && (
+        <div>
+          <h1 className="text-2xl font-bold mb-2 text-white">Select your interests</h1>
+          <p className="text-xs text-gray-400 mb-4">Apne goal se match karte hue interests chuno — CBSE, UGC, AICTE streams</p>
+          <MultiSelectDropdown label="Interests *" values={form.interests} options={GOVT_INTERESTS}
+            placeholder="Click to select interests..." searchPlaceholder="Search interests..."
+            onToggle={(item) => toggleItem('interests', item)} />
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setStep(2)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>
+            <button onClick={() => setStep(4)} disabled={form.interests.length === 0}
+              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">Next</button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 4: Skills — Multi Select Dropdown */}
+      {step === 4 && (
         <div>
           <h1 className="text-2xl font-bold mb-2 text-white">Select your skills</h1>
           <p className="text-xs text-gray-400 mb-4">NSQF (National Skills Qualifications Framework) aligned skills</p>
@@ -355,15 +393,15 @@ export default function OnboardingPage() {
             placeholder="Click to select skills..." searchPlaceholder="Search skills..."
             onToggle={(item) => toggleItem('skills', item)} />
           <div className="flex gap-3 mt-6">
-            <button onClick={() => setStep(2)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>
-            <button onClick={() => setStep(4)} disabled={form.skills.length === 0}
+            <button onClick={() => setStep(3)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>
+            <button onClick={() => setStep(5)} disabled={form.skills.length === 0}
               className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">Next</button>
           </div>
         </div>
       )}
 
-      {/* Step 4: Budget */}
-      {step === 4 && (
+      {/* Step 5: Budget */}
+      {step === 5 && (
         <div>
           <h1 className="text-2xl font-bold mb-6 text-white">Education budget</h1>
           <div className="grid grid-cols-2 gap-3">
@@ -375,7 +413,7 @@ export default function OnboardingPage() {
             ))}
           </div>
           <div className="flex gap-3 mt-6">
-            <button onClick={() => setStep(3)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>
+            <button onClick={() => setStep(4)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>
             <button onClick={handleSubmit} disabled={loading}
               className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">
               {loading ? 'Saving...' : 'Complete Onboarding'}

@@ -160,74 +160,9 @@ const GOVT_INTERESTS = [
   'Library Science', 'Social Work', 'Criminology', 'Demography', 'Linguistics', 'Translation Studies', 'Genealogy', 'Archaeology', 'Museology',
 ];
 
-// ═══ Career Goal ke hisaab se MANDATORY + SUGGESTED subjects ═══
-// User ne jo dream job likhi hai usse match karke Interests step me dikhata hai
-// ki kaunse subjects is goal ke liye zaroori (mandatory) hain.
-const GOAL_SUBJECT_MAP = [
-  { keywords: ['doctor', 'mbbs', 'neet', 'physician', 'surgeon', 'medical', 'dentist', 'bds', 'nurse', 'nursing', 'pharma', 'pharmacy', 'physio', 'ayurveda', 'bams', 'bhms', 'veterinary', 'biotech', 'biotechnology', 'paramedical'],
-    mandatory: ['Physics', 'Chemistry', 'Biology'],
-    suggested: ['Medicine (MBBS)', 'Nursing (B.Sc Nursing)', 'Pharmacy (B.Pharm)', 'Biotechnology', 'Forensic Science', 'Physiotherapy (BPT)'],
-    note: 'MBBS/NEET ke liye PCB (Physics, Chemistry, Biology) mandatory hai — NEET me 50% marks chahiye. Biology sabse zyada weightage rakhta hai.' },
-  { keywords: ['software', 'developer', 'development', 'coding', 'programmer', 'programming', 'computer', 'data scien', 'artificial intelligence', 'machine learning', 'cyber', 'cloud', 'web dev', 'app dev', 'bca', 'mca', 'information technology', 'technology', 'it ', 'ai engineer', 'devops', 'full stack', 'android', 'ios'],
-    mandatory: ['Computer Science', 'Mathematics'],
-    suggested: ['Web Development', 'Data Science', 'Artificial Intelligence', 'Machine Learning', 'Cyber Security', 'Software Engineering', 'Information Technology', 'Programming'],
-    note: 'Software/IT career ke liye Computer Science + Mathematics strong hona chahiye — coding aur logic building inhi se hoti hai.' },
-  { keywords: ['architect', 'architecture', 'b.arch', 'baarch', 'urban', 'planning'],
-    mandatory: ['Physics', 'Mathematics'],
-    suggested: ['Architecture & Planning', 'Interior Design', 'Urban Planning'],
-    note: 'B.Arch ke liye NATA/JEE Paper-2 exam hota hai — PCM + Drawing chahiye.' },
-  { keywords: ['engineer', 'engineering', 'btech', 'b.tech', 'mechanical', 'civil', 'electrical', 'aerospace', 'automobile', 'chemical engineering', 'iit', 'jeemain', 'jee', 'robotics', 'mechatronics'],
-    mandatory: ['Physics', 'Chemistry', 'Mathematics'],
-    suggested: ['Mechanical Engineering', 'Civil Engineering', 'Electrical Engineering', 'Computer Science Engineering', 'Aerospace Engineering', 'Robotics Engineering'],
-    note: 'Engineering (B.Tech) ke liye PCM (Physics, Chemistry, Mathematics) mandatory hai — JEE aur state entrance PCM se hote hain.' },
-  { keywords: ['chartered', 'accountant', 'b.com', 'bcom', 'commerce', 'finance', 'bank', 'mba', 'bba', 'business', 'entrepreneur', 'marketing', 'stock', 'insurance', 'economics'],
-    mandatory: ['Accountancy', 'Economics', 'Business Studies'],
-    suggested: ['Commerce', 'Finance', 'Banking & Insurance', 'MBA', 'BBA', 'B.Com', 'Entrepreneurship'],
-    note: 'Commerce/CA/Banking career ke liye Accountancy, Economics aur Business Studies core hain — CA Foundation 12th ke baad de sakte ho.' },
-  { keywords: ['defence', 'defense', 'nda', 'army', 'navy', 'air force', 'airforce', 'pilot', 'aviation', 'military', 'captain'],
-    mandatory: ['Physics', 'Mathematics'],
-    suggested: ['Defence Studies', 'NDA Preparation', 'Aviation', 'Aeronautical Science', 'Military Science'],
-    note: 'NDA/Airforce/Pilot ke liye PCM chahiye — NDA exam 12th ke baad de sakte ho (age 16.5-19.5 years).' },
-  { keywords: ['ias', 'ips', 'upsc', 'civil services', 'civil service', 'ssc', 'government job', 'govt job', 'railway', 'ias officer', 'collector', 'sdm'],
-    mandatory: [],
-    suggested: ['UPSC Preparation', 'SSC Preparation', 'State PSC', 'Political Science', 'English Literature', 'History'],
-    note: 'Civil Services (IAS/IPS) ke liye koi subject mandatory nahi — Science, Commerce ya Arts, koi bhi stream chalega. Graduation ke baad UPSC de sakte ho.' },
-  { keywords: ['law', 'lawyer', 'llb', 'advocate', 'legal', 'judge', 'clat', 'attorney'],
-    mandatory: [],
-    suggested: ['Law (LLB)', 'Integrated Law (BA LLB)', 'CLAT Preparation', 'Political Science', 'English Literature'],
-    note: 'Law ke liye koi subject mandatory nahi — 12th ke baad CLAT/entrance se BA LLB, ya graduation ke baad LLB kar sakte ho.' },
-  { keywords: ['teacher', 'teaching', 'professor', 'educator', 'b.ed', 'ctet', 'school principal'],
-    mandatory: [],
-    suggested: ['Teaching (B.Ed)', 'Teaching (CTET/NET)', 'Special Education', 'Educational Psychology'],
-    note: 'Teaching ke liye jo subject pasand hai wo apnao — B.Ed/CTET usi subject se karna hota hai.' },
-  { keywords: ['design', 'designer', 'fashion', 'graphic', 'ui', 'ux', 'animation', 'film', 'photography', 'art', 'artist', 'music', 'dance', 'theatre', 'interior', 'jewellery', 'game design', 'vfx', 'cartoon'],
-    mandatory: [],
-    suggested: ['Graphic Design', 'Fashion Design', 'UX/UI Design', 'Animation & VFX', 'Fine Arts (BFA)', 'Photography', 'Film Making'],
-    note: 'Design/Art careers ke liye koi subject mandatory nahi — portfolio aur entrance exams (NIFT/NID/UCEED) matter karte hain.' },
-  { keywords: ['agriculture', 'farming', 'farmer', 'horticulture', 'forestry', 'icar', 'agriscience', 'organic farming'],
-    mandatory: ['Physics', 'Chemistry', 'Biology'],
-    suggested: ['Agriculture (B.Sc)', 'Horticulture', 'Agricultural Biotechnology', 'Veterinary Science', 'Plant Pathology', 'Agronomy'],
-    note: 'B.Sc Agriculture ke liye ICAR entrance hota hai — PCB/PCM dono chal sakte hain; Veterinary (BVSc) ke liye NEET compulsory hai.' },
-  { keywords: ['journalist', 'journalism', 'media', 'anchor', 'reporter', 'mass comm', 'advertising', 'public relation', 'content writer', 'youtuber'],
-    mandatory: [],
-    suggested: ['Journalism', 'Mass Communication', 'Broadcast Journalism', 'Digital Media', 'English Literature', 'Advertising'],
-    note: 'Journalism/Mass Comm ke liye koi subject mandatory nahi — English strong ho to accha hai. CUET se admission milta hai.' },
-  { keywords: ['hotel', 'hospitality', 'tourism', 'chef', 'air hostess', 'cabin crew', 'event management'],
-    mandatory: [],
-    suggested: ['Hotel Management', 'Hospitality & Tourism', 'Tourism Management'],
-    note: 'Hotel Management ke liye koi subject mandatory nahi — 12th ke baad NCHMCT JEE entrance hai.' },
-  { keywords: ['psycholog', 'counsel', 'therapy', 'mental health', 'social worker', 'ngo'],
-    mandatory: [],
-    suggested: ['Psychology', 'Educational Psychology', 'Guidance & Counselling', 'Social Work'],
-    note: 'Psychology/Counselling ke liye koi subject mandatory nahi — Arts/Science dono se B.A/B.Sc Psychology kar sakte ho.' },
-];
-
-// Dream job ka text lekar uska goal guide dhundo (case-insensitive keyword match)
-const getGoalGuide = (dreamJob) => {
-  const q = (dreamJob || '').toLowerCase().trim();
-  if (!q) return null;
-  return GOAL_SUBJECT_MAP.find(g => g.keywords.some(k => q.includes(k))) || null;
-};
+// ═══ Goal → Subject guide ab BACKEND se aata hai ═══
+// GET /api/v1/education/goal-subjects?goal=... — isme GoI regulations (NMC/AICTE/ICAI/NCHMCT/UPSC)
+// ke subject rules + live data.gov.in AISHE govt stats dono milte hain. Frontend me alag map ki zaroorat nahi.
 
 // ═══ India Government Skills — NSQF Aligned ═══
 const GOVT_SKILLS = [
@@ -339,20 +274,30 @@ export default function OnboardingPage() {
     }));
   };
 
-  // Goal ke hisaab se mandatory/suggested subjects (Interests step dikhane + auto-select ke liye)
-  const goalGuide = getGoalGuide(form.careerGoals.dreamJob);
+  // Goal ke subject guide — backend se aata hai (GoI regulations rules + live data.gov.in AISHE stats)
+  const [goalGuide, setGoalGuide] = useState(null); // { matched, guide:{mandatory,suggested,note}, govt:{summary,source} }
+
+  // Dream job badle to guide dobara fetch karo (400ms debounce)
+  useEffect(() => {
+    const dream = (form.careerGoals.dreamJob || '').trim();
+    if (!dream) { setGoalGuide(null); return; }
+    const t = setTimeout(() => {
+      api.get('/education/goal-subjects', { params: { goal: dream } })
+        .then(({ data }) => setGoalGuide(data?.data || null))
+        .catch(() => setGoalGuide(null));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [form.careerGoals.dreamJob]);
 
   // Interests step par aao to goal ke MANDATORY subjects automatic select ho jayein
   useEffect(() => {
-    if (step !== 3) return;
-    const guide = getGoalGuide(form.careerGoals.dreamJob);
-    if (!guide || !guide.mandatory.length) return;
+    if (step !== 3 || !goalGuide?.matched || !goalGuide.guide?.mandatory?.length) return;
     setForm(prev => {
-      const missing = guide.mandatory.filter(m => !prev.interests.includes(m) && GOVT_INTERESTS.includes(m));
+      const missing = goalGuide.guide.mandatory.filter(m => !prev.interests.includes(m) && GOVT_INTERESTS.includes(m));
       if (!missing.length) return prev;
       return { ...prev, interests: [...prev.interests, ...missing] };
     });
-  }, [step, form.careerGoals.dreamJob]);
+  }, [step, goalGuide]);
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -451,13 +396,13 @@ export default function OnboardingPage() {
           <h1 className="text-2xl font-bold mb-2 text-white">Select your interests</h1>
           <p className="text-xs text-gray-400 mb-4">Apne goal se match karte hue interests chuno — CBSE, UGC, AICTE streams</p>
 
-          {/* Goal ke hisaab se subject guide — kaunsa subject mandatory hai, kaunsa suggested */}
-          {goalGuide && (
+          {/* Goal ke hisaab se subject guide — backend rules + live data.gov.in AISHE govt data */}
+          {goalGuide?.matched && (
             <div className="mb-4 rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 space-y-1.5">
               <p className="text-sm font-bold text-blue-300">🎯 Goal: {form.careerGoals.dreamJob}</p>
-              {goalGuide.mandatory.length > 0 ? (
+              {goalGuide.guide.mandatory.length > 0 ? (
                 <p className="text-xs text-gray-200">
-                  <span className="font-bold text-red-300">🔒 Mandatory subjects:</span> {goalGuide.mandatory.join(', ')}
+                  <span className="font-bold text-red-300">🔒 Mandatory subjects:</span> {goalGuide.guide.mandatory.join(', ')}
                   <span className="text-gray-400"> — ye automatically select ho gaye hain, hatana mat</span>
                 </p>
               ) : (
@@ -466,22 +411,27 @@ export default function OnboardingPage() {
                   <span className="text-gray-400"> — koi bhi stream chalega, jo pasand ho wo chuno</span>
                 </p>
               )}
-              {goalGuide.suggested.filter(s => GOVT_INTERESTS.includes(s)).length > 0 && (
+              {goalGuide.guide.suggested.filter(s => GOVT_INTERESTS.includes(s)).length > 0 && (
                 <p className="text-xs text-gray-400">
-                  💡 Suggested: {goalGuide.suggested.filter(s => GOVT_INTERESTS.includes(s)).join(', ')}
+                  💡 Suggested: {goalGuide.guide.suggested.filter(s => GOVT_INTERESTS.includes(s)).join(', ')}
                 </p>
               )}
-              <p className="text-[11px] text-gray-500">{goalGuide.note}</p>
+              <p className="text-[11px] text-gray-500">{goalGuide.guide.note}</p>
+              {goalGuide.govt?.summary && (
+                <p className="text-[11px] text-emerald-300/90">
+                  🏛️ {goalGuide.govt.summary} <span className="text-gray-500">(Source: {goalGuide.govt.source})</span>
+                </p>
+              )}
             </div>
           )}
 
           <MultiSelectDropdown label="Interests *" values={form.interests} options={GOVT_INTERESTS}
             placeholder="Click to select interests..." searchPlaceholder="Search interests..."
             onToggle={(item) => toggleItem('interests', item)}
-            pin={goalGuide ? [...goalGuide.mandatory, ...goalGuide.suggested.filter(s => GOVT_INTERESTS.includes(s))] : []}
-            badges={goalGuide ? {
-              ...Object.fromEntries(goalGuide.suggested.filter(s => GOVT_INTERESTS.includes(s)).map(s => [s, 'suggested'])),
-              ...Object.fromEntries(goalGuide.mandatory.filter(m => GOVT_INTERESTS.includes(m)).map(m => [m, 'mandatory'])),
+            pin={goalGuide?.matched ? [...goalGuide.guide.mandatory, ...goalGuide.guide.suggested.filter(s => GOVT_INTERESTS.includes(s))] : []}
+            badges={goalGuide?.matched ? {
+              ...Object.fromEntries(goalGuide.guide.suggested.filter(s => GOVT_INTERESTS.includes(s)).map(s => [s, 'suggested'])),
+              ...Object.fromEntries(goalGuide.guide.mandatory.filter(m => GOVT_INTERESTS.includes(m)).map(m => [m, 'mandatory'])),
             } : {}} />
           <div className="flex gap-3 mt-6">
             <button onClick={() => setStep(2)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>

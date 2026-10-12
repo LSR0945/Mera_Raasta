@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllCourses, getCourseBySlug, getAllColleges, getCollegeBySlug, getAllScholarships, getScholarshipBySlug, getAllGovernment, getGovernmentBySlug } from '../controllers/education.controller.js';
+import { getAllCourses, getCourseBySlug, getAllColleges, getCollegeBySlug, getAllScholarships, getScholarshipBySlug, getAllGovernment, getGovernmentBySlug, getGoalSubjects } from '../controllers/education.controller.js';
 
 const router = Router();
 router.get('/courses', getAllCourses);
@@ -10,4 +10,5 @@ router.get('/scholarships', getAllScholarships);
 router.get('/scholarships/:slug', getScholarshipBySlug);
 router.get('/government', getAllGovernment);
 router.get('/government/:slug', getGovernmentBySlug);
+router.get('/education/goal-subjects', getGoalSubjects);
 export default router;

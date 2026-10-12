@@ -571,7 +571,7 @@ export default function RoadmapPage() {
                       </div>
                       <h3 className="text-white font-bold text-sm mt-1">{node.title}</h3>
                       {node.description && !isExpanded && (
-                        <p className="text-gray-400 text-xs mt-1 line-clamp-2">{node.description}</p>
+                        <p className="text-gray-400 text-xs mt-1 line-clamp-2 whitespace-pre-line">{node.description}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -583,7 +583,7 @@ export default function RoadmapPage() {
                   </div>
                   {isExpanded && (
                     <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
-                      {node.description && <p className="text-gray-300 text-sm">{node.description}</p>}
+                      {node.description && <p className="text-gray-300 text-sm whitespace-pre-line">{node.description}</p>}
                       {node.tips && (
                         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
                           <p className="text-amber-400 text-xs font-bold mb-1">{'\uD83D\uDCA1'} Pro Tips</p>

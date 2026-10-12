@@ -232,15 +232,237 @@ const CAREER_ROADMAPS = {
     ];
   },
 
-  // ═══ DOCTOR ROADMAP ═══
-  // Agar user Doctor banna chahta hai
+  // ═══ DOCTOR (MBBS) ROADMAP ═══
+  // Agar user Doctor banna chahta hai — FULL detail: kitne subject, kitne hour,
+  // kaise padhna hai, NEET pattern, MBBS phases — sab kuch step ke andar.
   'doctor': (profile) => {
+    const budget = profile.budget || 'low';
+    const is10th = profile.educationLevel === '10th';
     return [
-      { title: 'Complete 12th Science (PCB)', description: 'Ensure strong grades in Physics, Chemistry, and Biology. NEET requires 50%+ in PCB.', type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: '1-2 years', resources: [{ title: 'NCERT Books', url: 'https://ncert.nic.in', type: 'free' }], tips: 'NCERT is the bible for NEET. Read every line.', whyThis: 'NEET is the gateway to medical colleges. Strong basics are non-negotiable.', order: 1 },
-      { title: 'Crack NEET Exam', description: 'Prepare for NEET with focused study — Biology (50%), Physics (25%), Chemistry (25%).', type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: '1-2 years', resources: [{ title: 'NEET Official Website', url: 'https://ntaneet.nic.in', type: 'free' }, { title: 'Physics Wallah (Free)', url: 'https://physicswallah.com', type: 'free' }], tips: 'Solve previous year papers. Join a test series.', whyThis: 'NEET rank determines your medical college. Higher rank = better college.', order: 2 },
-      { title: 'MBBS (5.5 years)', description: 'Complete MBBS from a recognized medical college. Includes 4.5 years + 1 year internship.', type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: '5.5 years', resources: [], tips: 'Focus on clinical exposure. Don\'t just memorize — understand.', whyThis: 'MBBS is the foundation. You must complete it to practice medicine.', order: 3 },
-      { title: 'Choose Specialization (MD/MS)', description: 'After MBBS, choose a specialization based on your interests — Cardiology, Neurology, Surgery, etc.', type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: '3 years', resources: [], tips: 'Choose based on your passion, not just salary. You\'ll do this for decades.', whyThis: 'Specialization defines your career path and expertise.', order: 4 },
-      { title: 'Build Clinical Experience', description: 'Work in hospitals, observe senior doctors, handle patients under supervision.', type: 'practice', category: 'practice', difficulty: 'medium', estimatedDuration: 'Ongoing', resources: [], tips: 'Every patient teaches you something new. Stay humble and curious.', whyThis: 'Clinical experience is what transforms a student into a doctor.', order: 5 },
+      // STEP 1: School foundation — subjects + hours
+      {
+        title: 'Class 11-12 PCB — Strong Foundation',
+        description: `Total 3 core subjects: Physics, Chemistry, Biology (PCB) + English as 4th subject.${is10th ? ' You are in Class 10 — take Science (PCB) stream after 10th.' : ''}
+
+Daily study plan (5-6 hours):
+• Biology — 2 hours (read NCERT line-by-line, label every diagram)
+• Physics — 1.5 hours (understand concepts + solve 20-30 numericals)
+• Chemistry — 1.5 hours (Physical = practice, Organic = reactions, Inorganic = NCERT)
+
+Target: 85%+ in Class 12. NEET eligibility needs 50% marks in PCB (40% for reserved categories).`,
+        type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: '2 years',
+        resources: [
+          { title: 'NCERT Books (Free)', url: 'https://ncert.nic.in', type: 'free' },
+          { title: 'NCERT Solutions', url: 'https://www.learncbse.in', type: 'free' },
+        ],
+        tips: 'NCERT is the bible for NEET — do not skip a single line, especially Biology. Make one-page short notes per chapter. Revise all formulas every Sunday.',
+        whyThis: 'NEET is fully NCERT-based. 80%+ questions come directly or indirectly from NCERT — strong school basics = selection.',
+        order: 1,
+      },
+
+      // STEP 2: NEET pattern — kitne subject, kitne marks
+      {
+        title: 'Know the NEET Syllabus & Exam Pattern',
+        description: `NEET has only 3 subjects: Physics, Chemistry, Biology.
+
+Exam pattern (total 180 questions, 720 marks):
+• Biology — 90 questions (360 marks, 50% weightage)
+• Physics — 45 questions (180 marks, 25% weightage)
+• Chemistry — 45 questions (180 marks, 25% weightage)
+• No negative marking in boards; NEET has -1 for wrong answer
+
+Syllabus = full NCERT Class 11 + 12 PCB (about 97 chapters total).
+Age limit: 17-25 years (5 years relaxation for reserved categories).`,
+        type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: '1 month',
+        resources: [
+          { title: 'NEET Official Website', url: 'https://neet.nta.nic.in', type: 'free' },
+          { title: 'NCERT Full Syllabus', url: 'https://ncert.nic.in', type: 'free' },
+        ],
+        tips: 'Biology gives the highest marks with least effort — target 300+/360 in Biology first, then Physics and Chemistry.',
+        whyThis: 'Strategy follows the pattern. Knowing weightage tells you exactly where to spend hours.',
+        order: 2,
+      },
+
+      // STEP 3: Daily hour-wise study plan
+      {
+        title: 'Daily Study Plan for NEET (7-8 hours/day)',
+        description: `Hour-wise daily routine (self-study on top of school/coaching):
+
+• Biology — 2.5 to 3 hours (read + revise NCERT, practice 90 MCQs)
+• Physics — 2 hours (learn concept, then solve 30-40 numericals)
+• Chemistry — 2 hours:
+    - Physical Chemistry — 45 min (formula + numerical practice)
+    - Organic Chemistry — 45 min (reaction mechanisms, name reactions)
+    - Inorganic Chemistry — 30 min (pure NCERT reading)
+• Revision + MCQ practice — 1 hour
+
+Weekly plan:
+• Monday to Saturday — chapter-wise study + 100 MCQs daily
+• Sunday — full-length mock test + analysis of mistakes`,
+        type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: '1-2 years',
+        resources: [
+          { title: 'Physics Wallah (Free)', url: 'https://physicswallah.com', type: 'free' },
+          { title: 'NTA Abhyas App (Free mocks)', url: 'https://dwet.abhyas.cbse.nic.in', type: 'free' },
+          { title: 'Khan Academy', url: 'https://khanacademy.org', type: 'free' },
+        ],
+        tips: 'Consistency beats intensity. 7 focused hours daily for 2 years beats 16 hours for 2 months. Track every mock test score and fix weak chapters.',
+        whyThis: 'NEET is a game of revision + practice, not just reading. A fixed hour-wise plan removes confusion and builds speed.',
+        order: 3,
+      },
+
+      // STEP 4: NEET exam
+      {
+        title: 'Crack NEET & Get a Medical Seat',
+        description: `Give NEET (held once a year, May) and secure a government medical college seat.
+
+Cut-off reality (general category):
+• 600+ marks → good government MBBS college
+• 550-600 → state quota / private colleges
+• Below 500 → BDS, BAMS, BHMS or drop year
+
+After the result: apply through MCC (All India Quota) + your state counselling for seat allotment.`,
+        type: 'education', category: 'interview', difficulty: 'hard', estimatedDuration: '1-2 years',
+        resources: [
+          { title: 'MCC Counselling', url: 'https://mcc.nic.in', type: 'free' },
+          { title: 'Previous Year Papers', url: 'https://nta.ac.in', type: 'free' },
+        ],
+        tips: 'Solve 10 years of previous papers — repeat questions come. In the exam, attempt Biology first (30-35 min), then Chemistry, then Physics last with -1 negative marking in mind.',
+        whyThis: 'NEET rank decides your college. Better college = better patients, better training, better career.',
+        order: 4,
+      },
+
+      // STEP 5: MBBS subjects overview — total kitne subject
+      {
+        title: 'MBBS — Total 19 Subjects (4.5 years + 1 year internship)',
+        description: `MBBS me kul 19 subjects hote hain, 4 phases me divided:
+
+PHASE 1 — Pre-Clinical (Year 1): 3 subjects
+1. Anatomy  2. Biochemistry  3. Physiology
+
+PHASE 2 — Para-Clinical (Year 2): 4 subjects
+4. Pathology  5. Pharmacology  6. Microbiology  7. Forensic Medicine & Toxicology
+
+PHASE 3 — Clinical (Year 3): 3 subjects
+8. Community Medicine (PSM)  9. Ophthalmology  10. ENT
+
+FINAL YEAR: 9 subjects
+11. General Medicine  12. General Surgery  13. Obstetrics & Gynecology
+14. Pediatrics  15. Orthopedics  16. Dermatology  17. Psychiatry
+18. Radio-diagnosis  19. Anaesthesia
+
+Total = 19 subjects + 1 year rotating internship = 5.5 years`,
+        type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: '4.5 years',
+        resources: [
+          { title: 'MBBS Syllabus (NMC)', url: 'https://www.nmc.org.in', type: 'free' },
+          { title: 'Anatomy Atlas (Free)', url: 'https://anatomy.tv', type: 'free' },
+        ],
+        tips: 'Pass every professional exam in first attempt — backlogs in Anatomy or Pharmacology delay your degree. Each year has its own final exam (prof).',
+        whyThis: 'This is your entire MBBS map — knowing all 19 subjects and their order helps you plan study and never feel lost.',
+        order: 5,
+      },
+
+      // STEP 6: MBBS kaise padhein — routine
+      {
+        title: 'How to Study in MBBS — Daily Routine',
+        description: `MBBS daily routine (typical):
+• Lectures — 9 AM to 12 PM
+• Practicals / Hospital postings — 12 PM to 4 PM
+• Self-study — 2 to 3 hours at night
+
+Subject-wise study method:
+• Anatomy — draw diagrams daily + use atlas (100% visual subject, revise weekly)
+• Physiology — understand mechanisms, make flowcharts
+• Biochemistry — pathways + tables (cycles, enzymes)
+• Pathology — read Robbins, make disease-wise notes
+• Pharmacology — learn drug classification tables (biggest subject)
+• Microbiology — organism + disease tables
+• Clinical subjects — attend postings seriously, examine patients, read case sheets`,
+        type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: 'Ongoing',
+        resources: [
+          { title: 'Marrow / Prepladder (PG prep)', url: 'https://marrowmed.com', type: 'paid' },
+          { title: 'Pathoma (Pathology)', url: 'https://pathoma.com', type: 'paid' },
+        ],
+        tips: 'MBBS is not like school — understanding beats memorizing. Daily 2-3 hrs regular study is enough if consistent. Anatomy needs daily revision or you forget in 1 week.',
+        whyThis: 'MBBS syllabus is huge (19 subjects) — only a proper daily routine prevents backlog and exam stress.',
+        order: 6,
+      },
+
+      // STEP 7: Internship
+      {
+        title: 'Complete 1-Year Rotating Internship',
+        description: `After 4.5 years of MBBS, you do 1 year of paid internship in a hospital with rotating postings:
+
+• Medicine — 2 months  • Surgery — 2 months  • OBG — 2 months
+• Pediatrics — 1 month  • Orthopedics — 1 month  • Community Medicine — 2 months
+• Electives (Eye/ENT/Skin/Psychiatry) — 1 month
+
+Stipend: approx ₹20,000-25,000/month (varies by state).
+This is where you actually learn to handle real patients under supervision.`,
+        type: 'practice', category: 'practice', difficulty: 'medium', estimatedDuration: '1 year',
+        resources: [{ title: 'NMC Internship Rules', url: 'https://www.nmc.org.in', type: 'free' }],
+        tips: 'Take every posting seriously — this 1 year shapes your clinical skills more than any textbook. Learn suturing, injections, catheterisation, patient communication.',
+        whyThis: 'Internship turns you from a student into a practising doctor — real patients, real decisions.',
+        order: 7,
+      },
+
+      // STEP 8: PG
+      {
+        title: 'NEET-PG / NEXT → MD or MS (3 years)',
+        description: `After MBBS + internship, give NEET-PG (or NEXT as per new rules) to choose a specialization:
+
+• MD (Doctor of Medicine) — medical side: General Medicine, Pediatrics, Radiology, Dermatology, Psychiatry
+• MS (Master of Surgery) — surgical side: General Surgery, Orthopedics, ENT, Ophthalmology
+• Super-specialization later: DM (Cardiology, Neurology) / MCh (Neurosurgery, Urology)
+
+MD/MS duration: 3 years.`,
+        type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: '3 years',
+        resources: [
+          { title: 'NBE Official', url: 'https://natboard.edu.in', type: 'free' },
+        ],
+        tips: 'Start PG preparation during final-year MBBS using MCQ apps. Choose specialization by interest — you will do it for 30+ years.',
+        whyThis: 'Without PG, MBBS doctors get limited roles in cities. PG decides your specialty, salary and life style.',
+        order: 8,
+      },
+
+      // STEP 9: Specialization choice
+      {
+        title: 'Choose Your Specialization Wisely',
+        description: `Popular specializations and their character:
+
+• High salary + heavy work: Cardiology, Neurology, Orthopedics, Surgery
+• Balanced lifestyle: Radiology, Dermatology, Ophthalmology, ENT, Psychiatry
+• Always in demand: General Medicine, Pediatrics, Gynecology
+• Growing field: Emergency Medicine, Oncology, Public Health
+
+MD/MS seats come through NEET-PG rank; super-specialization (DM/MCh) after that.`,
+        type: 'education', category: 'learning', difficulty: 'hard', estimatedDuration: 'Research 1-2 months',
+        resources: [{ title: 'Career in Medicine Guide', url: 'https://nmc.org.in', type: 'free' }],
+        tips: 'Do a hospital observership before choosing. Salary matters, but daily work-life for 30 years matters more.',
+        whyThis: 'Specialization defines your day-to-day work, income and future — pick with information, not hype.',
+        order: 9,
+      },
+
+      // STEP 10: Practice
+      {
+        title: 'Get Registered & Start Practice',
+        description: `Final steps:
+1. Register with State Medical Council / NMC → get your MBBS license
+2. Choose your path:
+   • Government job (PG after, or MBBS-level MO posts)
+   • Private hospital job
+   • Own clinic / nursing home
+   • Higher studies (DM/MCh abroad or in India)
+
+Average earnings:
+• MBBS fresher (rural MO): ₹5-8 LPA
+• MD/MS specialist: ₹10-30 LPA
+• Senior specialist / own clinic: ₹30 LPA+`,
+        type: 'application', category: 'application', difficulty: 'medium', estimatedDuration: 'Ongoing',
+        resources: [{ title: 'NMC Registration', url: 'https://www.nmc.org.in', type: 'free' }],
+        tips: 'Keep your registration active, attend CME programs, and never stop learning — medicine changes every year.',
+        whyThis: 'Registration is your legal identity as a doctor — after that every patient you treat is your career.',
+        order: 10,
+      },
     ];
   },
 

@@ -284,9 +284,32 @@ export default function ProfilePage() {
             <Field label="Full Name"><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Your full name" /></Field>
             <Field label="Email Address"><Input value={user?.email} disabled /></Field>
             <Field label="Phone Number"><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+91 98765 43210" type="tel" /></Field>
-            <Field label="Class / Grade"><Input value={user?.class || ''} disabled placeholder="Set via education" /></Field>
+            <Field label="Class / Grade"><Input value={user?.class || profile?.educationLevel || ''} disabled placeholder="Fill via Education tab" /></Field>
           </div>
           <div className="mt-5"><Field label="Bio"><TextArea value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} placeholder="Tell us about yourself and your goals..." rows={4} /></Field></div>
+
+          {/* Jo info onboarding me bhari thi wo yahan turant dikhe */}
+          {profile && (
+            <div className="mt-5 grid sm:grid-cols-3 gap-4">
+              <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">🎓 Education</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1.5 capitalize">{profile.educationLevel || 'Not set'}</p>
+                {profile.location?.city && (
+                  <p className="text-xs text-gray-500 mt-1">📍 {profile.location.city}{profile.location.state ? `, ${profile.location.state}` : ''}</p>
+                )}
+              </div>
+              <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">💡 Interests</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1.5">{profile.interests?.length || 0} selected</p>
+                <p className="text-xs text-gray-500 mt-1 truncate">{(profile.interests || []).join(', ') || 'None yet'}</p>
+              </div>
+              <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">⚡ Skills & Budget</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1.5">{profile.skills?.length || 0} skills</p>
+                <p className="text-xs text-gray-500 mt-1">{profile.budget ? (BUDGET_LABELS[profile.budget] || profile.budget) : 'Budget not set'}</p>
+              </div>
+            </div>
+          )}
           <div className="mt-6 flex justify-end">
             <button onClick={() => saveSection('personal')} disabled={saving}
               className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-2xl font-bold text-sm hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:-translate-y-0.5 flex items-center gap-2">

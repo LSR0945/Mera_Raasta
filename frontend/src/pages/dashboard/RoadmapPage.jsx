@@ -326,12 +326,17 @@ export default function RoadmapPage() {
   const [filter, setFilter] = useState('all');
   const [expanded, setExpanded] = useState({});
 
+  // Backend response envelope { success, data: { roadmap } } se asli roadmap nikalo
+  // (pehle yahi unwrap nahi tha — isliye steps 0 dikhte the)
+  const pickRoadmap = (res) => res?.data?.data?.roadmap || res?.data?.roadmap || null;
+
   const loadRoadmap = useCallback(async () => {
     setLoading(true);
     try {
       const res = await roadmapAPI.get();
-      if (res.data && res.data._id) {
-        setRoadmap(res.data);
+      const rm = pickRoadmap(res);
+      if (rm && rm._id) {
+        setRoadmap(rm);
         setView('roadmap');
       } else {
         setRoadmap(null);
@@ -354,7 +359,9 @@ export default function RoadmapPage() {
     setGenerating(true);
     try {
       const res = await roadmapAPI.generate(data);
-      setRoadmap(res.data);
+      const rm = pickRoadmap(res);
+      if (!rm) throw new Error('empty roadmap');
+      setRoadmap(rm);
       setView('roadmap');
       toast.success('Roadmap generated successfully!');
     } catch (err) {
@@ -365,7 +372,8 @@ export default function RoadmapPage() {
   const handleSaveEdit = async (data) => {
     try {
       const res = await roadmapAPI.update(data);
-      setRoadmap(res.data);
+      const rm = pickRoadmap(res);
+      if (rm) setRoadmap(rm);
       setEditMode(false);
       toast.success('Roadmap updated!');
     } catch (err) {

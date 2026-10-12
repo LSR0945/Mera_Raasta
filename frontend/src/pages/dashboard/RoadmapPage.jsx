@@ -180,11 +180,12 @@ function GenerateForm({ onGenerate, loading }) {
     </div>
   );
 }
-function EditMode({ roadmap, onSave, onCancel }) {
+function EditMode({ roadmap, onSave, onCancel, onDelete }) {
   const [editNodes, setEditNodes] = useState(JSON.parse(JSON.stringify(roadmap.nodes || [])));
   const [editTitle, setEditTitle] = useState(roadmap.title || '');
   const [editDesc, setEditDesc] = useState(roadmap.description || '');
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const updateNode = (idx, field, val) => {
     setEditNodes(prev => { const n = [...prev]; n[idx] = { ...n[idx], [field]: val }; return n; });
@@ -222,9 +223,14 @@ function EditMode({ roadmap, onSave, onCancel }) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      {confirmDelete && <DeleteModal onConfirm={() => { setConfirmDelete(false); onDelete(); }} onCancel={() => setConfirmDelete(false)} />}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-extrabold text-white">Edit Roadmap</h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setConfirmDelete(true)}
+            className="bg-red-500/20 text-red-300 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-500/30 border border-red-400/30">
+            {'\uD83D\uDDD1\uFE0F'} Delete Roadmap
+          </button>
           <button onClick={onCancel} className="bg-white/5 text-gray-300 px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/10 border border-white/10">Cancel</button>
           <button onClick={handleSave} disabled={saving}
             className="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
@@ -299,16 +305,16 @@ function EditMode({ roadmap, onSave, onCancel }) {
   );
 }
 
-function ResetModal({ onConfirm, onCancel }) {
+function DeleteModal({ onConfirm, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-gray-900 border border-white/10 rounded-3xl p-8 max-w-md mx-4 text-center shadow-2xl">
-        <div className="text-5xl mb-4">{'\u26A0\uFE0F'}</div>
-        <h3 className="text-xl font-extrabold text-white mb-2">Reset Roadmap?</h3>
-        <p className="text-gray-400 text-sm mb-6">Your current roadmap and all progress will be deleted. You'll create a fresh new roadmap from the form.</p>
+        <div className="text-5xl mb-4">{'\uD83D\uDDD1\uFE0F'}</div>
+        <h3 className="text-xl font-extrabold text-white mb-2">Delete Roadmap?</h3>
+        <p className="text-gray-400 text-sm mb-6">Your roadmap and all its progress will be permanently deleted. After that you can create a fresh new roadmap from the form. This cannot be undone.</p>
         <div className="flex gap-3">
           <button onClick={onCancel} className="flex-1 bg-white/5 text-gray-300 px-5 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">Cancel</button>
-          <button onClick={onConfirm} className="flex-1 bg-red-600 text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-red-700">Yes, Reset</button>
+          <button onClick={onConfirm} className="flex-1 bg-red-600 text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-red-700">Yes, Delete</button>
         </div>
       </div>
     </div>
@@ -321,7 +327,7 @@ export default function RoadmapPage() {
   const [generating, setGenerating] = useState(false);
   const [view, setView] = useState('loading');
   const [editMode, setEditMode] = useState(false);
-  const [showReset, setShowReset] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const [showMilestone, setShowMilestone] = useState(null);
   const [filter, setFilter] = useState('all');
   const [expanded, setExpanded] = useState({});
@@ -381,12 +387,13 @@ export default function RoadmapPage() {
     }
   };
 
-  const handleReset = async () => {
+  const handleDelete = async () => {
     try {
       await roadmapAPI.delete();
       setRoadmap(null);
+      setEditMode(false);
       setView('form');
-      setShowReset(false);
+      setShowDelete(false);
       toast.success('Roadmap deleted');
     } catch (err) {
       toast.error('Failed to delete roadmap');
@@ -453,7 +460,7 @@ export default function RoadmapPage() {
   if (editMode) {
     return (
       <div className="min-h-screen bg-gray-950 py-8 px-4">
-        <EditMode roadmap={roadmap} onSave={handleSaveEdit} onCancel={() => setEditMode(false)} />
+        <EditMode roadmap={roadmap} onSave={handleSaveEdit} onCancel={() => setEditMode(false)} onDelete={handleDelete} />
       </div>
     );
   }
@@ -471,7 +478,7 @@ export default function RoadmapPage() {
         .animate-fade-slide-in { animation: fadeSlideIn 0.3s ease-out; }
       `}</style>
       {showMilestone && <MilestonePopup milestone={showMilestone} />}
-      {showReset && <ResetModal onConfirm={handleReset} onCancel={() => setShowReset(false)} />}
+      {showDelete && <DeleteModal onConfirm={handleDelete} onCancel={() => setShowDelete(false)} />}
       <div className="max-w-4xl mx-auto space-y-6">
         <BackButton to="/dashboard" label="Back to Dashboard" />
 
@@ -492,9 +499,9 @@ export default function RoadmapPage() {
                   className="bg-white/15 backdrop-blur-sm border border-white/20 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/25 transition-all">
                   {'\u2699\uFE0F'} Edit
                 </button>
-                <button onClick={() => setShowReset(true)}
+                <button onClick={() => setShowDelete(true)}
                   className="bg-red-500/20 backdrop-blur-sm border border-red-400/30 text-red-300 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-500/30 transition-all">
-                  {'\u26A0\uFE0F'} Reset
+                  {'\uD83D\uDDD1\uFE0F'} Delete
                 </button>
               </div>
             </div>

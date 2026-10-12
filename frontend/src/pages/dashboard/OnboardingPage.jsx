@@ -345,20 +345,6 @@ export default function OnboardingPage() {
                 placeholder="e.g. Doctor, Software Engineer, Chartered Accountant"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50" />
             </div>
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Short-term goal (optional)</label>
-              <input type="text" value={form.careerGoals.shortTerm}
-                onChange={e => setForm({ ...form, careerGoals: { ...form.careerGoals, shortTerm: e.target.value } })}
-                placeholder="e.g. Score 90% in 12th, crack NEET"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50" />
-            </div>
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Long-term goal (optional)</label>
-              <input type="text" value={form.careerGoals.longTerm}
-                onChange={e => setForm({ ...form, careerGoals: { ...form.careerGoals, longTerm: e.target.value } })}
-                placeholder="e.g. Become a cardiologist and run my own hospital"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50" />
-            </div>
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setStep(1)} className="bg-white/5 text-gray-300 px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">← Back</button>

@@ -226,6 +226,11 @@ export default function StudentDashboard() {
                   <span className="relative">Complete Profile →</span>
                 </Link>
               )}
+              {/* Hamesha dikhe — profile dobara edit karne ka option */}
+              <Link to="/dashboard/profile"
+                className="px-6 py-3 rounded-2xl font-bold text-sm text-white/80 bg-white/[0.08] border border-white/[0.1] hover:bg-white/[0.15] transition-all hover:-translate-y-0.5">
+                ✏️ Edit Profile
+              </Link>
               <Link to="/dashboard/roadmap"
                 className="px-6 py-3 rounded-2xl font-bold text-sm text-white/80 bg-white/[0.08] border border-white/[0.1] hover:bg-white/[0.15] transition-all hover:-translate-y-0.5">
                 My Roadmap →
@@ -526,11 +531,10 @@ export default function StudentDashboard() {
                     <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden mb-3">
                       <div className="h-full rounded-full transition-all duration-[2000ms]" style={{ width: `${pct}%`, background: pct >= 70 ? 'linear-gradient(90deg, #10b981, #34d399)' : pct >= 40 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #ef4444, #f87171)' }} />
                     </div>
-                    {pct < 100 && (
-                      <Link to="/dashboard/profile" className="block text-center text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20">
-                        Complete Profile →
-                      </Link>
-                    )}
+                    {/* 100% hone par bhi edit ka option chahiye — warna link gayab ho jata tha */}
+                    <Link to="/dashboard/profile" className="block text-center text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20">
+                      {pct < 100 ? 'Complete Profile →' : '✏️ Edit Profile →'}
+                    </Link>
                   </div>
                 );
               })()}

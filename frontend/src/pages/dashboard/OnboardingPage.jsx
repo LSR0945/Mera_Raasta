@@ -183,6 +183,26 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // ═══ Re-edit support — purana profile load karo ═══
+  // Onboarding dobara khole toh existing data form me aa jaye, warna submit
+  // karne par purana profile wipe ho jata tha (data loss fix).
+  useEffect(() => {
+    api.get('/profile').then(({ data }) => {
+      const p = data?.data?.profile;
+      if (!p) return;
+      setForm(f => ({
+        ...f,
+        educationLevel: p.educationLevel || f.educationLevel,
+        interests: Array.isArray(p.interests) ? p.interests : f.interests,
+        skills: Array.isArray(p.skills) ? p.skills.map(s => (typeof s === 'string' ? s : s.name)).filter(Boolean) : f.skills,
+        budget: p.budget || f.budget,
+        state: p.location?.state || f.state,
+        district: p.location?.district || f.district,
+        city: p.location?.city || f.city,
+      }));
+    }).catch(() => { /* naya user hai toh default form rehne do */ });
+  }, []);
+
   const statesList = useMemo(() => INDIAN_STATES.map(s => s.state), []);
 
   const districtsList = useMemo(() => {

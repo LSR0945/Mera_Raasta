@@ -1,8 +1,36 @@
 import StudentProfile from '../models/StudentProfile.js';
+import ChatHistory from '../models/ChatHistory.js';
 import { logActivity } from './activity.controller.js';
 import { geminiStreamAttempt, geminiCompleteAttempt, hasUsableGeminiKey } from '../utils/geminiPool.js';
 
 const conversationHistory = new Map();
+
+// ===== Persistent history (real AI jaisa — refresh/restart ke baad bhi chat rahe) =====
+// Memory Map = fast cache; MongoDB = asli store. Pehli request par DB se load,
+// har naye message ke baad fire-and-forget save.
+const historyLoadedFromDb = new Set();
+async function ensureHistoryLoaded(userId) {
+  const key = String(userId);
+  if (historyLoadedFromDb.has(key)) return;
+  try {
+    const doc = await ChatHistory.findOne({ userId: key }).lean();
+    if (doc?.messages?.length) {
+      conversationHistory.set(key, doc.messages.map(m => ({ role: m.role, content: m.content, timestamp: Date.now() })));
+    }
+  } catch {}
+  historyLoadedFromDb.add(key);
+}
+function persistHistory(userId) {
+  // fire-and-forget — chat flow ko kabhi slow nahi karna
+  const key = String(userId);
+  const msgs = (conversationHistory.get(key) || []).slice(-60)
+    .map(m => ({ role: m.role, content: String(m.content), createdAt: new Date() }));
+  ChatHistory.updateOne(
+    { userId: key },
+    { $set: { messages: msgs, updatedAt: new Date() } },
+    { upsert: true }
+  ).catch(() => {});
+}
 
 // ===== Gemini — har haal mein (src/utils/geminiPool.js) =====
 // Pool karta hai: multiple keys (GEMINI_API_KEY + GEMINI_API_KEYS_EXTRA),
@@ -471,7 +499,8 @@ function getHistory(userId) {
 function addToHistory(userId, role, content) {
   const hist = getHistory(String(userId));
   hist.push({ role, content, timestamp: Date.now() });
-  if (hist.length > 20) hist.splice(0, hist.length - 20);
+  if (hist.length > 60) hist.splice(0, hist.length - 60); // zyada lambi chat bhi save ho
+  persistHistory(userId);
 }
 
 function getRecentContext(userId) {
@@ -1062,6 +1091,7 @@ export const chat = async (req, res) => {
       profile = await StudentProfile.findOne({ user: req.user._id }).populate('user', 'name email');
     } catch {}
 
+    await ensureHistoryLoaded(req.user._id); // purani chat context ke liye
     const response = await generateResponse(message, profile, lang, req.user._id);
     addToHistory(req.user._id, 'user', message);
     addToHistory(req.user._id, 'assistant', response);
@@ -1094,6 +1124,7 @@ export const chatStream = async (req, res) => {
     try {
       profile = await StudentProfile.findOne({ user: userId }).populate('user', 'name email');
     } catch {}
+    await ensureHistoryLoaded(userId); // refresh ke baad bhi purani chat context me aaye
 
     // Pehle se bana hua response bhejne ke liye helper (chunk-by-chunk typing effect)
     const sendFull = async (fullResponse) => {
@@ -1169,10 +1200,27 @@ export const chatStream = async (req, res) => {
 // ===== clearHistory =====
 export const clearHistory = async (req, res) => {
   try {
-    conversationHistory.delete(String(req.user._id));
+    const key = String(req.user._id);
+    conversationHistory.delete(key);
+    historyLoadedFromDb.add(key); // DB se reload na ho (doc delete ho chuka hai)
+    ChatHistory.deleteOne({ userId: key }).catch(() => {});
     return res.status(200).json({ success: true, message: 'History cleared' });
   } catch (error) {
     console.error('Clear history error:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ===== getChatHistory — page refresh ke baad purani chat wapas laane ke liye =====
+export const getChatHistory = async (req, res) => {
+  try {
+    await ensureHistoryLoaded(req.user._id);
+    const msgs = (conversationHistory.get(String(req.user._id)) || [])
+      .slice(-60)
+      .map(m => ({ role: m.role, content: m.content }));
+    return res.status(200).json({ success: true, data: { messages: msgs } });
+  } catch (error) {
+    console.error('Get history error:', error);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };

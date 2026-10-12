@@ -54,6 +54,25 @@ export default function AICommunityPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingText, waitingForFirst]);
 
+  // Real AI jaisa: page refresh/revisit par purani chat wapas dikhao (DB se)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await aiAPI.getHistory();
+        const saved = res?.data?.data?.messages || [];
+        if (alive && saved.length > 0) {
+          setMessages(saved.map((m, i) => ({
+            role: m.role === 'assistant' ? 'ai' : 'user',
+            content: m.content,
+            id: Date.now() + i,
+          })));
+        }
+      } catch { /* history na mile toh normal fresh chat */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   const sendMessage = async (overrideMsg) => {
     const msg = overrideMsg || input.trim();
     if (!msg || isStreaming) return;

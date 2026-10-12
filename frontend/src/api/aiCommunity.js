@@ -36,4 +36,5 @@ export const aiAPI = {
     }
   },
   clearHistory: () => api.delete('/ai/chat/history'),
+  getHistory: () => api.get('/ai/chat/history'),
 };

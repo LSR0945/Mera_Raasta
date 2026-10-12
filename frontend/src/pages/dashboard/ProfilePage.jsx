@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../api/axios';
 import BackButton from '../../components/common/BackButton';
@@ -135,8 +136,10 @@ function ChipSelect({ options, selected, onToggle, multi = true }) {
 
 export default function ProfilePage() {
   const { user, updateProfile } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
 
   const [form, setForm] = useState({
@@ -211,6 +214,16 @@ export default function ProfilePage() {
     finally { setSaving(false); }
   };
 
+  // Profile delete — account nahi jata, sirf profile data. Dobara onboarding karke naya bana sakte ho.
+  const handleDelete = async () => {
+    try {
+      await api.delete('/profile');
+      setShowDelete(false);
+      toast.success('Profile deleted');
+      navigate('/dashboard');
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed to delete profile'); }
+  };
+
   const addSkill = () => {
     if (!newSkill.name.trim()) return;
     setSkills([...skills, { name: newSkill.name.trim(), level: newSkill.level }]);
@@ -238,6 +251,20 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-[1100px] mx-auto space-y-6">
+      {/* Profile delete confirm */}
+      {showDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-white/10 rounded-3xl p-8 max-w-md mx-4 text-center shadow-2xl">
+            <div className="text-5xl mb-4">{'\uD83D\uDDD1\uFE0F'}</div>
+            <h3 className="text-xl font-extrabold text-white mb-2">Delete Profile?</h3>
+            <p className="text-gray-400 text-sm mb-6">Your profile information (education, interests, skills, goals) will be permanently deleted. Your account will stay — you can fill a fresh profile via onboarding again. This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDelete(false)} className="flex-1 bg-white/5 text-gray-300 px-5 py-3 rounded-xl font-bold text-sm hover:bg-white/10 border border-white/10">Cancel</button>
+              <button onClick={handleDelete} className="flex-1 bg-red-600 text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-red-700">Yes, Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
       <BackButton to="/dashboard" label="Back to Dashboard" />
 
       {/* Header */}
@@ -256,6 +283,17 @@ export default function ProfilePage() {
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 backdrop-blur-sm border border-white/10 capitalize">{user?.role}</span>
               {profile?.onboardingCompleted && <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/20">✓ Complete</span>}
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/20">{completionPct()}% Filled</span>
+            </div>
+            {/* Edit + Delete options — profile yahin se edit ya delete kar sako */}
+            <div className="flex items-center gap-2 mt-4 justify-center sm:justify-start flex-wrap">
+              <button onClick={() => navigate('/dashboard/onboarding')}
+                className="bg-white/15 backdrop-blur-sm border border-white/20 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/25 transition-all">
+                {'\u270F\uFE0F'} Edit Profile
+              </button>
+              <button onClick={() => setShowDelete(true)}
+                className="bg-red-500/20 backdrop-blur-sm border border-red-400/30 text-red-300 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-500/30 transition-all">
+                {'\uD83D\uDDD1\uFE0F'} Delete Profile
+              </button>
             </div>
           </div>
         </div>

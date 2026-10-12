@@ -47,6 +47,15 @@ export const upsertProfile = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// ═══ deleteProfile — Profile delete karo ═══
+// Sirf profile data jata hai — account nahi. Dobara onboarding karke naya profile bana sakte ho.
+export const deleteProfile = async (req, res, next) => {
+  try {
+    await StudentProfile.deleteOne({ user: req.user._id });
+    res.status(200).json({ success: true, message: 'Profile deleted' });
+  } catch (error) { next(error); }
+};
+
 // ═══ completeOnboarding — Onboarding complete karo ═══
 // Onboarding ka last step — onboardingCompleted: true set karo
 export const completeOnboarding = async (req, res, next) => {

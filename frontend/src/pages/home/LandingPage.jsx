@@ -404,7 +404,7 @@ export default function LandingPage() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { icon: '🎯', t: 'AI Career Matching', d: 'Deep learning algorithms analyze 50+ data points to find your perfect career match.', a: '#6366f1' },
-                { icon: '🤖', t: 'AI Career Coach', d: 'Chat with our AI counselor for instant guidance, resume tips & interview prep.', a: '#8b5cf6' },
+                { icon: '🤖', t: 'AI Agent', d: 'Chat with our AI counselor for instant guidance, resume tips & interview prep.', a: '#8b5cf6' },
                 { icon: '🧠', t: 'Smart Recommendations', d: 'AI generates 3 personalized career plans with fit scores & reasoning.', a: '#a855f7' },
                 { icon: '⚡', t: 'Next Best Action', d: 'AI suggests exactly what you should do next to advance your career.', a: '#7c3aed' },
               ].map((f, i) => (

@@ -66,10 +66,12 @@ async function tryGeminiAPI(message, userId, lang, profile) {
 }
 
 // Streaming Gemini call — pool ke through token-by-token (partial bhi safe)
+// Budget 4.5s: agar Gemini (503/quota) turant nahi chalta toh 8s mat gawao —
+// free AI race pe jaao, user ko jaldi jawab mile.
 async function streamGeminiAPI(message, userId, lang, profile, onChunk) {
   if (!hasUsableGeminiKey()) return false;
   const params = buildGeminiParams(message, userId, lang, profile);
-  const r = await geminiStreamAttempt({ ...params, timeoutMs: 8000, onChunk });
+  const r = await geminiStreamAttempt({ ...params, timeoutMs: 4500, onChunk });
   return r.ok;
 }
 
@@ -79,11 +81,11 @@ async function streamGeminiAPI(message, userId, lang, profile, onChunk) {
 // Offline mode sirf tab aata hai jab TEENO providers ek saath down hon.
 const FREE_AI_PROVIDERS = [
   // startDelayMs: strong models pehle race karein — OVH (Mistral-7B, sabse
-  // kamzor) ko 1.6s ki head start delay milti hai taaki wo sirf tab jeete jab
-  // baaki fail hon — warna kabhi-kabhi ajeeb jawab de tha (quality fix).
+  // kamzor) ko 5s delay milta hai taaki wo sirf tab jeete jab baaki SAB fail
+  // hon — KiloCode ka first token ~4.5s aata hai, LLM7 ~0.8s, dono OVH se pehle.
   { name: 'KiloCode', url: 'https://api.kilo.ai/api/gateway/chat/completions', model: 'kilo-auto/free', timeoutMs: 18000, failedUntil: 0, startDelayMs: 0 },
   { name: 'LLM7', url: 'https://api.llm7.io/v1/chat/completions', model: 'mistral-Nemo-Instruct-2407', timeoutMs: 20000, failedUntil: 0, startDelayMs: 150 },
-  { name: 'OVH', url: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', model: 'Mistral-7B-Instruct-v0.3', timeoutMs: 15000, failedUntil: 0, startDelayMs: 1600 },
+  { name: 'OVH', url: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', model: 'Mistral-7B-Instruct-v0.3', timeoutMs: 15000, failedUntil: 0, startDelayMs: 5000 },
 ];
 // Providers par ek time par ek hi request jaye (429 rate limit se bachne ke liye)
 let freeAISerial = Promise.resolve();
@@ -112,16 +114,16 @@ function buildSystemPrompt(lang, profile) {
       if (bits.length) profileLine = `\nStudent background info (use only to personalize answers): ${bits.join('; ')}.`;
     }
   } catch {}
-  return `You are a highly advanced, ultra-intelligent AI Career Coach (Mera Raasta AI), powered directly by Google's premium Gemini model.
+  return `You are "AI Agent" by Mera Raasta — an accurate, helpful AI assistant for Indian students.
 
 Strict Operational Rules:
-- Act exactly like the official ChatGPT or Gemini chat interface. You possess the deep knowledge and logical reasoning of a world-class career counselor and expert coder.
-- Provide 100% dynamic, real-time generated responses. Under NO circumstances give pre-written or placeholder text — every answer must be freshly generated for THIS exact question.
-- Answer EVERY question well: career guidance, Indian exams (JEE/NEET/UPSC/SSC/GATE), coding, technical and conceptual questions (e.g. "What is Java language?"), general knowledge, science, math, salary expectations in Indian LPA, college admissions, skill development, life advice, motivation, and casual conversation.
-- For technical, coding, or conceptual questions: provide exhaustive, accurate, high-quality explanations with perfect Markdown formatting — **bold**, numbered/bulleted lists, and fenced \`\`\` code blocks.
-- Maintain strict context awareness: the conversation history below shows what the user ACTUALLY said — when the user asks about something they told you earlier, always trust the conversation history over the background info below.
-- Keep the conversation highly professional, interactive, and natural. Speak in the exact language the user uses (Hindi, English, or Hinglish) — always respond in ${langName}.
-- Never say you cannot help — always give a real, complete answer. Add emojis naturally. Be concise but complete and accurate.${profileLine}`;
+- FIRST: answer exactly what the user asked. Never open with commentary about their profile, and never argue that their dream/goal is wrong — if the user says they want to be a doctor, that IS their goal; help with it.
+- Accuracy above everything: give factually correct answers (exams, cutoffs, salaries, concepts). If you are not fully sure about a specific number, say it is approximate instead of inventing precision.
+- Answer EVERY kind of question: career guidance, Indian exams (JEE/NEET/UPSC/SSC/GATE), coding, technical/conceptual questions, general knowledge, science, math, college admissions, skills, motivation, casual chat.
+- For technical/coding questions: clear explanation with Markdown — **bold**, lists, and fenced \`\`\` code blocks.
+- Context awareness: the conversation history shows what the user ACTUALLY said earlier — trust it over any background info below.
+- Reply in the SAME language/style the user wrote (Hindi, English, or Hinglish) — always respond in ${langName}.
+- Be direct, natural, and complete. Emojis okay. Never say you cannot help.${profileLine}`;
 }
 
 function buildMessages(message, userId, lang, profile) {
@@ -137,9 +139,9 @@ function buildMessages(message, userId, lang, profile) {
 }
 
 function markProviderFailure(provider, err) {
-  // 429 = rate limit (8s cooldown); baaki errors (timeout/network) = 12s.
-  // Sirf YEH provider cool hota hai — race mein baaki providers already chal rahe hain.
-  const cooldown = err?.status === 429 ? 8000 : 12000;
+  // 429 = rate limit — free tiers ka limit bahut tight hai (LLM7 ek request ke
+  // baad 429 de deta hai), isliye 20s cooldown; baaki errors = 12s.
+  const cooldown = err?.status === 429 ? 20000 : 12000;
   provider.failedUntil = Date.now() + cooldown;
   console.log(`[FreeAI:${provider.name}] ${err.message} — ${cooldown / 1000}s cooldown.`);
 }
@@ -938,9 +940,9 @@ function getConversationResponse(message, lang) {
   const hn = lang === 'hinglish';
 
   if (/^(hi|hello|hey|namaste|namaskar)/i.test(m)) {
-    if (hi) return '**Namaste!** \uD83D\uDE4F\n\nMain aapka AI Career Coach hoon. Main aapki career guidance, skill development, aur education ke baare mein madad kar sakta hoon.\n\nKya jaanna hai aapko?';
-    if (hn) return '**Namaste!** \uD83D\uDE4F\n\nMain aapka AI Career Coach hoon. Aapko career guidance, skill development, education ke baare mein help kar sakta hoon.\n\nKya puchna hai?';
-    return '**Hello!** \uD83D\uDC4B\n\nI\'m your AI Career Coach. I can help you with:\n- Career guidance & planning\n- Skill development\n- Education & exams\n- Salary expectations\n- Job preparation\n\nWhat would you like to know?';
+    if (hi) return '**Namaste!** \uD83D\uDE4F\n\nMain aapka AI Agent hoon. Main aapki career guidance, skill development, aur education ke baare mein madad kar sakta hoon.\n\nKya jaanna hai aapko?';
+    if (hn) return '**Namaste!** \uD83D\uDE4F\n\nMain aapka AI Agent hoon. Aapko career guidance, skill development, education ke baare mein help kar sakta hoon.\n\nKya puchna hai?';
+    return '**Hello!** \uD83D\uDC4B\n\nI\'m your AI Agent. I can help you with:\n- Career guidance & planning\n- Skill development\n- Education & exams\n- Salary expectations\n- Job preparation\n\nWhat would you like to know?';
   }
 
   if (/^(good morning)/i.test(m)) {
@@ -970,7 +972,7 @@ function getConversationResponse(message, lang) {
   }
 
   if (/\b(who are you|tum kaun ho|aap kaun|your name|tumhara naam)\b/i.test(m)) {
-    return hi ? '**Mera naam Mera Raasta AI Coach hai!** \uD83E\uDD16\n\nMain ek AI-powered career guidance assistant hoon. Main Indian students ko career decisions mein madad karta hoon - coding, exams, jobs, skills, sab kuch!' : '**I am Mera Raasta AI Coach!** \uD83E\uDD16\n\nI am an AI-powered career guidance assistant helping Indian students with career decisions, coding, exams, jobs, skills, and more!';
+    return hi ? '**Mera naam Mera Raasta AI Agent hai!** \uD83E\uDD16\n\nMain ek AI-powered career guidance assistant hoon. Main Indian students ko career decisions mein madad karta hoon - coding, exams, jobs, skills, sab kuch!' : '**I am Mera Raasta AI Agent!** \uD83E\uDD16\n\nI am an AI-powered career guidance assistant helping Indian students with career decisions, coding, exams, jobs, skills, and more!';
   }
 
   return hi ? 'Haan, main sun raha hoon! \uD83C\uDFAF\n\nAap mujhse ye puch sakte hain:\n- Career guidance\n- Coding programs\n- Exam preparation\n- Salary expectations\n- Skill development\n\nKya jaanna hai aapko?' : 'I am listening! \uD83C\uDFAF\n\nYou can ask me about:\n- Career guidance\n- Coding programs\n- Exam preparation\n- Salary expectations\n- Skill development\n\nWhat would you like to know?';

@@ -115,7 +115,7 @@ export const welcomeEmail = (name, role) => {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr><td style="padding:8px 0;color:#475569;font-size:14px;">🎯 Get AI-powered career recommendations</td></tr>
                 <tr><td style="padding:8px 0;color:#475569;font-size:14px;">🗺️ Follow personalized career roadmaps</td></tr>
-                <tr><td style="padding:8px 0;color:#475569;font-size:14px;">🤖 Chat with AI Career Coach 24/7</td></tr>
+                <tr><td style="padding:8px 0;color:#475569;font-size:14px;">🤖 Chat with AI Agent 24/7</td></tr>
                 <tr><td style="padding:8px 0;color:#475569;font-size:14px;">📄 Build professional resumes</td></tr>
                 <tr><td style="padding:8px 0;color:#475569;font-size:14px;">📚 Explore courses, colleges & scholarships</td></tr>
               </table>` : role === 'parent' ? `

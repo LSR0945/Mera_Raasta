@@ -167,7 +167,7 @@ export default function StudentDashboard() {
     { icon: '🎯', label: 'Career AI', desc: 'AI-powered career matching', to: '/dashboard/careers/recommendations', gradient: 'from-blue-500 to-cyan-500' },
     { icon: '🗺️', label: 'Roadmap', desc: 'Your learning path', to: '/dashboard/roadmap', gradient: 'from-violet-500 to-purple-500' },
     { icon: '📚', label: 'Courses', desc: 'Top courses & colleges', to: '/dashboard/education', gradient: 'from-emerald-500 to-teal-500' },
-    { icon: '🤖', label: 'AI Coach', desc: 'Chat with career AI', to: '/dashboard/ai-community', gradient: 'from-amber-500 to-orange-500' },
+    { icon: '🤖', label: 'AI Agent', desc: 'Chat with career AI', to: '/dashboard/ai-community', gradient: 'from-amber-500 to-orange-500' },
     { icon: '💼', label: 'Readiness', desc: 'Projects & internships', to: '/dashboard/career-readiness', gradient: 'from-pink-500 to-rose-500' },
   ];
 
@@ -447,7 +447,7 @@ export default function StudentDashboard() {
                 {[
                   { icon: '🎯', label: 'Careers', to: '/dashboard/careers', gradient: 'from-blue-500 to-cyan-500' },
                   { icon: '📚', label: 'Education', to: '/dashboard/education', gradient: 'from-emerald-500 to-teal-500' },
-                  { icon: '🤖', label: 'AI Coach', to: '/dashboard/ai-community', gradient: 'from-violet-500 to-purple-500' },
+                  { icon: '🤖', label: 'AI Agent', to: '/dashboard/ai-community', gradient: 'from-violet-500 to-purple-500' },
                   { icon: '📄', label: 'Resume', to: '/dashboard/resume-interview', gradient: 'from-amber-500 to-orange-500' },
                   { icon: '🗺️', label: 'Roadmap', to: '/dashboard/roadmap', gradient: 'from-pink-500 to-rose-500' },
                   { icon: '📊', label: 'Compare', to: '/dashboard/careers/compare', gradient: 'from-indigo-500 to-blue-500' },

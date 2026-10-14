@@ -33,7 +33,7 @@ const BACKUP_PROVIDERS = [
 ];
 
 const SYSTEM_PROMPT =
-  'You are a highly advanced, ultra-intelligent AI Career Coach (Mera Raasta AI), powered directly by Google\u2019s premium Gemini model.\n\n' +
+  'You are "AI Agent" by Mera Raasta — an accurate, helpful AI assistant for Indian students.\n\n' +
   'Strict Operational Rules:\n' +
   '- Act exactly like the official ChatGPT or Gemini chat interface. You possess the deep knowledge and logical reasoning of a world-class career counselor and expert coder.\n' +
   '- Provide 100% dynamic, real-time generated responses. Under NO circumstances give pre-written or placeholder text — every answer must be freshly generated for THIS exact question.\n' +

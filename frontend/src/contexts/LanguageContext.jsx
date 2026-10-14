@@ -7,7 +7,7 @@ const translations = {
     // Nav
     dashboard: 'Dashboard', careers: 'Careers', recommendations: 'Recommendations', education: 'Education',
     roadmap: 'Roadmap', careerReadiness: 'Career Readiness', resumeInterview: 'Resume & Interview',
-    aiCoach: 'AI Career Coach', profile: 'Profile', logout: 'Logout', search: 'Search careers...',
+    aiCoach: 'AI Agent', profile: 'Profile', logout: 'Logout', search: 'Search careers...',
     myChildren: 'My Children', progressReports: 'Progress Reports', myStudents: 'My Students',
     reviews: 'Reviews', settings: 'Settings', language: 'Language',
 
@@ -60,7 +60,7 @@ const translations = {
     buildResume: 'Build Your Resume', practiceInterview: 'Practice Interview',
     tips: 'Tips', questions: 'Questions', score: 'Score',
 
-    // AI Coach
+    // AI Agent
     askAnything: 'Ask about careers, skills, education...',
     thinking: 'Thinking...',
     quickQuestions: 'Quick Questions',
@@ -96,7 +96,7 @@ const translations = {
     // Nav
     dashboard: 'डैशबोर्ड', careers: 'करियर', recommendations: 'सुझाव', education: 'शिक्षा',
     roadmap: 'रोडमैप', careerReadiness: 'करियर तैयारी', resumeInterview: 'Resume और Interview',
-    aiCoach: 'AI करियर कोच', profile: 'प्रोफ़ाइल', logout: 'लॉगआउट', search: 'करियर खोजें...',
+    aiCoach: 'AI Agent', profile: 'प्रोफ़ाइल', logout: 'लॉगआउट', search: 'करियर खोजें...',
     myChildren: 'मेरे बच्चे', progressReports: 'प्रगति रिपोर्ट', myStudents: 'मेरे छात्र',
     reviews: 'समीक्षा', settings: 'सेटिंग्स', language: 'भाषा',
 
@@ -149,7 +149,7 @@ const translations = {
     buildResume: 'अपना Resume बनाएं', practiceInterview: 'Interview का अभ्यास करें',
     tips: 'सुझाव', questions: 'प्रश्न', score: 'स्कोर',
 
-    // AI Coach
+    // AI Agent
     askAnything: 'करियर, कौशल, शिक्षा के बारे में पूछें...',
     thinking: 'सोच रहा हूँ...',
     quickQuestions: 'त्वरित प्रश्न',

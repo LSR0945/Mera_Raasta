@@ -55,7 +55,7 @@ export default function DashboardPage() {
         <p className="text-xs text-gray-500 mt-2">{progress}% complete</p>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[{ icon: '🗺️', label: 'My Roadmap', href: '/dashboard/roadmap' }, { icon: '📚', label: 'Learning', href: '/dashboard/education' }, { icon: '📄', label: 'Resume', href: '/dashboard/resume-interview' }, { icon: '🤖', label: 'AI Coach', href: '/dashboard/ai-community' }].map((item) => (
+        {[{ icon: '🗺️', label: 'My Roadmap', href: '/dashboard/roadmap' }, { icon: '📚', label: 'Learning', href: '/dashboard/education' }, { icon: '📄', label: 'Resume', href: '/dashboard/resume-interview' }, { icon: '🤖', label: 'AI Agent', href: '/dashboard/ai-community' }].map((item) => (
           <Link key={item.href} to={item.href} className="bg-white rounded-2xl border p-5 hover:shadow-md transition-all text-center"><span className="text-2xl mb-2 block">{item.icon}</span><p className="text-sm font-bold">{item.label}</p></Link>
         ))}
       </div>

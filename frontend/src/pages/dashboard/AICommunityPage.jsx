@@ -183,7 +183,7 @@ export default function AICommunityPage() {
                 {'\uD83E\uDD16'}
                 <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-[#0a0a1a] animate-pulse" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">{lang === 'hi' ? '\u0928\u092E\u0938\u094D\u0924\u0947! \u092E\u0948\u0902 \u0906\u092A\u0915\u093E AI \u0915\u0930\u093F\u092F\u0930 \u0915\u094B\u091A \u0939\u0942\u0901' : "Hello! I'm your AI Career Coach"}</h3>
+              <h3 className="text-xl font-bold text-white mb-2">{lang === 'hi' ? '\u0928\u092E\u0938\u094D\u0924\u0947! \u092E\u0948\u0902 \u0906\u092A\u0915\u093E AI Agent' : "Hello! I'm your AI Agent"}</h3>
               <p className="text-sm text-white/25 text-center max-w-md mb-8 leading-relaxed">
                 {lang === 'hi' ? '\u092E\u0948\u0902 \u0915\u0930\u093F\u092F\u0930, \u0915\u094C\u0936\u0932, \u0936\u093F\u0915\u094D\u0937\u093E \u0914\u0930 \u092D\u0935\u093F\u0937\u094D\u092F \u0915\u0947 \u092C\u093E\u0930\u0947 \u092E\u0947\u0902 \u0906\u092A\u0915\u0940 \u092E\u0926\u0926 \u0915\u0930 \u0938\u0915\u0924\u093E \u0939\u0942\u0901\u0964 \u0928\u0940\u091A\u0947 \u0915\u093F\u0938\u0940 \u0938\u0935\u093E\u0932 \u092A\u0930 \u0915\u094D\u0932\u093F\u0915 \u0915\u0930\u0947\u0902 \u092F\u093E \u0905\u092A\u0928\u093E \u0938\u0935\u093E\u0932 \u091F\u093E\u0907\u092A \u0915\u0930\u0947\u0902\u0964' : 'I can help you with careers, skills, education, and your future. Click any question below or type your own.'}
               </p>

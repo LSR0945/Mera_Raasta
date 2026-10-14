@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 // ═══ Location Schema — Bharat ka poora geography ═══
 // State → District → City — teen level ka hierarchy
 const LocationSchema = new mongoose.Schema({
-  state: { type: String, required: true, index: true },          // State ka naam, jaise "Maharashtra"
+  state: { type: String, required: true },          // State ka naam, jaise "Maharashtra"
   stateCode: { type: String, required: true },                    // Short code, jaise "MH"
   type: { type: String, enum: ['state', 'ut'], default: 'state' }, // State hai ya Union Territory
   districts: [{                                                    // Is state ke saare districts

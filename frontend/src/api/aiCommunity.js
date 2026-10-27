@@ -37,4 +37,10 @@ export const aiAPI = {
   },
   clearHistory: () => api.delete('/ai/chat/history'),
   getHistory: () => api.get('/ai/chat/history'),
+
+  // ChatGPT jaisa multi-chat
+  listSessions: () => api.get('/ai/chat/sessions'),
+  createSession: () => api.post('/ai/chat/sessions'),
+  getSession: (id) => api.get(`/ai/chat/sessions/${id}`),
+  deleteSession: (id) => api.delete(`/ai/chat/sessions/${id}`),
 };

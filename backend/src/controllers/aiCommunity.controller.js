@@ -1,34 +1,41 @@
 import StudentProfile from '../models/StudentProfile.js';
-import ChatHistory from '../models/ChatHistory.js';
+import ChatSession from '../models/ChatSession.js';
 import { logActivity } from './activity.controller.js';
 import { geminiStreamAttempt, geminiCompleteAttempt, hasUsableGeminiKey } from '../utils/geminiPool.js';
 
-const conversationHistory = new Map();
+// ===== Multi-chat (ChatGPT jaisa) =====
+// Har chat ek ChatSession document hai. Memory Map key = `${userId}:${sessionId}`
+// (fast context), MongoDB = asli store (refresh/restart ke baad bhi chat rehti hai).
+const sessionHistory = new Map();
+const loadedSessions = new Set();
 
-// ===== Persistent history (real AI jaisa — refresh/restart ke baad bhi chat rahe) =====
-// Memory Map = fast cache; MongoDB = asli store. Pehli request par DB se load,
-// har naye message ke baad fire-and-forget save.
-const historyLoadedFromDb = new Set();
-async function ensureHistoryLoaded(userId) {
-  const key = String(userId);
-  if (historyLoadedFromDb.has(key)) return;
+function splitCtx(ctxKey) {
+  const s = String(ctxKey);
+  const i = s.indexOf(':');
+  return [s.slice(0, i), s.slice(i + 1)];
+}
+
+async function ensureHistoryLoaded(ctxKey) {
+  const key = String(ctxKey);
+  if (loadedSessions.has(key)) return;
+  const [, sessionId] = splitCtx(key);
   try {
-    const doc = await ChatHistory.findOne({ userId: key }).lean();
+    const doc = await ChatSession.findById(sessionId).lean();
     if (doc?.messages?.length) {
-      conversationHistory.set(key, doc.messages.map(m => ({ role: m.role, content: m.content, timestamp: Date.now() })));
+      sessionHistory.set(key, doc.messages.map(m => ({ role: m.role, content: m.content, timestamp: Date.now() })));
     }
   } catch {}
-  historyLoadedFromDb.add(key);
+  loadedSessions.add(key);
 }
-function persistHistory(userId) {
+
+function persistHistory(ctxKey) {
   // fire-and-forget — chat flow ko kabhi slow nahi karna
-  const key = String(userId);
-  const msgs = (conversationHistory.get(key) || []).slice(-60)
+  const [userId, sessionId] = splitCtx(ctxKey);
+  const msgs = (sessionHistory.get(String(ctxKey)) || []).slice(-100)
     .map(m => ({ role: m.role, content: String(m.content), createdAt: new Date() }));
-  ChatHistory.updateOne(
-    { userId: key },
-    { $set: { messages: msgs, updatedAt: new Date() } },
-    { upsert: true }
+  ChatSession.updateOne(
+    { _id: sessionId, userId },
+    { $set: { messages: msgs } }
   ).catch(() => {});
 }
 
@@ -338,7 +345,8 @@ Strict Operational Rules:
 - Answer EVERY kind of question: career guidance, Indian exams (JEE/NEET/UPSC/SSC/GATE), coding, technical/conceptual questions, general knowledge, science, math, college admissions, skills, motivation, casual chat.
 - For technical/coding questions: clear explanation with Markdown — **bold**, lists, and fenced \`\`\` code blocks.
 - Context awareness: the conversation history shows what the user ACTUALLY said earlier — trust it over any background info below.
-- Reply in the SAME language/style the user wrote (Hindi, English, or Hinglish) — always respond in ${langName}. Never switch to any other language.
+- Format like ChatGPT: start with a direct 1-line answer, then give 3-6 short bullet points or numbered steps when explaining. Never write long unbroken paragraphs — keep it scannable with **bold** key terms.
+- Reply in the SAME language/style the user wrote (Hindi, English, or Hinglish) — always respond in ${langName}. Never switch to any other language. If the user explicitly asks "Hindi me batao" reply in Hindi, "English me" reply in English.
 - Be direct, natural, and complete. Emojis okay. Never say you cannot help.${profileLine}`;
 }
 
@@ -572,6 +580,9 @@ async function streamFreeAI(message, userId, lang, profile, onChunk) {
 
 function detectLanguage(text) {
   if (!text || !text.trim()) return 'en';
+  // Explicit request — "hindi me batao" / "english me answer do" / "हिंदी में बताओ"
+  if (/(hindi|हिंदी)\s*(me|mai|mein|में)?\s*(bata|bol|answer|reply|samjha|likh|kaho)/i.test(text)) return 'hi';
+  if (/(english|अंग्रेजी|angrezi)\s*(me|mai|mein|में)?\s*(bata|bol|answer|reply|samjha|likh|kaho)/i.test(text)) return 'en';
   const hindiChars = text.match(/[\u0900-\u097F]/g);
   const latinChars = text.match(/[a-zA-Z]/g);
   const hc = hindiChars ? hindiChars.length : 0;
@@ -706,19 +717,24 @@ function detectCodeTask(message) {
   if (/\b(profile|user profile|account)\b/i.test(m)) return 'profile';
   return 'generalCode';
 }
-function getHistory(userId) {
-  // ObjectId har request mein naya instance hota hai — Map key ke liye
-  // hamesha string use karo warna purani history kabhi nahi milegi
-  const key = String(userId);
-  if (!conversationHistory.has(key)) conversationHistory.set(key, []);
-  return conversationHistory.get(key);
+function getHistory(ctxKey) {
+  // Key = `${userId}:${sessionId}` — Map key hamesha string
+  const key = String(ctxKey);
+  if (!sessionHistory.has(key)) sessionHistory.set(key, []);
+  return sessionHistory.get(key);
 }
 
-function addToHistory(userId, role, content) {
-  const hist = getHistory(String(userId));
+function addToHistory(ctxKey, role, content) {
+  const hist = getHistory(ctxKey);
   hist.push({ role, content, timestamp: Date.now() });
-  if (hist.length > 60) hist.splice(0, hist.length - 60); // zyada lambi chat bhi save ho
-  persistHistory(userId);
+  if (hist.length > 100) hist.splice(0, hist.length - 100); // lambi chat bhi save ho
+  // Pehla user message = chat ka title (ChatGPT jaisa sidebar title)
+  if (role === 'user' && hist.filter(m => m.role === 'user').length === 1) {
+    const [userId, sessionId] = splitCtx(ctxKey);
+    const title = String(content).replace(/\s+/g, ' ').trim().slice(0, 45) || 'New Chat';
+    ChatSession.updateOne({ _id: sessionId, userId }, { $set: { title } }).catch(() => {});
+  }
+  persistHistory(ctxKey);
 }
 
 function getRecentContext(userId) {
@@ -1304,6 +1320,18 @@ async function generateResponse(message, profile, lang, userId) {
   }
 }
 
+// Session resolve — body me sessionId aaye toh wahi use karo, warna naya chat banao
+async function resolveSession(req) {
+  const userId = String(req.user._id);
+  const sid = String(req.body.sessionId || '');
+  if (/^[a-f0-9]{24}$/i.test(sid)) {
+    const exists = await ChatSession.exists({ _id: sid, userId });
+    if (exists) return { userId, sessionId: sid, ctxKey: `${userId}:${sid}` };
+  }
+  const s = await ChatSession.create({ userId, title: 'New Chat' });
+  return { userId, sessionId: String(s._id), ctxKey: `${userId}:${s._id}` };
+}
+
 // ===== chat (non-streaming) =====
 export const chat = async (req, res) => {
   try {
@@ -1318,12 +1346,13 @@ export const chat = async (req, res) => {
       profile = await StudentProfile.findOne({ user: req.user._id }).populate('user', 'name email');
     } catch {}
 
-    await ensureHistoryLoaded(req.user._id); // purani chat context ke liye
-    const response = await generateResponse(message, profile, lang, req.user._id);
-    addToHistory(req.user._id, 'user', message);
-    addToHistory(req.user._id, 'assistant', response);
+    const { sessionId, ctxKey } = await resolveSession(req);
+    await ensureHistoryLoaded(ctxKey); // purani chat context ke liye
+    const response = await generateResponse(message, profile, lang, ctxKey);
+    addToHistory(ctxKey, 'user', message);
+    addToHistory(ctxKey, 'assistant', response);
 
-    return res.status(200).json({ success: true, data: { response } });
+    return res.status(200).json({ success: true, data: { response, sessionId } });
   } catch (error) {
     console.error('AI Chat error:', error);
     return res.status(500).json({ success: false, message: 'Server error. Please try again.' });
@@ -1351,57 +1380,58 @@ export const chatStream = async (req, res) => {
     try {
       profile = await StudentProfile.findOne({ user: userId }).populate('user', 'name email');
     } catch {}
-    await ensureHistoryLoaded(userId); // refresh ke baad bhi purani chat context me aaye
+    const { sessionId, ctxKey } = await resolveSession(req);
+    await ensureHistoryLoaded(ctxKey); // refresh ke baad bhi purani chat context me aaye
 
     // Pehle se bana hua response bhejne ke liye helper (chunk-by-chunk typing effect)
     const sendFull = async (fullResponse) => {
-      addToHistory(userId, 'user', message);
-      addToHistory(userId, 'assistant', fullResponse);
+      addToHistory(ctxKey, 'user', message);
+      addToHistory(ctxKey, 'assistant', fullResponse);
       const chunkSize = 15;
       for (let i = 0; i < fullResponse.length; i += chunkSize) {
         res.write(`data: ${JSON.stringify({ chunk: fullResponse.slice(i, i + chunkSize) })}\n\n`);
         await new Promise(r => setTimeout(r, 20));
       }
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, sessionId })}\n\n`);
       res.end();
     };
 
     // Step 0: OpenRouter STREAMING — PRIMARY brain (free models, model-chain fallback)
     let orFull = '';
-    const orStreamed = await streamOpenRouterAPI(message, userId, lang, profile, (chunk) => {
+    const orStreamed = await streamOpenRouterAPI(message, ctxKey, lang, profile, (chunk) => {
       orFull += chunk;
       res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
     });
     if (orStreamed && orFull.trim()) {
-      addToHistory(userId, 'user', message);
-      addToHistory(userId, 'assistant', orFull);
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      addToHistory(ctxKey, 'user', message);
+      addToHistory(ctxKey, 'assistant', orFull);
+      res.write(`data: ${JSON.stringify({ done: true, sessionId })}\n\n`);
       return res.end();
     }
 
     // Step 0.5: NVIDIA NIM STREAMING — secondary brain (build.nvidia.com key)
     let nvidiaFull = '';
-    const nvidiaStreamed = await streamNvidiaAPI(message, userId, lang, profile, (chunk) => {
+    const nvidiaStreamed = await streamNvidiaAPI(message, ctxKey, lang, profile, (chunk) => {
       nvidiaFull += chunk;
       res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
     });
     if (nvidiaStreamed && nvidiaFull.trim()) {
-      addToHistory(userId, 'user', message);
-      addToHistory(userId, 'assistant', nvidiaFull);
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      addToHistory(ctxKey, 'user', message);
+      addToHistory(ctxKey, 'assistant', nvidiaFull);
+      res.write(`data: ${JSON.stringify({ done: true, sessionId })}\n\n`);
       return res.end();
     }
 
     // Step 1: Real Gemini STREAMING (key fix hone par — token-by-token, bilkul Google jaisa)
     let geminiFull = '';
-    const geminiStreamed = await streamGeminiAPI(message, userId, lang, profile, (chunk) => {
+    const geminiStreamed = await streamGeminiAPI(message, ctxKey, lang, profile, (chunk) => {
       geminiFull += chunk;
       res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
     });
     if (geminiStreamed && geminiFull.trim()) {
-      addToHistory(userId, 'user', message);
-      addToHistory(userId, 'assistant', geminiFull);
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      addToHistory(ctxKey, 'user', message);
+      addToHistory(ctxKey, 'assistant', geminiFull);
+      res.write(`data: ${JSON.stringify({ done: true, sessionId })}\n\n`);
       return res.end();
     }
 
@@ -1409,15 +1439,15 @@ export const chatStream = async (req, res) => {
 
     // Step 2: Real AI streaming — asli AI (KiloCode/LLM7/OVH race), canned se pehle
     let fullAI = '';
-    const streamed = await streamFreeAI(message, userId, lang, profile, (chunk) => {
+    const streamed = await streamFreeAI(message, ctxKey, lang, profile, (chunk) => {
       fullAI += chunk;
       res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
     });
 
     if (streamed && fullAI.trim()) {
-      addToHistory(userId, 'user', message);
-      addToHistory(userId, 'assistant', fullAI);
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      addToHistory(ctxKey, 'user', message);
+      addToHistory(ctxKey, 'assistant', fullAI);
+      res.write(`data: ${JSON.stringify({ done: true, sessionId })}\n\n`);
       return res.end();
     }
 
@@ -1450,13 +1480,88 @@ export const chatStream = async (req, res) => {
   }
 };
 
-// ===== clearHistory =====
+// ===== Sessions API (ChatGPT jaisa sidebar) =====
+// User ki saari chats, latest pehle
+export const listSessions = async (req, res) => {
+  try {
+    const userId = String(req.user._id);
+    const sessions = await ChatSession.find({ userId })
+      .select('title createdAt updatedAt messages')
+      .sort({ updatedAt: -1 })
+      .limit(30)
+      .lean();
+    return res.status(200).json({
+      success: true,
+      data: {
+        sessions: sessions.map(s => ({
+          id: String(s._id),
+          title: s.title || 'New Chat',
+          updatedAt: s.updatedAt,
+          messageCount: s.messages?.length || 0,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('List sessions error:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Naya khaali chat banao
+export const createSession = async (req, res) => {
+  try {
+    const s = await ChatSession.create({ userId: String(req.user._id), title: 'New Chat' });
+    return res.status(201).json({ success: true, data: { sessionId: String(s._id), title: s.title } });
+  } catch (error) {
+    console.error('Create session error:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Ek chat ke saare messages (refresh/purani chat kholne par)
+export const getSessionMessages = async (req, res) => {
+  try {
+    const s = await ChatSession.findOne({ _id: req.params.id, userId: String(req.user._id) }).lean();
+    if (!s) return res.status(404).json({ success: false, message: 'Session not found' });
+    return res.status(200).json({
+      success: true,
+      data: {
+        sessionId: String(s._id),
+        title: s.title,
+        messages: (s.messages || []).map(m => ({ role: m.role, content: m.content })),
+      },
+    });
+  } catch (error) {
+    console.error('Get session error:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Ek chat delete karo
+export const deleteSession = async (req, res) => {
+  try {
+    const userId = String(req.user._id);
+    await ChatSession.deleteOne({ _id: req.params.id, userId });
+    sessionHistory.delete(`${userId}:${req.params.id}`);
+    loadedSessions.delete(`${userId}:${req.params.id}`);
+    return res.status(200).json({ success: true, message: 'Chat deleted' });
+  } catch (error) {
+    console.error('Delete session error:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ===== clearHistory — saari chats delete (purana endpoint, backward compat) =====
 export const clearHistory = async (req, res) => {
   try {
-    const key = String(req.user._id);
-    conversationHistory.delete(key);
-    historyLoadedFromDb.add(key); // DB se reload na ho (doc delete ho chuka hai)
-    ChatHistory.deleteOne({ userId: key }).catch(() => {});
+    const userId = String(req.user._id);
+    await ChatSession.deleteMany({ userId });
+    for (const key of [...sessionHistory.keys()]) {
+      if (key.startsWith(`${userId}:`)) sessionHistory.delete(key);
+    }
+    for (const key of [...loadedSessions]) {
+      if (key.startsWith(`${userId}:`)) loadedSessions.delete(key);
+    }
     return res.status(200).json({ success: true, message: 'History cleared' });
   } catch (error) {
     console.error('Clear history error:', error);
@@ -1464,14 +1569,13 @@ export const clearHistory = async (req, res) => {
   }
 };
 
-// ===== getChatHistory — page refresh ke baad purani chat wapas laane ke liye =====
+// ===== getChatHistory — latest chat (purana endpoint, backward compat) =====
 export const getChatHistory = async (req, res) => {
   try {
-    await ensureHistoryLoaded(req.user._id);
-    const msgs = (conversationHistory.get(String(req.user._id)) || [])
-      .slice(-60)
-      .map(m => ({ role: m.role, content: m.content }));
-    return res.status(200).json({ success: true, data: { messages: msgs } });
+    const userId = String(req.user._id);
+    const s = await ChatSession.findOne({ userId }).sort({ updatedAt: -1 }).lean();
+    const msgs = (s?.messages || []).map(m => ({ role: m.role, content: m.content }));
+    return res.status(200).json({ success: true, data: { messages: msgs, sessionId: s ? String(s._id) : null } });
   } catch (error) {
     console.error('Get history error:', error);
     return res.status(500).json({ success: false, message: 'Server error' });

@@ -34,9 +34,9 @@ function renderMarkdown(text) {
     lastIndex = match.index + seg.length;
   }
   if (lastIndex < text.length) {
-    parts.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+    parts.push(<span key={key++} className="whitespace-pre-wrap">{text.slice(lastIndex)}</span>);
   }
-  return parts.length > 0 ? parts : text;
+  return parts.length > 0 ? parts : <span className="whitespace-pre-wrap">{text}</span>;
 }
 
 export default function AICommunityPage() {
@@ -46,6 +46,10 @@ export default function AICommunityPage() {
   const [streamingText, setStreamingText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [waitingForFirst, setWaitingForFirst] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [loadingSession, setLoadingSession] = useState(false);
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
   const streamRef = useRef(false);
@@ -54,24 +58,26 @@ export default function AICommunityPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingText, waitingForFirst]);
 
-  // Real AI jaisa: page refresh/revisit par purani chat wapas dikhao (DB se)
+  // ChatGPT jaisa: page khulte hi purani chats list + NAYA khaali chat auto-open
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const res = await aiAPI.getHistory();
-        const saved = res?.data?.data?.messages || [];
-        if (alive && saved.length > 0) {
-          setMessages(saved.map((m, i) => ({
-            role: m.role === 'assistant' ? 'ai' : 'user',
-            content: m.content,
-            id: Date.now() + i,
-          })));
-        }
-      } catch { /* history na mile toh normal fresh chat */ }
+        const res = await aiAPI.listSessions();
+        if (alive) setSessions(res?.data?.data?.sessions || []);
+        const cr = await aiAPI.createSession();
+        const sid = cr?.data?.data?.sessionId;
+        if (alive && sid) setActiveSessionId(sid);
+      } catch { /* offline — normal fresh chat */ }
     })();
     return () => { alive = false; };
   }, []);
+
+  const refreshSessions = () => {
+    aiAPI.listSessions()
+      .then(r => setSessions(r?.data?.data?.sessions || []))
+      .catch(() => {});
+  };
 
   const sendMessage = async (overrideMsg) => {
     const msg = overrideMsg || input.trim();
@@ -82,11 +88,23 @@ export default function AICommunityPage() {
     setWaitingForFirst(true);
     setStreamingText('');
     streamRef.current = true;
+
+    // Chat session — na ho toh naya bana lo
+    let sid = activeSessionId;
+    if (!sid) {
+      try {
+        const cr = await aiAPI.createSession();
+        sid = cr?.data?.data?.sessionId;
+        if (sid) setActiveSessionId(sid);
+      } catch { /* ignore — backend khud bana dega */ }
+    }
+
     let fullText = '';
     try {
-      const stream = aiAPI.chatStream({ type: 'counselor', message: msg });
+      const stream = aiAPI.chatStream({ type: 'counselor', message: msg, sessionId: sid });
       for await (const data of stream) {
         if (!streamRef.current) break;
+        if (data.sessionId && !sid) { sid = data.sessionId; setActiveSessionId(sid); }
         if (data.done) break;
         if (data.chunk) {
           if (waitingForFirst) setWaitingForFirst(false);
@@ -97,20 +115,20 @@ export default function AICommunityPage() {
       if (streamRef.current && fullText) {
         setMessages(prev => [...prev, { role: 'ai', content: fullText, id: Date.now() + 1 }]);
       } else if (streamRef.current && !fullText) {
-        const errMsg = lang === 'hi' ? '\u092E\u093E\u092B\u093C \u0915\u0940\u091C\u093F\u092F\u0947, \u0915\u0941\u091B \u0917\u0932\u0924 \u0939\u094B \u0917\u092F\u093E\u0964 \u0915\u0943\u092A\u092F\u093E \u0926\u094B\u092C\u093E\u0930\u093E try \u0915\u0930\u0947\u0902\u0964' : 'Sorry, something went wrong. Please try again.';
+        const errMsg = lang === 'hi' ? 'माफ़ कीजिए, कुछ गलत हो गया। कृपया दोबारा try करें।' : 'Sorry, something went wrong. Please try again.';
         setMessages(prev => [...prev, { role: 'ai', content: errMsg, id: Date.now() + 1 }]);
       }
     } catch (err) {
       console.error('AI Chat error:', err);
       let errMsg;
       if (err.response?.status === 401) {
-        errMsg = lang === 'hi' ? '\u0906\u092A\u0915\u093E session \u0916\u0924\u094D\u092E \u0939\u094B \u0917\u092F\u093E \u0939\u0948\u0964 \u0915\u0943\u092A\u092F\u093E \u0926\u094B\u092C\u093E\u0930\u093E login \u0915\u0930\u0947\u0902\u0964' : 'Your session has expired. Please login again.';
+        errMsg = lang === 'hi' ? 'आपका session खत्म हो गया है। कृपया दोबारा login करें।' : 'Your session has expired. Please login again.';
       } else if (err.response?.status === 429) {
-        errMsg = lang === 'hi' ? '\u092C\u0939\u0941\u0924 \u091C\u093C\u094D\u092F\u093E\u0926\u093E requests \u092D\u0947\u091C \u0926\u0940\u0902\u0964 \u0915\u0941\u0926\u093C \u0926\u0947\u0930 \u0930\u0941\u0915\u0915\u0930 \u0926\u094B\u092C\u093E\u0930\u093E try \u0915\u0930\u0947\u0902\u0964' : 'Too many requests. Please wait a moment and try again.';
+        errMsg = lang === 'hi' ? 'बहुत ज़्यादा requests भेज दीं। कुछ देर रुककर दोबारा try करें।' : 'Too many requests. Please wait a moment and try again.';
       } else if (err.response?.data?.message) {
         errMsg = err.response.data.message;
       } else {
-        errMsg = lang === 'hi' ? '\u0938\u0930\u094D\u0935\u0930 \u0938\u0947 \u091C\u0941\u0921\u093C \u0928\u0939\u0940\u0902 \u092A\u093E \u0930\u0939\u0947\u0964 \u0915\u0943\u092A\u092F\u093E server check \u0915\u0930\u0947\u0902 \u0914\u0930 \u0926\u094B\u092C\u093E\u0930\u093E try \u0915\u0930\u0947\u0902\u0964' : 'Cannot connect to server. Please check if the server is running and try again.';
+        errMsg = lang === 'hi' ? 'सर्वर से जुड़ नहीं पा रहे। कृपया server check करें और दोबारा try करें।' : 'Cannot connect to server. Please check if the server is running and try again.';
       }
       setMessages(prev => [...prev, { role: 'ai', content: errMsg, id: Date.now() + 1 }]);
     } finally {
@@ -118,24 +136,65 @@ export default function AICommunityPage() {
       setWaitingForFirst(false);
       setStreamingText('');
       streamRef.current = false;
+      refreshSessions(); // sidebar me title/count update
     }
   };
 
-  const newChat = () => {
+  // Naya khaali chat (ChatGPT jaisa) — purani chats history me save rehti hain
+  const newChat = async () => {
     streamRef.current = false;
     setIsStreaming(false);
     setWaitingForFirst(false);
     setStreamingText('');
     setMessages([]);
-    aiAPI.clearHistory().catch(() => {});
+    setShowHistory(false);
+    try {
+      const cr = await aiAPI.createSession();
+      const sid = cr?.data?.data?.sessionId;
+      if (sid) setActiveSessionId(sid);
+      refreshSessions();
+    } catch { /* offline */ }
+  };
+
+  // Purani chat kholo (refresh ke baad bhi sab messages wapas)
+  const openSession = async (id) => {
+    if (isStreaming) return;
+    setShowHistory(false);
+    setLoadingSession(true);
+    try {
+      const r = await aiAPI.getSession(id);
+      const d = r?.data?.data;
+      setActiveSessionId(id);
+      setMessages((d?.messages || []).map((m, i) => ({
+        role: m.role === 'assistant' ? 'ai' : 'user',
+        content: m.content,
+        id: Date.now() + i,
+      })));
+    } catch { /* ignore */ }
+    finally { setLoadingSession(false); }
+  };
+
+  // Chat delete karo
+  const removeSession = async (e, id) => {
+    e.stopPropagation();
+    try {
+      await aiAPI.deleteSession(id);
+      setSessions(prev => prev.filter(s => s.id !== id));
+      if (id === activeSessionId) {
+        setMessages([]);
+        const cr = await aiAPI.createSession();
+        const sid = cr?.data?.data?.sessionId;
+        if (sid) setActiveSessionId(sid);
+      }
+    } catch { /* ignore */ }
   };
 
   const quickPrompts = [
-    { icon: '\uD83C\uDFAF', text: t('q1') },
-    { icon: '\uD83D\uDCBC', text: t('q2') },
-    { icon: '\uD83D\uDCC4', text: t('q3') },
-    { icon: '\uD83E\uDDE0', text: t('q4') },
-    { icon: '\uD83C\uDFA4', text: t('q5') },
+    { icon: '🎯', text: t('q1') },
+    { icon: '💼', text: t('q2') },
+    { icon: '📄', text: t('q3') },
+    { icon: '🧠', text: t('q4') },
+    { icon: '🎤', text: t('q5') },
   ];
 
   return (
@@ -150,18 +209,26 @@ export default function AICommunityPage() {
 
       <BackButton to="/dashboard" label={t('back')} />
 
-      <div className="flex items-center justify-between mb-6" style={{ animation: 'fadeUp 0.5s ease' }}>
+      <div className="flex items-center justify-between mb-6 gap-2 flex-wrap" style={{ animation: 'fadeUp 0.5s ease' }}>
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-violet-500/20 relative">
-            {'\uD83E\uDD16'}
+            🤖
             <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-[#0a0a1a]" />
           </div>
           <div>
             <h1 className="text-2xl font-black text-white">{t('aiCoach')}</h1>
-            <p className="text-sm text-white/30">{lang === 'hi' ? '\u0939\u093F\u0928\u094D\u0926\u0940 \u0914\u0930 English \u0926\u094B\u0928\u094B\u0902 \u092E\u0947\u0902 \u092C\u093E\u0924 \u0915\u0930\u0947\u0902' : 'Talk in Hindi or English \u2014 I understand both!'}</p>
+            <p className="text-sm text-white/30">{lang === 'hi' ? 'हिंदी और English दोनों में बात करें' : 'Talk in Hindi or English — I understand both!'}</p>
           </div>
         </div>
-        {messages.length > 0 && (
+        <div className="flex items-center gap-2">
+          <button onClick={() => { setShowHistory(v => !v); refreshSessions(); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all hover:-translate-y-0.5 active:scale-95 ${showHistory ? 'bg-violet-500/15 border-violet-500/30 text-violet-200' : 'bg-white/[0.04] border-white/[0.06] text-white/50 hover:text-white/80 hover:bg-white/[0.08]'}`}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {lang === 'hi' ? 'चैट्स' : 'Chats'}
+            {sessions.length > 0 && <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-full">{sessions.length}</span>}
+          </button>
           <button onClick={newChat}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.08] transition-all hover:-translate-y-0.5 active:scale-95">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -169,23 +236,54 @@ export default function AICommunityPage() {
             </svg>
             {t('newChat')}
           </button>
-        )}
+        </div>
       </div>
+
+      {/* Recent chats — ChatGPT jaisa history panel */}
+      {showHistory && (
+        <div className="mb-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3 max-h-72 overflow-y-auto" style={{ animation: 'fadeUp 0.2s ease' }}>
+          <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em] px-2 mb-2">
+            {lang === 'hi' ? 'पुरानी चैट्स' : 'Recent chats'}
+          </p>
+          {sessions.length === 0 && (
+            <p className="text-xs text-white/25 px-2 py-3">{lang === 'hi' ? 'अभी कोई पुरानी चैट नहीं है।' : 'No previous chats yet.'}</p>
+          )}
+          {sessions.map(s => (
+            <div key={s.id} onClick={() => openSession(s.id)}
+              className={`group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all mb-1 ${s.id === activeSessionId ? 'bg-violet-500/10 border border-violet-500/20' : 'hover:bg-white/[0.05] border border-transparent'}`}>
+              <span className="text-sm shrink-0">💬</span>
+              <span className="flex-1 text-xs text-white/70 truncate">{s.title || 'New Chat'}</span>
+              <span className="text-[10px] text-white/20 shrink-0">{s.messageCount} msg</span>
+              <button onClick={(e) => removeSession(e, s.id)}
+                className="text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0 p-1"
+                title={lang === 'hi' ? 'चैट डिलीट करें' : 'Delete chat'}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="relative bg-white/[0.02] border border-white/[0.04] rounded-3xl overflow-hidden" style={{ animation: 'fadeUp 0.6s ease 0.1s both' }}>
         <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/5 rounded-full blur-3xl pointer-events-none" style={{ animation: 'orbFloat 14s ease-in-out infinite' }} />
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" style={{ animation: 'orbFloat 12s ease-in-out 4s infinite' }} />
 
         <div className="min-h-[420px] max-h-[520px] overflow-y-auto p-6 space-y-5 relative z-10 scroll-smooth">
-          {messages.length === 0 && !isStreaming && (
+          {loadingSession && (
+            <p className="text-center text-xs text-white/30 py-8">{lang === 'hi' ? 'चैट लोड हो रही है...' : 'Loading chat...'}</p>
+          )}
+
+          {!loadingSession && messages.length === 0 && !isStreaming && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-24 h-24 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-500/10 rounded-3xl flex items-center justify-center text-5xl mb-6 relative" style={{ animation: 'fadeUp 0.5s ease' }}>
-                {'\uD83E\uDD16'}
+                🤖
                 <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-[#0a0a1a] animate-pulse" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">{lang === 'hi' ? '\u0928\u092E\u0938\u094D\u0924\u0947! \u092E\u0948\u0902 \u0906\u092A\u0915\u093E AI Agent' : "Hello! I'm your AI Agent"}</h3>
+              <h3 className="text-xl font-bold text-white mb-2">{lang === 'hi' ? 'नमस्ते! मैं आपका AI Agent हूँ' : "Hello! I'm your AI Agent"}</h3>
               <p className="text-sm text-white/25 text-center max-w-md mb-8 leading-relaxed">
-                {lang === 'hi' ? '\u092E\u0948\u0902 \u0915\u0930\u093F\u092F\u0930, \u0915\u094C\u0936\u0932, \u0936\u093F\u0915\u094D\u0937\u093E \u0914\u0930 \u092D\u0935\u093F\u0937\u094D\u092F \u0915\u0947 \u092C\u093E\u0930\u0947 \u092E\u0947\u0902 \u0906\u092A\u0915\u0940 \u092E\u0926\u0926 \u0915\u0930 \u0938\u0915\u0924\u093E \u0939\u0942\u0901\u0964 \u0928\u0940\u091A\u0947 \u0915\u093F\u0938\u0940 \u0938\u0935\u093E\u0932 \u092A\u0930 \u0915\u094D\u0932\u093F\u0915 \u0915\u0930\u0947\u0902 \u092F\u093E \u0905\u092A\u0928\u093E \u0938\u0935\u093E\u0932 \u091F\u093E\u0907\u092A \u0915\u0930\u0947\u0902\u0964' : 'I can help you with careers, skills, education, and your future. Click any question below or type your own.'}
+                {lang === 'hi' ? 'मैं करियर, कौशल, शिक्षा और भविष्य के बारे में आपकी मदद कर सकता हूँ। नीचे किसी सवाल पर क्लिक करें या अपना सवाल टाइप करें।' : 'I can help you with careers, skills, education, and your future. Click any question below or type your own.'}
               </p>
               <div className="w-full max-w-lg space-y-2.5">
                 <p className="text-[10px] font-bold text-white/15 uppercase tracking-[0.2em] mb-4">{t('quickQuestions')}</p>
@@ -271,7 +369,7 @@ export default function AICommunityPage() {
             </button>
           </div>
           <p className="text-[10px] text-white/15 mt-2.5 text-center">
-            {lang === 'hi' ? 'AI \u091C\u0935\u093E\u092C \u0938\u091F\u0940\u0915 \u0928\u0939\u0940\u0902 \u0939\u094B \u0938\u0915\u0924\u0947\u0964 \u092E\u0939\u0924\u094D\u0935\u092A\u0942\u0930\u094D \u0928\u093F\u0930\u094D\u0923\u092F\u094B\u0902 \u0915\u0947 \u0932\u093F\u090F \u0935\u093F\u0936\u0947\u0937\u091C\u094D\u0917\u094B\u0902 \u0938\u0947 \u0938\u0932\u093E\u0939 \u0932\u0947\u0902\u0964' : 'AI responses may not be accurate. Consult experts for important decisions.'}
+            {lang === 'hi' ? 'AI जवाब सटीक नहीं हो सकते। महत्वपूर्ण निर्णयों के लिए विशेषज्ञों से सलाह लें।' : 'AI responses may not be accurate. Consult experts for important decisions.'}
           </p>
         </div>
       </div>

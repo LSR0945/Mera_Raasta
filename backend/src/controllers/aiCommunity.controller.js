@@ -174,6 +174,123 @@ async function streamNvidiaAPI(message, userId, lang, profile, onChunk) {
   }
 }
 
+// ═══ OpenRouter API — PRIMARY AI brain ═══
+// OpenAI-compatible endpoint. Free models me per-model rate limit hota hai,
+// isliye model fallback chain: pehla model 429/error de toh agla try hota hai.
+// Key: openrouter.ai/keys → backend/.env me OPENROUTER_API_KEY.
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_MODELS = (process.env.OPENROUTER_MODELS || process.env.OPENROUTER_MODEL ||
+  'nvidia/nemotron-3-ultra-550b-a55b:free,dots-studio/dots-3-note-preview:free,poolside/laguna-s-2.1:free,openrouter/free')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const orModelCooldowns = new Map(); // model -> cooldown timestamp (429 par 60s)
+
+function hasOpenRouterKey() {
+  return !!OPENROUTER_API_KEY;
+}
+
+function orHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+    'HTTP-Referer': 'https://meraraasta.app',
+    'X-Title': 'Mera Raasta AI Agent',
+  };
+}
+
+function markOrModelFailure(model, err) {
+  // 429/402 = rate limit/quota — us MODEL ko 60s cool karo, doosre model par jaao
+  const cooldown = err?.status === 429 || err?.status === 402 ? 60000 : 20000;
+  orModelCooldowns.set(model, Date.now() + cooldown);
+  console.log(`[OpenRouter:${model}] ${err.message} — ${cooldown / 1000}s cooldown.`);
+}
+
+// Non-streaming OpenRouter call — model chain try karta hai
+async function tryOpenRouterAPI(message, userId, lang, profile) {
+  if (!hasOpenRouterKey()) return null;
+  const msgs = buildMessages(message, userId, lang, profile);
+  for (const model of OPENROUTER_MODELS) {
+    if ((orModelCooldowns.get(model) || 0) > Date.now()) continue;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    try {
+      const resp = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: orHeaders(),
+        body: JSON.stringify({ model, messages: msgs, temperature: 0.6, max_tokens: 2048 }),
+        signal: controller.signal,
+      });
+      if (!resp.ok) { const e = new Error(`HTTP ${resp.status}`); e.status = resp.status; throw e; }
+      const data = await resp.json();
+      const text = data?.choices?.[0]?.message?.content;
+      if (text && text.trim()) { console.log(`[OpenRouter] Answer via ${model}.`); return text; }
+      throw new Error('empty response');
+    } catch (err) {
+      markOrModelFailure(model, err);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return null;
+}
+
+// Streaming OpenRouter call — model chain, token-by-token SSE
+// Partial stream bhi accept: kuch chunks chale gaye toh dobara answer nahi bhejte.
+async function streamOpenRouterAPI(message, userId, lang, profile, onChunk) {
+  if (!hasOpenRouterKey()) return false;
+  const msgs = buildMessages(message, userId, lang, profile);
+  for (const model of OPENROUTER_MODELS) {
+    if ((orModelCooldowns.get(model) || 0) > Date.now()) continue;
+    const controller = new AbortController();
+    const headerTimer = setTimeout(() => controller.abort(), 20000);
+    let gotAny = false;
+    try {
+      const resp = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: orHeaders(),
+        body: JSON.stringify({ model, messages: msgs, stream: true, temperature: 0.6, max_tokens: 2048 }),
+        signal: controller.signal,
+      });
+      if (!resp.ok) { const e = new Error(`HTTP ${resp.status}`); e.status = resp.status; throw e; }
+      clearTimeout(headerTimer);
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const idleMs = gotAny ? 30000 : 25000; // reasoning models sochne me time lete hain
+        let rdTimer;
+        const idle = new Promise((_, rej) => { rdTimer = setTimeout(() => rej(new Error(gotAny ? 'stream idle timeout' : 'no first chunk')), idleMs); });
+        let rd;
+        try { rd = await Promise.race([reader.read(), idle]); } finally { clearTimeout(rdTimer); }
+        const { done, value } = rd;
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith('data:')) continue;
+          const payload = t.slice(5).trim();
+          if (payload === '[DONE]') continue;
+          try {
+            const j = JSON.parse(payload);
+            const delta = j?.choices?.[0]?.delta?.content;
+            if (delta) { gotAny = true; onChunk(delta); }
+          } catch {}
+        }
+      }
+      if (gotAny) { console.log(`[OpenRouter] Stream complete via ${model}.`); return true; }
+      throw new Error('empty stream');
+    } catch (err) {
+      if (gotAny) { console.log(`[OpenRouter] Partial stream via ${model} accepted.`); return true; }
+      markOrModelFailure(model, err);
+    } finally {
+      clearTimeout(headerTimer);
+    }
+  }
+  return false;
+}
+
 // ===== Free AI — multi-provider chain (bina kisi API key ke REAL AI) =====
 // Gemini AQ key abhi Google ke bug se 401 deta hai. Isliye 3 free AI providers
 // automatic use hote hain — ek down ho toh doosra TURANT jawab deta hai.
@@ -1145,7 +1262,11 @@ function getGeneralResponse(message, lang) {
 // IMPORTANT: canned handlers kabhi real AI se pehle nahi chalte — warna
 // "what is java language" jaise sawaal par random canned code chala jaata tha.
 async function generateResponse(message, profile, lang, userId) {
-  // Step 0: NVIDIA NIM — primary brain (build.nvidia.com key)
+  // Step 0: OpenRouter — PRIMARY brain (free models, model-chain fallback)
+  const orReply = await tryOpenRouterAPI(message, userId, lang, profile);
+  if (orReply) return orReply;
+
+  // Step 0.5: NVIDIA NIM — secondary brain (build.nvidia.com key)
   const nvidiaReply = await tryNvidiaAPI(message, userId, lang, profile);
   if (nvidiaReply) return nvidiaReply;
 
@@ -1245,7 +1366,20 @@ export const chatStream = async (req, res) => {
       res.end();
     };
 
-    // Step 0: NVIDIA NIM STREAMING — primary brain (build.nvidia.com key)
+    // Step 0: OpenRouter STREAMING — PRIMARY brain (free models, model-chain fallback)
+    let orFull = '';
+    const orStreamed = await streamOpenRouterAPI(message, userId, lang, profile, (chunk) => {
+      orFull += chunk;
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    });
+    if (orStreamed && orFull.trim()) {
+      addToHistory(userId, 'user', message);
+      addToHistory(userId, 'assistant', orFull);
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      return res.end();
+    }
+
+    // Step 0.5: NVIDIA NIM STREAMING — secondary brain (build.nvidia.com key)
     let nvidiaFull = '';
     const nvidiaStreamed = await streamNvidiaAPI(message, userId, lang, profile, (chunk) => {
       nvidiaFull += chunk;

@@ -75,6 +75,105 @@ async function streamGeminiAPI(message, userId, lang, profile, onChunk) {
   return r.ok;
 }
 
+// ═══ NVIDIA NIM API (build.nvidia.com) — PRIMARY AI brain ═══
+// OpenAI-compatible endpoint: /v1/chat/completions, Bearer nvapi-... key.
+// Free key: build.nvidia.com → "Get API Key" → backend/.env me NVIDIA_API_KEY.
+// Key na ho toh ye step silently skip hota hai (Gemini → free race chalti hai).
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || '';
+const NVIDIA_MODEL = process.env.NVIDIA_MODEL_NAME || 'meta/llama-3.3-70b-instruct';
+const NVIDIA_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+let nvidiaCooldownUntil = 0; // 429/5xx ke baad chhoti cooldown (har request par waste na ho)
+
+function hasNvidiaKey() {
+  return !!NVIDIA_API_KEY && Date.now() >= nvidiaCooldownUntil;
+}
+
+function markNvidiaFailure(err) {
+  const cooldown = err?.status === 429 ? 30000 : 15000;
+  nvidiaCooldownUntil = Date.now() + cooldown;
+  console.log(`[NVIDIA] ${err.message} — ${cooldown / 1000}s cooldown.`);
+}
+
+// Non-streaming NVIDIA call
+async function tryNvidiaAPI(message, userId, lang, profile) {
+  if (!hasNvidiaKey()) return null;
+  const msgs = buildMessages(message, userId, lang, profile);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  try {
+    const resp = await fetch(NVIDIA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${NVIDIA_API_KEY}` },
+      body: JSON.stringify({ model: NVIDIA_MODEL, messages: msgs, temperature: 0.7, max_tokens: 2048 }),
+      signal: controller.signal,
+    });
+    if (!resp.ok) { const e = new Error(`HTTP ${resp.status}`); e.status = resp.status; throw e; }
+    const data = await resp.json();
+    const text = data?.choices?.[0]?.message?.content;
+    if (text && text.trim()) { console.log('[NVIDIA] Answer received.'); return text; }
+    throw new Error('empty response');
+  } catch (err) {
+    markNvidiaFailure(err);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Streaming NVIDIA call — token-by-token SSE (OpenAI format)
+// Partial stream bhi accept: kuch chunks chale gaye toh dobara answer nahi bhejte.
+async function streamNvidiaAPI(message, userId, lang, profile, onChunk) {
+  if (!hasNvidiaKey()) return false;
+  const msgs = buildMessages(message, userId, lang, profile);
+  const controller = new AbortController();
+  const headerTimer = setTimeout(() => controller.abort(), 15000);
+  let gotAny = false;
+  try {
+    const resp = await fetch(NVIDIA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${NVIDIA_API_KEY}` },
+      body: JSON.stringify({ model: NVIDIA_MODEL, messages: msgs, stream: true, temperature: 0.7, max_tokens: 2048 }),
+      signal: controller.signal,
+    });
+    if (!resp.ok) { const e = new Error(`HTTP ${resp.status}`); e.status = resp.status; throw e; }
+    clearTimeout(headerTimer);
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const idleMs = gotAny ? 30000 : 20000;
+      let rdTimer;
+      const idle = new Promise((_, rej) => { rdTimer = setTimeout(() => rej(new Error(gotAny ? 'stream idle timeout' : 'no first chunk')), idleMs); });
+      let rd;
+      try { rd = await Promise.race([reader.read(), idle]); } finally { clearTimeout(rdTimer); }
+      const { done, value } = rd;
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t.startsWith('data:')) continue;
+        const payload = t.slice(5).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const j = JSON.parse(payload);
+          const delta = j?.choices?.[0]?.delta?.content;
+          if (delta) { gotAny = true; onChunk(delta); }
+        } catch {}
+      }
+    }
+    if (gotAny) { console.log('[NVIDIA] Stream complete.'); return true; }
+    throw new Error('empty stream');
+  } catch (err) {
+    if (gotAny) { console.log('[NVIDIA] Partial stream accepted.'); return true; }
+    markNvidiaFailure(err);
+    return false;
+  } finally {
+    clearTimeout(headerTimer);
+  }
+}
+
 // ===== Free AI — multi-provider chain (bina kisi API key ke REAL AI) =====
 // Gemini AQ key abhi Google ke bug se 401 deta hai. Isliye 3 free AI providers
 // automatic use hote hain — ek down ho toh doosra TURANT jawab deta hai.
@@ -122,7 +221,7 @@ Strict Operational Rules:
 - Answer EVERY kind of question: career guidance, Indian exams (JEE/NEET/UPSC/SSC/GATE), coding, technical/conceptual questions, general knowledge, science, math, college admissions, skills, motivation, casual chat.
 - For technical/coding questions: clear explanation with Markdown — **bold**, lists, and fenced \`\`\` code blocks.
 - Context awareness: the conversation history shows what the user ACTUALLY said earlier — trust it over any background info below.
-- Reply in the SAME language/style the user wrote (Hindi, English, or Hinglish) — always respond in ${langName}.
+- Reply in the SAME language/style the user wrote (Hindi, English, or Hinglish) — always respond in ${langName}. Never switch to any other language.
 - Be direct, natural, and complete. Emojis okay. Never say you cannot help.${profileLine}`;
 }
 
@@ -1040,11 +1139,16 @@ function getGeneralResponse(message, lang) {
 }
 
 // ===== Generate response based on topic =====
-// Order: 1) Real Gemini → 2) Real Free AI (race) → 3) Instant canned handlers
-// (greeting/code/math — sirf jab dono AI down ho) → 4) Offline fallback
+// Order: 0) NVIDIA NIM (key ho toh sabse pehle) → 1) Real Gemini →
+// 2) Real Free AI (race) → 3) Instant canned handlers (sirf jab sab AI down)
+// → 4) Offline fallback
 // IMPORTANT: canned handlers kabhi real AI se pehle nahi chalte — warna
 // "what is java language" jaise sawaal par random canned code chala jaata tha.
 async function generateResponse(message, profile, lang, userId) {
+  // Step 0: NVIDIA NIM — primary brain (build.nvidia.com key)
+  const nvidiaReply = await tryNvidiaAPI(message, userId, lang, profile);
+  if (nvidiaReply) return nvidiaReply;
+
   // Step 1: Real Gemini API (official SDK)
   const geminiReply = await tryGeminiAPI(message, userId, lang, profile);
   if (geminiReply) return geminiReply;
@@ -1140,6 +1244,19 @@ export const chatStream = async (req, res) => {
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     };
+
+    // Step 0: NVIDIA NIM STREAMING — primary brain (build.nvidia.com key)
+    let nvidiaFull = '';
+    const nvidiaStreamed = await streamNvidiaAPI(message, userId, lang, profile, (chunk) => {
+      nvidiaFull += chunk;
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    });
+    if (nvidiaStreamed && nvidiaFull.trim()) {
+      addToHistory(userId, 'user', message);
+      addToHistory(userId, 'assistant', nvidiaFull);
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      return res.end();
+    }
 
     // Step 1: Real Gemini STREAMING (key fix hone par — token-by-token, bilkul Google jaisa)
     let geminiFull = '';

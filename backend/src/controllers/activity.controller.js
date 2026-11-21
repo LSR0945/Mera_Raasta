@@ -1,4 +1,13 @@
 import Activity from '../models/Activity.js';
+import User from '../models/User.js';
+import { AppError } from '../utils/helpers.js';
+
+// Security: parent sirf apne child ki activity dekh sakta hai
+async function assertOwnChild(parentId, childId) {
+  const child = await User.findOne({ _id: childId, parent: parentId });
+  if (!child) throw new AppError('Child not found', 404);
+  return child;
+}
 
 export const logActivity = async (userId, action, category = 'system', details = null, metadata = null) => {
   try {
@@ -22,6 +31,7 @@ export const getMyActivities = async (req, res, next) => {
 export const getChildActivities = async (req, res, next) => {
   try {
     const { childId } = req.params;
+    await assertOwnChild(req.user._id, childId);
     const { limit = 50, page = 1, category } = req.query;
     const skip = (page - 1) * limit;
     const filter = { user: childId };
@@ -38,6 +48,7 @@ export const getChildActivities = async (req, res, next) => {
 export const getChildStats = async (req, res, next) => {
   try {
     const { childId } = req.params;
+    await assertOwnChild(req.user._id, childId);
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);

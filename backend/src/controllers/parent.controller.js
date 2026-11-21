@@ -2,13 +2,22 @@ import User from '../models/User.js';
 import { AppError } from '../utils/helpers.js';
 import Roadmap from '../models/Roadmap.js';
 import StudentProfile from '../models/StudentProfile.js';
-import Career from '../models/Career.js';
+
+// Parent ke children User.parent field se aate hain (StudentProfile me parent field nahi hai)
+async function getMyChildren(parentId) {
+  return User.find({ parent: parentId }).select('-password -refreshToken');
+}
+
+// Security: child sirf apne hi parent ko dikhe
+async function assertOwnChild(parentId, childId) {
+  const child = await User.findOne({ _id: childId, parent: parentId }).select('-password -refreshToken');
+  if (!child) throw new AppError('Child not found', 404);
+  return child;
+}
 
 export const getChildren = async (req, res, next) => {
   try {
-    const profiles = await StudentProfile.find({ parent: req.user._id });
-    const childIds = profiles.map(p => p.user);
-    const children = await User.find({ _id: { $in: childIds } }).select('-password -refreshToken');
+    const children = await getMyChildren(req.user._id);
     res.status(200).json({ success: true, data: { children } });
   } catch (error) { next(error); }
 };
@@ -23,16 +32,16 @@ export const addChild = async (req, res, next) => {
       name, email, password, role: 'student',
       parent: req.user._id, class: childClass, subjects: interest ? [interest] : []
     });
+    // Parent ke children array me bhi link karo
+    await User.updateOne({ _id: req.user._id }, { $addToSet: { children: child._id } });
     res.status(201).json({ success: true, message: 'Child added', data: { child: { id: child._id, name: child.name, email: child.email } } });
   } catch (error) { next(error); }
 };
 
 export const getChild = async (req, res, next) => {
   try {
-    const profile = await StudentProfile.findOne({ user: req.params.childId, parent: req.user._id });
-    if (!profile) return next(new AppError('Child not found', 404));
-
-    const child = await User.findOne({ _id: req.params.childId }).select('-password -refreshToken');
+    const child = await assertOwnChild(req.user._id, req.params.childId);
+    const profile = await StudentProfile.findOne({ user: child._id });
     const roadmap = await Roadmap.findOne({ student: child._id });
 
     res.status(200).json({ success: true, data: { child, profile, roadmap } });
@@ -41,23 +50,23 @@ export const getChild = async (req, res, next) => {
 
 export const getChildRoadmap = async (req, res, next) => {
   try {
-    const roadmap = await Roadmap.findOne({ student: req.params.childId });
+    const child = await assertOwnChild(req.user._id, req.params.childId);
+    const roadmap = await Roadmap.findOne({ student: child._id });
     res.status(200).json({ success: true, data: { roadmap } });
   } catch (error) { next(error); }
 };
 
 export const getChildProfile = async (req, res, next) => {
   try {
-    const profile = await StudentProfile.findOne({ user: req.params.childId });
+    const child = await assertOwnChild(req.user._id, req.params.childId);
+    const profile = await StudentProfile.findOne({ user: child._id });
     res.status(200).json({ success: true, data: { profile } });
   } catch (error) { next(error); }
 };
 
 export const getParentStats = async (req, res, next) => {
   try {
-    const profiles = await StudentProfile.find({ parent: req.user._id });
-    const childIds = profiles.map(p => p.user);
-    const children = await User.find({ _id: { $in: childIds } }).select('_id name email class isActive lastLogin createdAt');
+    const children = await getMyChildren(req.user._id);
 
     const stats = await Promise.all(children.map(async (child) => {
       const profile = await StudentProfile.findOne({ user: child._id });

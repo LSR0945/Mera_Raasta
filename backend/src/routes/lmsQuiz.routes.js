@@ -6,6 +6,7 @@ const router = Router();
 router.get('/lms/courses', getAllLmsCourses);
 router.get('/lms/courses/:slug', getLmsCourseBySlug);
 router.get('/quizzes', getAllQuizzes);
-router.get('/quizzes/:slug', getQuizBySlug);
+// /quizzes/my-attempts ko :slug se PEHLE rakho, warna "my-attempts" slug ban jata hai
 router.get('/quizzes/my-attempts', authenticate, getMyAttempts);
+router.get('/quizzes/:slug', getQuizBySlug);
 export default router;

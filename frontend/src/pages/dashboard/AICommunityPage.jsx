@@ -3,40 +3,103 @@ import { aiAPI } from '../../api/aiCommunity';
 import { useLanguage } from '../../contexts/LanguageContext';
 import BackButton from '../../components/common/BackButton';
 
-function renderMarkdown(text) {
-  if (!text) return text;
+// Inline markdown — sirf bold aur inline code
+function renderInline(text, keyBase = 0) {
+  if (!text) return null;
   const parts = [];
-  const regex = /(```[\s\S]*?```|`[^`]+`|\*\*[^*]+\*\*)/g;
-  let lastIndex = 0;
-  let match;
-  let key = 0;
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
+  const regex = /(`[^`]+`|\*\*[^*]+\*\*)/g;
+  let last = 0;
+  let m;
+  let k = keyBase;
+  while ((m = regex.exec(text)) !== null) {
+    if (m.index > last) {
+      parts.push(<span key={k++} className="whitespace-pre-wrap">{text.slice(last, m.index)}</span>);
     }
-    const seg = match[0];
-    if (seg.startsWith('```')) {
-      const code = seg.slice(3, -3).replace(/^\w+\n/, '');
+    const seg = m[0];
+    if (seg.startsWith('`')) {
       parts.push(
-        <pre key={key++} className="my-2 rounded-xl bg-black/40 border border-white/[0.06] p-3 overflow-x-auto">
-          <code className="text-xs text-violet-300/80 font-mono whitespace-pre">{code}</code>
-        </pre>
-      );
-    } else if (seg.startsWith('`')) {
-      parts.push(
-        <code key={key++} className="mx-0.5 px-1.5 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.06] text-violet-300/90 text-xs font-mono">
+        <code key={k++} className="mx-0.5 px-1.5 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.06] text-violet-300/90 text-xs font-mono">
           {seg.slice(1, -1)}
         </code>
       );
-    } else if (seg.startsWith('**')) {
-      parts.push(<strong key={key++} className="text-white/95 font-semibold">{seg.slice(2, -2)}</strong>);
+    } else {
+      parts.push(<strong key={k++} className="text-white/95 font-semibold">{seg.slice(2, -2)}</strong>);
     }
-    lastIndex = match.index + seg.length;
+    last = m.index + seg.length;
   }
-  if (lastIndex < text.length) {
-    parts.push(<span key={key++} className="whitespace-pre-wrap">{text.slice(lastIndex)}</span>);
+  if (last < text.length) {
+    parts.push(<span key={k++} className="whitespace-pre-wrap">{text.slice(last)}</span>);
   }
-  return parts.length > 0 ? parts : <span className="whitespace-pre-wrap">{text}</span>;
+  return parts.length ? parts : text;
+}
+
+// ChatGPT jaisa block renderer — bullets, numbered list, heading, code block
+function renderMarkdown(text) {
+  if (!text) return text;
+  const lines = String(text).replace(/\r/g, '').split('\n');
+  const blocks = [];
+  let codeBuf = null;
+  let key = 0;
+
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+
+    if (line.trim().startsWith('```')) {
+      if (codeBuf === null) {
+        codeBuf = [];
+      } else {
+        blocks.push(
+          <pre key={key++} className="my-2 rounded-xl bg-black/40 border border-white/[0.06] p-3 overflow-x-auto">
+            <code className="text-xs text-violet-300/80 font-mono whitespace-pre">{codeBuf.join('\n')}</code>
+          </pre>
+        );
+        codeBuf = null;
+      }
+      continue;
+    }
+    if (codeBuf !== null) { codeBuf.push(raw); continue; }
+
+    if (!line.trim()) { blocks.push(<div key={key++} className="h-1.5" />); continue; }
+
+    const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
+    const num = line.match(/^\s*(\d+)[.)]\s+(.*)$/);
+
+    if (bullet) {
+      blocks.push(
+        <div key={key++} className="flex gap-2.5 my-1">
+          <span className="mt-[7px] w-1.5 h-1.5 rounded-full bg-violet-400/70 shrink-0" />
+          <span className="flex-1">{renderInline(bullet[1], key * 100)}</span>
+        </div>
+      );
+    } else if (num) {
+      blocks.push(
+        <div key={key++} className="flex gap-2.5 my-1">
+          <span className="text-violet-300/80 font-semibold shrink-0 text-xs mt-0.5">{num[1]}.</span>
+          <span className="flex-1">{renderInline(num[2], key * 100)}</span>
+        </div>
+      );
+    } else if (/^#{1,4}\s+/.test(line)) {
+      blocks.push(
+        <p key={key++} className="font-semibold text-white/90 mt-2 mb-1">
+          {renderInline(line.replace(/^#{1,4}\s+/, ''), key * 100)}
+        </p>
+      );
+    } else {
+      blocks.push(
+        <p key={key++} className="my-1 whitespace-pre-wrap">{renderInline(line, key * 100)}</p>
+      );
+    }
+  }
+
+  if (codeBuf !== null && codeBuf.length) {
+    blocks.push(
+      <pre key={key++} className="my-2 rounded-xl bg-black/40 border border-white/[0.06] p-3 overflow-x-auto">
+        <code className="text-xs text-violet-300/80 font-mono whitespace-pre">{codeBuf.join('\n')}</code>
+      </pre>
+    );
+  }
+
+  return blocks.length ? blocks : text;
 }
 
 export default function AICommunityPage() {

@@ -325,6 +325,18 @@ function availableProviders() {
 
 function buildSystemPrompt(lang, profile) {
   const langName = lang === 'hi' ? 'Hindi' : lang === 'hinglish' ? 'Hinglish (Hindi written in English script)' : 'English';
+  // Aaj ki date — taaki "aaj kaunsa din hai" jaise sawaal sahi jawab mile
+  let todayLine = '';
+  try {
+    const now = new Date();
+    const dateStr = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    }).format(now);
+    const timeStr = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true,
+    }).format(now);
+    todayLine = `\n- Current date and time: ${dateStr}, ${timeStr} IST (India). Use this for any date/day/time question — never say you don't know today's date.`;
+  } catch {}
   let profileLine = '';
   try {
     if (profile) {
@@ -346,8 +358,9 @@ Strict Operational Rules:
 - For technical/coding questions: clear explanation with Markdown — **bold**, lists, and fenced \`\`\` code blocks.
 - Context awareness: the conversation history shows what the user ACTUALLY said earlier — trust it over any background info below.
 - Format like ChatGPT: start with a direct 1-line answer, then give 3-6 short bullet points or numbered steps when explaining. Never write long unbroken paragraphs — keep it scannable with **bold** key terms.
+- Put EVERY bullet on its OWN new line, starting with "- " (dash + space). Never write bullets inline in one paragraph. Leave a blank line between the intro line and the bullet list.
 - Reply in the SAME language/style the user wrote (Hindi, English, or Hinglish) — always respond in ${langName}. Never switch to any other language. If the user explicitly asks "Hindi me batao" reply in Hindi, "English me" reply in English.
-- Be direct, natural, and complete. Emojis okay. Never say you cannot help.${profileLine}`;
+- Be direct, natural, and complete. Emojis okay. Never say you cannot help.${todayLine}${profileLine}`;
 }
 
 function buildMessages(message, userId, lang, profile) {
@@ -590,6 +603,15 @@ function detectLanguage(text) {
   if (hc >= 3 && lc < 5) return 'hi';
   if (hc > 0 && lc > 0) return 'hinglish';
   if (hc > lc * 0.3) return 'hinglish';
+
+  // Roman-Hindi (Hinglish) detect — "ajj konsa din hai", "mujhe batao", "kya karna chahiye"
+  if (hc === 0) {
+    const strong = /\b(kya|kaise|kaunsa|konsa|kaun|mujhe|mera|meri|hamara|hamare|batao|batana|chahiye|nahi|nahin|hain|karo|kyun|kyu|kitna|kitne|aaj|kal|matlab)\b/gi;
+    const weak = /\b(hai|ho|tha|thi|bhi|toh|abhi|phir|kuch|koi|acha|accha|theek|thik|yaar|bhai|kar|karna|raha|rahi|gaya|gayi|dena|sakta|sakte|hota|hoti|wala|wali)\b/gi;
+    const strongHits = (text.match(strong) || []).length;
+    const weakHits = (text.match(weak) || []).length;
+    if (strongHits >= 1 || weakHits >= 2) return 'hinglish';
+  }
   return 'en';
 }
 function detectTopic(message) {
@@ -1485,7 +1507,14 @@ export const chatStream = async (req, res) => {
 export const listSessions = async (req, res) => {
   try {
     const userId = String(req.user._id);
-    const sessions = await ChatSession.find({ userId })
+    // 1 ghante se purani khaali chats delete karo (page load par auto-create hoti hain)
+    ChatSession.deleteMany({
+      userId,
+      'messages.0': { $exists: false },
+      updatedAt: { $lt: new Date(Date.now() - 60 * 60 * 1000) },
+    }).catch(() => {});
+    // Sirf wahi chats dikhao jinme kam se kam 1 message hai
+    const sessions = await ChatSession.find({ userId, 'messages.0': { $exists: true } })
       .select('title createdAt updatedAt messages')
       .sort({ updatedAt: -1 })
       .limit(30)

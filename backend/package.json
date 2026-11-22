@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "seed:demo": "node src/utils/seedDemo.js",
+    "cleanup:demo": "node src/utils/deleteDemoData.js"
   },
   "dependencies": {
     "@google/genai": "^2.25.0",

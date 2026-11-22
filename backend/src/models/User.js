@@ -18,6 +18,10 @@ const userSchema = new mongoose.Schema({
   parent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   mentor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   permissions: [String],
+  // Email verification — register ke baad user ko verify karna zaroori hai
+  isEmailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String, select: false },
+  emailVerificationExpires: { type: Date, select: false },
   refreshToken: { type: String, select: false },
   passwordResetToken: { type: String, select: false },
   passwordResetExpires: { type: Date, select: false },

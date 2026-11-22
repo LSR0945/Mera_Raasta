@@ -21,9 +21,10 @@ const seed = async () => {
     for (const acc of demoAccounts) {
       let user = await User.findOne({ email: acc.email });
       if (!user) {
-        user = await User.create(acc);
+        user = await User.create({ ...acc, isEmailVerified: true });
         console.log(`Created: ${acc.email} (${acc.role})`);
       } else {
+        if (!user.isEmailVerified) await User.updateOne({ _id: user._id }, { $set: { isEmailVerified: true } });
         console.log(`Exists: ${acc.email}`);
       }
       users[acc.role] = user;

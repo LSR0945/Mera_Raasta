@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node scripts/dev.js",
     "stop": "taskkill /F /IM node.exe /T",
-    "build": "npx vite build",
+    "build": "npm --prefix frontend run build",
     "seed": "node backend/src/utils/runSeed.js",
     "seed:demo": "node backend/src/utils/seedDemo.js",
     "cleanup:demo": "node backend/src/utils/deleteDemoData.js"

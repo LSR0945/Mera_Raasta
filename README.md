@@ -36,6 +36,24 @@ npm run cleanup:demo    # demo accounts + unka data delete
 > Demo accounts ab server start par auto-create nahi hote. Fresh DB par
 > register karke apna account banao.
 
+## Email Verification
+
+Registration ke baad user ke email par verification link jata hai. Link click karne par
+website ka `/verify-email` page khulta hai aur account verify ho jata hai. Verify hone tak login block rehta hai.
+
+`backend/.env` me Gmail SMTP set karo:
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-gmail@gmail.com
+SMTP_PASS=your-16-char-app-password   # normal Gmail password kaam nahi karega
+SMTP_FROM="Mera Raasta <your-gmail@gmail.com>"
+CLIENT_URL=http://localhost:5173      # production me apna domain
+```
+
+App Password: Google Account -> Security -> 2-Step Verification ON -> App passwords.
+
 ## Login Credentials
 
 Koi fixed demo login nahi hai. Register page se account banao, ya manually:

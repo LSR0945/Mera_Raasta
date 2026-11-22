@@ -10,6 +10,7 @@ const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
 const ChangePasswordPage = lazy(() => import('./pages/auth/ChangePasswordPage'));
+const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage'));
 
 const StudentDashboard = lazy(() => import('./pages/dashboard/StudentDashboard'));
 const ParentDashboard = lazy(() => import('./pages/dashboard/ParentDashboard'));
@@ -54,6 +55,7 @@ export default function App() {
         <Route element={<PublicLayout />}>
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
         </Route>

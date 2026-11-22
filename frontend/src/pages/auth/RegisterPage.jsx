@@ -63,8 +63,13 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       const result = await register({ name, email, password, role });
-      toast.success('Account created! Welcome to Mera Raasta!');
-      navigate('/dashboard');
+      if (result?.data?.emailSent === false) {
+        toast.error('Account created, but verification email could not be sent. Please resend.');
+        navigate(`/verify-email?email=${encodeURIComponent(email)}&error=send`, { replace: true });
+      } else {
+        toast.success('Account created! Verification link sent to your email.');
+        navigate(`/verify-email?email=${encodeURIComponent(email)}&sent=1`, { replace: true });
+      }
     } catch (err) {
       const msg = err.response?.data?.message || 'Registration failed';
       if (msg.includes('already in use')) {

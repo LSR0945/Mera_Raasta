@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { register, login, logout, refreshToken, getMe, updateProfile, changePassword, verifyEmail, resendVerification } from '../controllers/auth.controller.js';
+import { register, login, logout, refreshToken, getMe, updateProfile, changePassword, verifyEmail, resendVerification, checkVerificationStatus } from '../controllers/auth.controller.js';
 import { validate } from '../middleware/validate.js';
 import { sanitizeInput } from '../middleware/sanitize.js';
 import { authenticate } from '../middleware/auth.js';
@@ -22,6 +22,8 @@ router.post('/auth/login', sanitizeInput, [
 // Email verification — link click par frontend ye API call karta hai
 router.get('/auth/verify-email', verifyEmail);
 router.post('/auth/verify-email', verifyEmail);
+router.get('/auth/verification-status', checkVerificationStatus);
+router.post('/auth/verification-status', sanitizeInput, checkVerificationStatus);
 router.post('/auth/resend-verification', sanitizeInput, [
   body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
 ], validate, resendVerification);

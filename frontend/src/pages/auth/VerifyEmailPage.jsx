@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { authAPI } from '../../api/auth';
 import Logo from '../../components/common/Logo';
 
 // Email verification page.
-// Link format: /verify-email?token=xxxx  (email se aata hai)
-// Token ke bina: email daal kar dobara verification link bhej sakte hain.
+// Case 1: Phone/Email link se khula -> /verify-email?token=xxxx (direct token verification)
+// Case 2: Laptop/Desktop par register kiya -> /verify-email?email=xxx&sent=1
+//         Yahan page live poll karta hai: jaise hi phone par user link click karega,
+//         ye screen automatically verify hokar dashboard open kar degi!
 export default function VerifyEmailPage() {
   const [params] = useSearchParams();
   const token = params.get('token') || '';
@@ -17,8 +19,23 @@ export default function VerifyEmailPage() {
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState(initialEmail);
   const [sending, setSending] = useState(false);
+  const [checking, setChecking] = useState(false);
   const attempted = useRef(false);
 
+  // Success handler: token save karke dashboard redirect
+  const handleSuccess = useCallback((tokenValue, msg) => {
+    if (tokenValue) {
+      localStorage.setItem('accessToken', tokenValue);
+    }
+    setStatus('success');
+    setMessage(msg || 'Email verified successfully! Opening your dashboard...');
+    toast.success('Email verify ho gaya! Welcome to Mera Raasta.');
+    setTimeout(() => {
+      window.location.href = '/dashboard';
+    }, 1800);
+  }, []);
+
+  // Case 1: Direct link click with ?token=...
   useEffect(() => {
     if (!token || attempted.current) return;
     attempted.current = true;
@@ -28,14 +45,7 @@ export default function VerifyEmailPage() {
       try {
         const { data } = await authAPI.verifyEmail(token);
         if (!alive) return;
-        if (data.data?.accessToken) {
-          localStorage.setItem('accessToken', data.data.accessToken);
-        }
-        setStatus('success');
-        setMessage(data.message || 'Email verified successfully! Opening your account...');
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 2200);
+        handleSuccess(data.data?.accessToken, data.message);
       } catch (err) {
         if (!alive) return;
         setStatus('error');
@@ -44,7 +54,53 @@ export default function VerifyEmailPage() {
     })();
 
     return () => { alive = false; };
-  }, [token]);
+  }, [token, handleSuccess]);
+
+  // Case 2: Phone Verification Auto-Detection (Polling)
+  // Laptop par user wait kar raha hai aur phone se link click karta hai
+  useEffect(() => {
+    if (token || !email || status === 'success') return;
+
+    let isMounted = true;
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await authAPI.checkVerificationStatus(email.trim());
+        if (!isMounted) return;
+        if (data.data?.verified) {
+          clearInterval(interval);
+          handleSuccess(data.data.accessToken, 'Phone se email verify ho gaya! Dashboard khul raha hai...');
+        }
+      } catch {
+        // Silently retry polling
+      }
+    }, 2500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [token, email, status, handleSuccess]);
+
+  // Manual Check Now Button
+  const handleManualCheck = async () => {
+    if (!email.trim()) return toast.error('Kripya registered email enter karein');
+    setChecking(true);
+    try {
+      const { data } = await authAPI.checkVerificationStatus(email.trim());
+      if (data.data?.verified) {
+        handleSuccess(data.data.accessToken, 'Phone se email verify ho chuka hai! Dashboard khul raha hai...');
+      } else {
+        toast('Abhi phone par email link click nahi hua hai. Inbox ya Spam folder check karein.', {
+          icon: '📱',
+          duration: 3500,
+        });
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Status check nahi ho paya');
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const handleResend = async (e) => {
     e.preventDefault();
@@ -52,21 +108,21 @@ export default function VerifyEmailPage() {
     setSending(true);
     try {
       const { data } = await authAPI.resendVerification(email.trim());
-      toast.success(data.message || 'Verification link sent.');
+      toast.success(data.message || 'Verification link dobara bhej diya gaya hai.');
       setStatus('idle');
       setMessage('');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Could not send verification email.');
+      toast.error(err.response?.data?.message || 'Verification email nahi bheja ja saka.');
     } finally {
       setSending(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
-      <div className="w-full max-w-[460px]">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+      <div className="w-full max-w-[480px]">
         {/* Home + Logo */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <Link to="/" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-900 px-3 py-2 rounded-xl hover:bg-gray-100 transition-all">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             Home
@@ -74,8 +130,8 @@ export default function VerifyEmailPage() {
           <Logo size="small" />
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl p-8 text-center">
-          {/* Verifying */}
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-7 sm:p-9 text-center">
+          {/* Verifying Spinner */}
           {status === 'verifying' && (
             <>
               <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-blue-50 flex items-center justify-center">
@@ -84,21 +140,21 @@ export default function VerifyEmailPage() {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Verifying your email</h1>
+              <h1 className="text-2xl font-black text-gray-900 mb-2">Verifying your email</h1>
               <p className="text-gray-500 text-sm">Please wait a moment...</p>
             </>
           )}
 
-          {/* Success */}
+          {/* Success State */}
           {status === 'success' && (
             <>
-              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-green-50 flex items-center justify-center">
-                <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-emerald-50 flex items-center justify-center animate-bounce">
+                <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Email verified!</h1>
-              <p className="text-gray-500 text-sm mb-6">{message}</p>
+              <h1 className="text-2xl font-black text-gray-900 mb-2">Email Verified! 🎉</h1>
+              <p className="text-gray-600 text-sm mb-6 font-medium">{message}</p>
               <button
                 onClick={() => { window.location.href = '/dashboard'; }}
                 className="inline-block w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 rounded-2xl font-bold text-sm hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/25 cursor-pointer"
@@ -108,7 +164,7 @@ export default function VerifyEmailPage() {
             </>
           )}
 
-          {/* Error / no token / resend */}
+          {/* Idle / Waiting for verification / Resend Form */}
           {(status === 'error' || status === 'idle') && (
             <>
               <div className={`w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center ${status === 'error' ? 'bg-red-50' : 'bg-blue-50'}`}>
@@ -117,36 +173,79 @@ export default function VerifyEmailPage() {
                 </svg>
               </div>
 
-              <h1 className="text-2xl font-extrabold text-gray-900 mb-2">
-                {status === 'error' ? 'Link expired or invalid' : 'Verify your email'}
+              <h1 className="text-2xl font-black text-gray-900 mb-2">
+                {status === 'error' ? 'Link Expired ya Invalid' : 'Verify your email'}
               </h1>
-              <p className="text-gray-500 text-sm mb-6">
+              <p className="text-gray-500 text-sm mb-5">
                 {status === 'error'
                   ? message
-                  : justSent
-                    ? 'We sent a verification link to your email. Click it to activate your account.'
-                    : 'Enter your registered email and we will send a fresh verification link.'}
+                  : 'Aapki email par verification link bhej diya gaya hai.'}
               </p>
 
-              {justSent && status === 'idle' && (
-                <div className="mb-5 text-left bg-green-50 border border-green-100 rounded-2xl px-4 py-3">
-                  <p className="text-xs text-green-700 font-semibold">Verification email sent. Inbox ke saath spam folder bhi check karein.</p>
+              {/* ═══ LIVE PHONE VERIFICATION LISTENER BOX ═══ */}
+              {status === 'idle' && email && (
+                <div className="mb-5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/60 rounded-2xl p-4 text-left shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-xs font-bold text-gray-900">
+                      Phone se verify karne ka intezaar hai...
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed mb-3">
+                    Apne phone me Gmail open karein aur <strong>Verify Email</strong> par click karein. Jaise hi aap phone par click karenge, <strong>ye screen automatically dashboard par chali jayegi!</strong>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleManualCheck}
+                    disabled={checking}
+                    className="w-full py-2.5 px-3 rounded-xl bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {checking ? (
+                      <>
+                        <svg className="animate-spin w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Checking status...
+                      </>
+                    ) : (
+                      <>
+                        <span>📱 Maine Phone Se Verify Kar Liya → Abhi Kholein</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
 
-              <form onSubmit={handleResend} className="space-y-4 text-left">
+              {justSent && status === 'idle' && (
+                <div className="mb-5 text-left bg-emerald-50 border border-emerald-200/80 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                  <span className="text-emerald-600 text-base mt-0.5">📩</span>
+                  <p className="text-xs text-emerald-800 font-semibold leading-relaxed">
+                    Verification email bhej diya gaya hai. Kripya Inbox ke saath <strong>Spam / Promotions</strong> folder bhi check karein.
+                  </p>
+                </div>
+              )}
+
+              {/* Resend Section */}
+              <form onSubmit={handleResend} className="space-y-3.5 text-left pt-2 border-t border-gray-100">
+                <label className="block text-xs font-semibold text-gray-600">
+                  Email dobara bhejne ke liye:
+                </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="you@example.com"
-                  className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-2xl text-sm focus:border-blue-500 focus:ring-0 outline-none bg-white transition-all placeholder:text-gray-400"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl text-sm focus:border-blue-500 focus:ring-0 outline-none bg-white transition-all placeholder:text-gray-400"
                 />
                 <button
                   type="submit"
                   disabled={sending}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 rounded-2xl font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
+                  className="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-2xl font-bold text-xs disabled:opacity-50 transition-all shadow-md cursor-pointer"
                 >
                   {sending ? 'Sending...' : 'Resend verification link'}
                 </button>
@@ -160,7 +259,7 @@ export default function VerifyEmailPage() {
           )}
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-gray-400 mt-5">
           Link 24 ghante tak valid rehta hai. Dobara bhejne par purana link cancel ho jata hai.
         </p>
       </div>

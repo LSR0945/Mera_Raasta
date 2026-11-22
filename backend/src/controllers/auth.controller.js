@@ -143,6 +143,43 @@ export const resendVerification = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+export const checkVerificationStatus = async (req, res, next) => {
+  try {
+    const email = String(req.query.email || req.body.email || '').trim().toLowerCase();
+    if (!email) return next(new AppError('Email is required', 400));
+
+    const user = await User.findOne({ email });
+    if (!user) return next(new AppError('User not found', 404));
+
+    if (!user.isEmailVerified) {
+      return res.status(200).json({
+        success: true,
+        data: { verified: false },
+      });
+    }
+
+    // Phone ya doosre device se verify ho chuka hai — auto-login ke liye token generate karo
+    const { accessToken, refreshToken } = generateTokens(user._id);
+    await User.findByIdAndUpdate(user._id, { refreshToken, lastLogin: new Date() });
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: config.nodeEnv === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully! Logging you in...',
+      data: {
+        verified: true,
+        accessToken,
+        user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      },
+    });
+  } catch (error) { next(error); }
+};
+
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;

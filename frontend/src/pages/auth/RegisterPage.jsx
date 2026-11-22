@@ -71,12 +71,16 @@ export default function RegisterPage() {
         navigate(`/verify-email?email=${encodeURIComponent(email)}&sent=1`, { replace: true });
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Registration failed';
-      if (msg.includes('already in use')) {
-        toast.error('Email already registered! Redirecting to login...');
-        setTimeout(() => navigate('/login'), 1500);
+      const serverMsg = err.response?.data?.message;
+      if (serverMsg && (serverMsg.toLowerCase().includes('already in use') || serverMsg.toLowerCase().includes('already registered'))) {
+        toast.error('Ye email pehle se registered hai! Login karein.');
+        setTimeout(() => navigate('/login'), 1800);
+      } else if (serverMsg) {
+        toast.error(serverMsg);
+      } else if (!err.response) {
+        toast.error('Server se connection nahi ho saka. Kripya check karein ki server chalu hai.');
       } else {
-        toast.error(msg);
+        toast.error('Registration failed. Please try again.');
       }
     } finally {
       setSubmitting(false);

@@ -16,7 +16,7 @@ const getTransporter = async () => {
       service: 'gmail',
       auth: {
         user: config.smtpUser,
-        pass: config.smtpPass,
+        pass: config.smtpPass ? String(config.smtpPass).replace(/\s+/g, '') : '',
       },
       connectionTimeout: 15000,
       greetingTimeout: 15000,
@@ -29,7 +29,7 @@ const getTransporter = async () => {
       secure: false,
       auth: {
         user: config.smtpUser,
-        pass: config.smtpPass,
+        pass: config.smtpPass ? String(config.smtpPass).replace(/\s+/g, '') : '',
       },
       connectionTimeout: 15000,
       greetingTimeout: 15000,
@@ -194,8 +194,8 @@ export const verificationEmail = (name, verifyUrl) => {
             </p>
 
             <div style="text-align:center;margin:32px 0;">
-              <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#6366f1);color:#ffffff;padding:15px 42px;border-radius:12px;text-decoration:none;font-size:15px;font-weight:700;">
-                Verify Email
+              <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#6366f1);color:#ffffff;padding:16px 42px;border-radius:12px;text-decoration:none;font-size:16px;font-weight:700;box-shadow:0 4px 14px rgba(37,99,235,0.35);">
+                Verify Email & Open Website
               </a>
             </div>
 

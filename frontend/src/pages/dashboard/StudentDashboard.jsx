@@ -264,7 +264,7 @@ export default function StudentDashboard() {
         <Glass delay={100} className="p-1 overflow-hidden">
           <div className="relative overflow-hidden rounded-[1.7rem] p-4 sm:p-5"
             style={{ background: 'linear-gradient(135deg, #0f172a, #1e1b4b)' }}>
-            <div className="flex items-center gap-3 overflow-hidden">
+            <div className="flex items-center gap-3 overflow-x-auto scrollbar-none pb-1">
               {features.map((f, i) => (
                 <Link key={i} to={f.to}
                   className={`flex-shrink-0 flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-500 ${activeFeature === i ? `bg-gradient-to-r ${f.gradient} text-white shadow-lg scale-105` : 'bg-white/[0.04] text-white/50 hover:bg-white/[0.08] hover:text-white/70'}`}>

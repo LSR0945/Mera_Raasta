@@ -190,11 +190,27 @@ export default function LandingPage() {
           </div>
         </div>
         {menu && (
-          <div className="lg:hidden bg-[#0a0a14]/95 backdrop-blur-2xl border-t border-white/[0.04] px-4 py-3 space-y-1">
+          <div className="lg:hidden bg-[#0a0a14]/95 backdrop-blur-2xl border-t border-white/[0.04] px-4 py-4 space-y-2">
             {['Features', 'How It Works', 'Roles', 'Testimonials'].map(n => (
               <a key={n} href={`#${n.toLowerCase().replace(/\s/g, '-')}`} onClick={() => setMenu(false)}
-                className="block px-3 py-2.5 text-sm text-white/50 hover:text-white hover:bg-white/[0.04] rounded-lg transition-all">{n}</a>
+                className="block px-3 py-2 text-sm text-white/60 hover:text-white hover:bg-white/[0.04] rounded-lg transition-all">{n}</a>
             ))}
+            <div className="pt-2 border-t border-white/[0.06] flex flex-col gap-2">
+              {user ? (
+                <Link to="/dashboard" onClick={() => setMenu(false)} className="w-full text-center py-2.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-semibold text-sm">
+                  Go to Dashboard →
+                </Link>
+              ) : (
+                <>
+                  <Link to="/login" onClick={() => setMenu(false)} className="w-full text-center py-2.5 rounded-xl bg-white/[0.06] text-white font-medium text-sm">
+                    Login
+                  </Link>
+                  <Link to="/register" onClick={() => setMenu(false)} className="w-full text-center py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold text-sm">
+                    Get Started Free
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         )}
       </nav>

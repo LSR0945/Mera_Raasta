@@ -28,8 +28,14 @@ export default function VerifyEmailPage() {
       try {
         const { data } = await authAPI.verifyEmail(token);
         if (!alive) return;
+        if (data.data?.accessToken) {
+          localStorage.setItem('accessToken', data.data.accessToken);
+        }
         setStatus('success');
-        setMessage(data.message || 'Email verified successfully.');
+        setMessage(data.message || 'Email verified successfully! Opening your account...');
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 2200);
       } catch (err) {
         if (!alive) return;
         setStatus('error');
@@ -93,9 +99,12 @@ export default function VerifyEmailPage() {
               </div>
               <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Email verified!</h1>
               <p className="text-gray-500 text-sm mb-6">{message}</p>
-              <Link to="/login" className="inline-block w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 rounded-2xl font-bold text-sm hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/25">
-                Go to Login
-              </Link>
+              <button
+                onClick={() => { window.location.href = '/dashboard'; }}
+                className="inline-block w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 rounded-2xl font-bold text-sm hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/25 cursor-pointer"
+              >
+                Go to Dashboard Now →
+              </button>
             </>
           )}
 

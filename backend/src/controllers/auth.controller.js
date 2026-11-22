@@ -90,10 +90,24 @@ export const verifyEmail = async (req, res, next) => {
     sendEmail({ to: user.email, subject: `Welcome to Mera Raasta, ${user.name}!`, html: welcomeEmail(user.name, user.role) })
       .catch(() => resetTransporter());
 
+    // User verify hone par turant tokens generate karo taki website direct khul sake
+    const { accessToken, refreshToken } = generateTokens(user._id);
+    await User.findByIdAndUpdate(user._id, { refreshToken, lastLogin: new Date() });
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: config.nodeEnv === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     res.status(200).json({
       success: true,
-      message: 'Email verified successfully. You can login now.',
-      data: { email: user.email },
+      message: 'Email verified successfully! Welcome to Mera Raasta.',
+      data: {
+        email: user.email,
+        accessToken,
+        user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      },
     });
   } catch (error) { next(error); }
 };

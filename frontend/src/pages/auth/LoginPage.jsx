@@ -53,9 +53,22 @@ export default function LoginPage() {
     e.preventDefault();
     if (!captchaVerified) return toast.error('Solve the captcha first!');
     setSubmitting(true);
-    try { await login(email, password); toast.success('Welcome back!'); navigate('/dashboard'); }
-    catch (err) { toast.error(err.response?.data?.message || 'Login failed'); }
-    finally { setSubmitting(false); }
+    try {
+      await login(email, password);
+      toast.success('Welcome back!');
+      navigate('/dashboard');
+    } catch (err) {
+      if (err.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        toast.error('Pehle email verify karein! Verification page open ho raha hai...');
+        setTimeout(() => {
+          navigate(`/verify-email?email=${encodeURIComponent(email)}&sent=1`);
+        }, 1200);
+      } else {
+        toast.error(err.response?.data?.message || 'Login failed');
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

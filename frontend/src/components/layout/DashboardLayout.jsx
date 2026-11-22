@@ -50,7 +50,32 @@ export default function DashboardLayout() {
     { to: '/dashboard/profile', label: t('profile'), icon: '👤' },
   ];
 
+  const STUDENT_BOTTOM_NAV = [
+    { to: '/dashboard', label: t('dashboard'), icon: '🏠', exact: true },
+    { to: '/dashboard/careers', label: t('careers'), icon: '🎯' },
+    { to: '/dashboard/roadmap', label: t('roadmap'), icon: '🗺️' },
+    { to: '/dashboard/ai-community', label: t('aiCoach'), icon: '🤖' },
+    { to: '/dashboard/profile', label: t('profile'), icon: '👤' },
+  ];
+
+  const PARENT_BOTTOM_NAV = [
+    { to: '/dashboard', label: t('dashboard'), icon: '🏠', exact: true },
+    { to: '/dashboard/children', label: t('myChildren'), icon: '👶' },
+    { to: '/dashboard/children/progress', label: t('progressReports'), icon: '📊' },
+    { to: '/dashboard/ai-community', label: t('aiCoach'), icon: '🤖' },
+    { to: '/dashboard/profile', label: t('profile'), icon: '👤' },
+  ];
+
+  const MENTOR_BOTTOM_NAV = [
+    { to: '/dashboard', label: t('dashboard'), icon: '🏠', exact: true },
+    { to: '/dashboard/students', label: t('myStudents'), icon: '🎓' },
+    { to: '/dashboard/reviews', label: t('reviews'), icon: '⭐' },
+    { to: '/dashboard/ai-community', label: t('aiCoach'), icon: '🤖' },
+    { to: '/dashboard/profile', label: t('profile'), icon: '👤' },
+  ];
+
   const NAV_MAP = { student: STUDENT_NAV, parent: PARENT_NAV, mentor: MENTOR_NAV };
+  const BOTTOM_NAV_MAP = { student: STUDENT_BOTTOM_NAV, parent: PARENT_BOTTOM_NAV, mentor: MENTOR_BOTTOM_NAV };
   const ROLE_CONFIG = {
     student: { label: t('dashboard'), gradient: 'from-blue-500 to-indigo-500', text: 'text-blue-600', accentBg: '#3b82f6', labelEn: 'Student' },
     parent: { label: t('myChildren'), gradient: 'from-emerald-500 to-teal-500', text: 'text-emerald-600', accentBg: '#10b981', labelEn: 'Parent' },
@@ -58,6 +83,7 @@ export default function DashboardLayout() {
   };
 
   const nav = NAV_MAP[role] || STUDENT_NAV;
+  const bottomNav = BOTTOM_NAV_MAP[role] || STUDENT_BOTTOM_NAV;
   const config = ROLE_CONFIG[role];
 
   useEffect(() => { setSearchOpen(false); setSearchQuery(''); }, [location.pathname]);
@@ -91,8 +117,11 @@ export default function DashboardLayout() {
       {/* ═══ SIDEBAR ═══ */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-[272px] bg-[#1a1d23] flex flex-col transform transition-all duration-300 lg:translate-x-0 ${sidebar ? 'translate-x-0 shadow-2xl' : '-translate-x-full'} lg:sticky lg:top-0 lg:h-screen lg:shadow-none`}>
 
-        <div className="px-5 h-16 flex items-center border-b border-white/5 shrink-0">
+        <div className="px-5 h-16 flex items-center justify-between border-b border-white/5 shrink-0">
           <Logo size="default" className="[&_span]:!text-white [&_span>span]:!text-white [&_span>span>span]:!text-white" />
+          <button onClick={() => setSidebar(false)} aria-label="Close menu" className="lg:hidden p-1.5 rounded-xl hover:bg-white/10 text-white/50 hover:text-white transition-all">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
         </div>
 
         <div className="px-3 pt-4 pb-3 shrink-0">
@@ -232,10 +261,41 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-8 overflow-auto">
+        <main className="flex-1 p-3.5 sm:p-5 lg:p-8 pb-24 lg:pb-8 overflow-auto">
           <Outlet />
         </main>
       </div>
+
+      {/* ═══ MOBILE BOTTOM NAVIGATION BAR ═══ */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-[#12141c]/95 backdrop-blur-2xl border-t border-white/[0.08] px-1 py-1.5 flex items-center justify-around shadow-[0_-8px_24px_rgba(0,0,0,0.6)]">
+        {bottomNav.map((item) => {
+          const active = isActive(item);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`flex-1 flex flex-col items-center justify-center py-1 rounded-xl transition-all duration-200 active:scale-95 ${
+                active ? 'text-white' : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              <div className="relative">
+                <span className={`text-xl block transition-transform duration-200 ${active ? 'scale-110 drop-shadow' : ''}`}>
+                  {item.icon}
+                </span>
+                {active && (
+                  <span
+                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
+                    style={{ background: config.accentBg }}
+                  />
+                )}
+              </div>
+              <span className={`text-[10px] mt-0.5 tracking-tight truncate max-w-[64px] ${active ? 'font-bold text-white' : 'font-medium text-gray-400'}`}>
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
 
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowLogoutConfirm(false)}>

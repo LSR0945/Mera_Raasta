@@ -103,6 +103,16 @@ const run = async () => {
     console.log(`  users: ${r.deletedCount}`);
   }
 
+  // Full wipe (no user kept) -> orphan documents bhi clear karo.
+  // Kyunki koi user hi nahi bacha, to user-scoped data sab dummy hai.
+  if (ALL_USERS && !KEEP_EMAIL) {
+    console.log('\nClearing orphan user data:');
+    for (const collection of Object.keys(userScoped)) {
+      const r = await db.collection(collection).deleteMany({}).catch(() => ({ deletedCount: 0 }));
+      if (r.deletedCount) console.log(`  ${collection}: ${r.deletedCount}`);
+    }
+  }
+
   // ── 2. Optional: demo content ────────────────────────────────────
   if (WITH_CONTENT) {
     console.log('\nDeleting demo content (isDemo: true):');

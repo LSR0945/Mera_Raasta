@@ -1,32 +1,47 @@
 import crypto from 'crypto';
 import User from '../models/User.js';
 import { AppError, generateTokens, verifyRefreshToken } from '../utils/helpers.js';
-import { sendEmail, welcomeEmail, verificationEmail, resetTransporter } from '../utils/sendEmail.js';
+import { sendEmail, welcomeEmail, otpEmail, resetTransporter } from '../utils/sendEmail.js';
 import { config } from '../config/env.js';
 import { logActivity } from '../controllers/activity.controller.js';
 
-// Token DB me plain text save nahi karte — SHA-256 hash save karte hain.
-const hashToken = (token) => crypto.createHash('sha256').update(String(token)).digest('hex');
-const makeVerificationToken = () => crypto.randomBytes(32).toString('hex');
-const frontendUrl = () => String(config.clientUrl || 'http://localhost:5173').replace(/\/+$/, '');
+// OTP 6-digit hota hai — SHA-256 hash karke DB me save (plain text kabhi nahi)
+const hashOtp = (otp) => crypto.createHash('sha256').update(String(otp)).digest('hex');
+const makeOtp = () => String(crypto.randomInt(100000, 1000000)); // 100000-999999
+const OTP_TTL_MS = 10 * 60 * 1000; // 10 minute valid
 
-// Verification link banao + email bhejo. Return: { sent: boolean, link }
-async function sendVerificationEmail(user, rawToken) {
-  const link = `${frontendUrl()}/verify-email?token=${rawToken}`;
-  // Development me link console me dikhao — testing ke liye useful
-  if (config.nodeEnv !== 'production') console.log('[verify-email] link:', link);
+// OTP email bhejo. Return: { sent: boolean }
+async function sendOtpEmail(user, otp) {
+  // Development me OTP console me dikhao — testing ke liye useful
+  if (config.nodeEnv !== 'production') console.log('[verify-otp] OTP for', user.email, '=', otp);
   try {
     await sendEmail({
       to: user.email,
-      subject: 'Verify your email - Mera Raasta',
-      html: verificationEmail(user.name, link),
+      subject: `${otp} is your Mera Raasta verification code`,
+      html: otpEmail(user.name, otp),
     });
-    return { sent: true, link };
+    return { sent: true };
   } catch (err) {
-    console.error('[verify-email] email failed:', err.message);
+    console.error('[verify-otp] email failed:', err.message);
     resetTransporter();
-    return { sent: false, link };
+    return { sent: false };
   }
+}
+
+// OTP generate + save + email bhejo
+async function issueOtp(user) {
+  const otp = makeOtp();
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        emailVerificationOtp: hashOtp(otp),
+        emailVerificationOtpExpires: new Date(Date.now() + OTP_TTL_MS),
+        emailVerificationAttempts: 0,
+      },
+    }
+  );
+  return sendOtpEmail(user, otp);
 }
 
 export const register = async (req, res, next) => {
@@ -35,28 +50,24 @@ export const register = async (req, res, next) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) return next(new AppError('Email already in use', 400));
 
-    // Verification token — 24 ghante valid
-    const rawToken = makeVerificationToken();
     const user = await User.create({
       name,
       email,
       password,
       role,
       isEmailVerified: false,
-      emailVerificationToken: hashToken(rawToken),
-      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
-    logActivity(user._id, 'Account created (verification pending)', 'system', { role, name });
+    logActivity(user._id, 'Account created (OTP verification pending)', 'system', { role, name });
 
-    // Email bhejo. Fail ho to bhi account bana rehta hai — user resend kar sakta hai.
-    const { sent } = await sendVerificationEmail(user, rawToken);
+    // 6-digit OTP email bhejo. Fail ho to bhi account bana rehta hai — user resend kar sakta hai.
+    const { sent } = await issueOtp(user);
 
     res.status(201).json({
       success: true,
       message: sent
-        ? 'Account created. Verification link sent to your email.'
-        : 'Account created, but verification email could not be sent. Please use resend.',
+        ? 'Account created. 6-digit OTP sent to your email.'
+        : 'Account created, but OTP email could not be sent. Please use resend.',
       data: {
         user: { id: user._id, name: user.name, email: user.email, role: user.role },
         requiresVerification: true,
@@ -68,29 +79,56 @@ export const register = async (req, res, next) => {
 
 export const verifyEmail = async (req, res, next) => {
   try {
-    const token = String(req.query.token || req.body.token || '').trim();
-    if (!token) return next(new AppError('Verification token is missing', 400));
+    const email = String(req.body.email || req.query.email || '').trim().toLowerCase();
+    const otp = String(req.body.otp || req.query.otp || '').replace(/\D/g, '');
+    if (!email) return next(new AppError('Email is required', 400));
+    if (otp.length !== 6) return next(new AppError('Please enter the 6-digit OTP', 400));
 
-    const user = await User.findOne({
-      emailVerificationToken: hashToken(token),
-      emailVerificationExpires: { $gt: new Date() },
-    }).select('+emailVerificationToken +emailVerificationExpires');
+    const user = await User.findOne({ email })
+      .select('+emailVerificationOtp +emailVerificationOtpExpires +emailVerificationAttempts');
+    if (!user) return next(new AppError('Invalid OTP. Please check and try again.', 400));
 
-    if (!user) return next(new AppError('Verification link is invalid or expired', 400));
+    // Pehle se verified ho to koi dikkat nahi — auto-login kar dete hain
+    if (user.isEmailVerified) {
+      const tokens = generateTokens(user._id);
+      await User.findByIdAndUpdate(user._id, { refreshToken: tokens.refreshToken, lastLogin: new Date() });
+      res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+      return res.status(200).json({
+        success: true,
+        message: 'Email already verified! Welcome to Mera Raasta.',
+        data: { email: user.email, accessToken: tokens.accessToken, user: { id: user._id, name: user.name, email: user.email, role: user.role } },
+      });
+    }
+
+    // Zyada wrong attempts — OTP ko hi invalidate kar do (brute-force protection)
+    if ((user.emailVerificationAttempts || 0) >= 5) {
+      await User.updateOne({ _id: user._id }, { $unset: { emailVerificationOtp: 1, emailVerificationOtpExpires: 1 }, $set: { emailVerificationAttempts: 0 } });
+      return next(new AppError('Too many wrong attempts. Please resend the OTP.', 400));
+    }
+    if (!user.emailVerificationOtp || !user.emailVerificationOtpExpires || user.emailVerificationOtpExpires < new Date()) {
+      return next(new AppError('OTP expired. Please resend the OTP.', 400));
+    }
+    if (user.emailVerificationOtp !== hashOtp(otp)) {
+      await User.updateOne({ _id: user._id }, { $inc: { emailVerificationAttempts: 1 } });
+      return next(new AppError('Incorrect OTP. Please try again.', 400));
+    }
 
     await User.updateOne(
       { _id: user._id },
-      { $set: { isEmailVerified: true }, $unset: { emailVerificationToken: 1, emailVerificationExpires: 1 } }
+      {
+        $set: { isEmailVerified: true, emailVerificationAttempts: 0 },
+        $unset: { emailVerificationOtp: 1, emailVerificationOtpExpires: 1 },
+      }
     );
     user.isEmailVerified = true;
 
-    logActivity(user._id, 'Email verified', 'system', { email: user.email });
+    logActivity(user._id, 'Email verified (OTP)', 'system', { email: user.email });
 
     // Welcome email (background) — verification ke baad hi bhejo
     sendEmail({ to: user.email, subject: `Welcome to Mera Raasta, ${user.name}!`, html: welcomeEmail(user.name, user.role) })
       .catch(() => resetTransporter());
 
-    // User verify hone par turant tokens generate karo taki website direct khul sake
+    // OTP verify hote hi tokens generate — website turant khul jaye
     const { accessToken, refreshToken } = generateTokens(user._id);
     await User.findByIdAndUpdate(user._id, { refreshToken, lastLogin: new Date() });
     res.cookie('refreshToken', refreshToken, {
@@ -121,25 +159,14 @@ export const resendVerification = async (req, res, next) => {
 
     // Security: unknown email par bhi same response — account enumeration avoid
     if (!user) {
-      return res.status(200).json({ success: true, message: 'If this email is registered, a verification link has been sent.' });
+      return res.status(200).json({ success: true, message: 'If this email is registered, an OTP has been sent.' });
     }
     if (user.isEmailVerified) return next(new AppError('Email is already verified. Please login.', 400));
 
-    const rawToken = makeVerificationToken();
-    await User.updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          emailVerificationToken: hashToken(rawToken),
-          emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        },
-      }
-    );
+    const { sent } = await issueOtp(user);
+    if (!sent) return next(new AppError('Could not send OTP email. Please try again later.', 502));
 
-    const { sent } = await sendVerificationEmail(user, rawToken);
-    if (!sent) return next(new AppError('Could not send verification email. Please try again later.', 502));
-
-    res.status(200).json({ success: true, message: 'Verification link sent. Please check your email.' });
+    res.status(200).json({ success: true, message: 'OTP sent. Please check your email (and spam folder).' });
   } catch (error) { next(error); }
 };
 

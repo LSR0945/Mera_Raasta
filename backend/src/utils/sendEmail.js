@@ -221,3 +221,57 @@ export const verificationEmail = (name, verifyUrl) => {
   </body>
   </html>`;
 };
+
+/* ===== OTP Verification Template ===== */
+// Register ke baad bheja jata hai — 6-digit code user website par enter karta hai
+export const otpEmail = (name, otp) => {
+  const safeName = String(name || 'there').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+  const safeOtp = String(otp).replace(/\D/g, '');
+
+  return `
+  <!DOCTYPE html>
+  <html>
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 20px;">
+      <tr><td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+          <tr><td style="background:linear-gradient(135deg,#2563eb,#6366f1);padding:40px;text-align:center;">
+            <h1 style="color:#ffffff;font-size:26px;margin:0 0 8px;font-weight:800;">Verify your email</h1>
+            <p style="color:rgba(255,255,255,0.85);font-size:14px;margin:0;">Enter this code on Mera Raasta to activate your account</p>
+          </td></tr>
+
+          <tr><td style="padding:40px;">
+            <p style="color:#334155;font-size:16px;line-height:1.7;margin:0 0 16px;">Hi <strong style="color:#2563eb;">${safeName}</strong>,</p>
+            <p style="color:#475569;font-size:15px;line-height:1.8;margin:0 0 28px;">
+              Aapka verification code neeche diya gaya hai. Website par ye <strong>6-digit OTP</strong> enter karein:
+            </p>
+
+            <div style="text-align:center;margin:32px 0;">
+              <span style="display:inline-block;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:16px;padding:22px 46px;font-size:44px;font-weight:800;letter-spacing:14px;color:#1e293b;font-family:Consolas,'Courier New',monospace;">${safeOtp}</span>
+            </div>
+
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:16px;margin:24px 0;">
+              <p style="color:#9a3412;font-size:13px;line-height:1.7;margin:0;">
+                &#9200; Ye OTP <strong>10 minute</strong> tak valid hai. Kisi ko bhi share na karein — Mera Raasta kabhi OTP nahi maangta.
+              </p>
+            </div>
+
+            <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0;">
+              Agar aapne account nahi banaya, to ye email ignore kar dein.
+            </p>
+          </td></tr>
+
+          <tr><td style="background:#f8fafc;padding:22px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+            <p style="color:#94a3b8;font-size:12px;margin:0;">&copy; 2026 Mera Raasta &mdash; India's Smartest Career Guidance Platform</p>
+          </td></tr>
+
+        </table>
+      </td></tr>
+    </table>
+  </body>
+  </html>`;
+};

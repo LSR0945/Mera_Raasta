@@ -18,10 +18,11 @@ const userSchema = new mongoose.Schema({
   parent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   mentor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   permissions: [String],
-  // Email verification — register ke baad user ko verify karna zaroori hai
+  // Email verification (OTP) — register ke baad 6-digit OTP email jata hai
   isEmailVerified: { type: Boolean, default: false },
-  emailVerificationToken: { type: String, select: false },
-  emailVerificationExpires: { type: Date, select: false },
+  emailVerificationOtp: { type: String, select: false },
+  emailVerificationOtpExpires: { type: Date, select: false },
+  emailVerificationAttempts: { type: Number, default: 0 },
   refreshToken: { type: String, select: false },
   passwordResetToken: { type: String, select: false },
   passwordResetExpires: { type: Date, select: false },

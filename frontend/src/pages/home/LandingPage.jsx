@@ -318,7 +318,7 @@ export default function LandingPage() {
 
           <Reveal delay={350}>
             <p className="text-sm text-white/25 mb-10 max-w-xl mx-auto">
-              From career discovery to job readiness — built for Indian students.
+              From career discovery to job readiness — built for Indian students. Personalized AI recommendations based on your skills, interests & goals.
             </p>
           </Reveal>
 

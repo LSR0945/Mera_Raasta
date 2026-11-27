@@ -20,6 +20,7 @@ export default function VerifyEmailPage() {
   const [email, setEmail] = useState(initialEmail);
   const [sending, setSending] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
   const attempted = useRef(false);
 
   // Success handler: token save karke dashboard redirect
@@ -102,6 +103,25 @@ export default function VerifyEmailPage() {
     }
   };
 
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault();
+    const cleanOtp = otpInput.replace(/\D/g, '').substring(0, 6);
+    if (cleanOtp.length !== 6) return toast.error('Kripya 6-digit OTP enter karein');
+    setSending(true);
+    try {
+      const { data } = await authAPI.verifyEmail(email, cleanOtp);
+      if (data.success) {
+        handleSuccess(data.data?.accessToken, data.message || 'OTP verify ho gaya!');
+      } else {
+        toast.error(data.message || 'OTP verify nahi hua');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'OTP verify nahi ho paya');
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleResend = async (e) => {
     e.preventDefault();
     if (!email.trim()) return toast.error('Please enter your email');
@@ -181,6 +201,43 @@ export default function VerifyEmailPage() {
                   ? message
                   : 'Aapki email par verification link bhej diya gaya hai.'}
               </p>
+
+              {/* ═══ MANUAL OTP ENTRY ═══ */}
+              {status === 'idle' && email && (
+                <div className="mb-5 bg-gradient-to-r from-orange-50/80 to-orange-100 border border-orange-200/60 rounded-2xl p-4 text-left shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                    </span>
+                    <span className="text-xs font-bold text-gray-900">OTP daalein</span>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed mb-3">
+                    Gmail se aaya 6-digit OTP daalein check karein. Agar phone par link click nahi kiya to ye dalein.
+                  </p>
+                  <form onSubmit={handleOtpSubmit} className="space-y-3 text-left">
+                    <input
+                      type="text"
+                      value={otpInput}
+                      onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, '').padStart(6, '0'))}
+                      maxLength={6}
+                      required
+                      className="w-full px-4 py-3.5 border-2 border-orange-300 rounded-2xl text-sm focus:border-orange-500 focus:ring-0 outline-none bg-white transition-all placeholder:text-gray-400"
+                      placeholder="123456"
+                    />
+                    <button
+                      type="submit"
+                      disabled={sending}
+                      className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3.5 rounded-2xl font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40"
+                    >
+                      {sending ? 'Verifying...' : 'Verify OTP'}
+                    </button>
+                  </form>
+                  <p className="text-center text-xs text-gray-400 mt-2">
+                    OTP 10 minute tak valid rehta hai.
+                  </p>
+                </div>
+              )}
 
               {/* ═══ LIVE PHONE VERIFICATION LISTENER BOX ═══ */}
               {status === 'idle' && email && (

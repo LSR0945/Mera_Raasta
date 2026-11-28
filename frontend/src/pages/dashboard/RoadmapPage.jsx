@@ -103,14 +103,41 @@ function MilestonePopup({ milestone }) {
   );
 }
 
+const EDUCATION_LEVELS = [
+  'Class 8 or below',
+  'Class 9-10',
+  'Class 11-12',
+  'College / Undergraduate',
+  'Graduate / Postgraduate',
+];
+
 function GenerateForm({ onGenerate, loading }) {
   const [careerGoal, setCareerGoal] = useState('');
+  const [educationLevel, setEducationLevel] = useState('');
+  const [stream, setStream] = useState('');
+  const [interests, setInterests] = useState('');
   const [timeline, setTimeline] = useState('moderate');
   const [budget, setBudget] = useState('medium');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const filteredSuggestions = useMemo(() => {
+    const q = careerGoal.trim().toLowerCase();
+    if (!q) return CAREER_OPTIONS.slice(0, 8);
+    return CAREER_OPTIONS.filter((c) => c.toLowerCase().includes(q)).slice(0, 8);
+  }, [careerGoal]);
 
   const handleSubmit = () => {
-    if (!careerGoal) { toast.error('Please select a career goal'); return; }
-    onGenerate({ careerGoal, timeline, budget });
+    const goal = careerGoal.trim();
+    if (!goal) { toast.error('Please enter what you want to become'); return; }
+    if (!educationLevel) { toast.error('Please select your current class / education level'); return; }
+    onGenerate({
+      careerGoal: goal,
+      educationLevel,
+      stream: stream.trim(),
+      specificInterests: interests.trim(),
+      timeline,
+      budget,
+    });
   };
 
   return (
@@ -126,24 +153,99 @@ function GenerateForm({ onGenerate, loading }) {
           <div className="w-20 h-20 bg-white/15 backdrop-blur-sm rounded-3xl flex items-center justify-center text-5xl mx-auto mb-6 border border-white/20 shadow-xl">{'\uD83C\uDFD7\uFE0F'}</div>
           <h1 className="text-3xl lg:text-5xl font-extrabold mb-3 tracking-tight">Create Your Roadmap</h1>
           <p className="text-blue-100/80 text-lg max-w-xl mx-auto">
-            Tell us about your <span className="text-white font-bold">career goal</span> and we'll build a personalized step-by-step path just for you.
+            Apni <span className="text-white font-bold">information</span> aur <span className="text-white font-bold">career goal</span> batayein — hum aapke liye step-by-step roadmap bana denge.
           </p>
         </div>
       </div>
 
       <div className="bg-gray-900/50 backdrop-blur-xl rounded-3xl border border-white/5 p-8 lg:p-10 space-y-6">
-        <h2 className="text-xl font-extrabold text-white mb-2">Your Career Details</h2>
-        <p className="text-sm text-gray-400">Fill in below and we'll auto-generate a personalized roadmap for you.</p>
+        <div>
+          <h2 className="text-xl font-extrabold text-white mb-1">Your Information & Career Goal</h2>
+          <p className="text-sm text-gray-400">Apni class, subjects aur aap kya banna chahte hain wo bharein — roadmap turant ban jayega.</p>
+        </div>
 
-        <DarkDropdown label="Career Goal *" value={careerGoal} options={CAREER_OPTIONS}
-          placeholder="Select your career goal..." searchPlaceholder="Search careers..."
-          onSelect={(val) => setCareerGoal(val)} />
+        {/* 1. Current Class / Education Level */}
+        <div>
+          <label className="text-sm text-gray-400 mb-2 block">Current Class / Education Level *</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {EDUCATION_LEVELS.map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                onClick={() => setEducationLevel(lvl)}
+                className={`px-3.5 py-2.5 rounded-xl border-2 text-left text-xs font-semibold transition-all ${
+                  educationLevel === lvl
+                    ? 'border-blue-500 bg-blue-500/15 text-white'
+                    : 'border-white/10 bg-white/5 text-gray-300 hover:border-white/20'
+                }`}
+              >
+                {lvl}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 2. Stream / Subjects & Interests */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-gray-400 mb-1.5 block">Current Stream / Subjects</label>
+            <input
+              type="text"
+              value={stream}
+              onChange={(e) => setStream(e.target.value)}
+              placeholder="e.g. Science (PCM), Commerce, Arts, Maths..."
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500/50 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-gray-400 mb-1.5 block">Your Interests / Strengths</label>
+            <input
+              type="text"
+              value={interests}
+              onChange={(e) => setInterests(e.target.value)}
+              placeholder="e.g. Coding, Biology, Drawing, Teaching..."
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500/50 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* 3. What do you want to become? (Free text + Quick Suggestions) */}
+        <div className="relative">
+          <label className="text-sm text-gray-400 mb-1.5 block">Aap Kya Banna Chahte Hain? (Career Goal) *</label>
+          <input
+            type="text"
+            value={careerGoal}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
+            onChange={(e) => { setCareerGoal(e.target.value); setShowSuggestions(true); }}
+            placeholder="Type any goal (e.g. Software Engineer, IAS Officer, Doctor, Pilot...)"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500/50 focus:outline-none"
+          />
+          {showSuggestions && filteredSuggestions.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {filteredSuggestions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); setCareerGoal(opt); setShowSuggestions(false); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                    careerGoal === opt
+                      ? 'bg-blue-600 text-white border-blue-500'
+                      : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div>
           <label className="text-sm text-gray-400 mb-3 block">Timeline</label>
           <div className="grid grid-cols-3 gap-3">
             {[{ v: 'fast', l: 'Fast', d: 'Intense, shorter durations' }, { v: 'moderate', l: 'Moderate', d: 'Balanced pace (Recommended)' }, { v: 'relaxed', l: 'Relaxed', d: 'More time, deeper learning' }].map(t => (
-              <button key={t.v} onClick={() => setTimeline(t.v)}
+              <button key={t.v} type="button" onClick={() => setTimeline(t.v)}
                 className={`p-4 rounded-xl border-2 text-left transition-all ${timeline === t.v ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
                 <span className={`block font-bold text-sm ${timeline === t.v ? 'text-white' : 'text-gray-300'}`}>{t.l}</span>
                 <span className="block text-[11px] text-gray-500 mt-1">{t.d}</span>
@@ -154,9 +256,9 @@ function GenerateForm({ onGenerate, loading }) {
 
         <div>
           <label className="text-sm text-gray-400 mb-3 block">Budget</label>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[{ v: 'low', l: 'Low', i: 'Free resources' }, { v: 'medium', l: 'Medium', i: 'Mix free + paid' }, { v: 'high', l: 'High', i: 'Premium courses' }, { v: 'very_high', l: 'Very High', i: 'No limits' }].map(b => (
-              <button key={b.v} onClick={() => setBudget(b.v)}
+              <button key={b.v} type="button" onClick={() => setBudget(b.v)}
                 className={`p-3 rounded-xl border-2 text-center transition-all ${budget === b.v ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
                 <span className={`block font-bold text-xs ${budget === b.v ? 'text-white' : 'text-gray-300'}`}>{b.l}</span>
                 <span className="block text-[10px] text-gray-500 mt-0.5">{b.i}</span>
@@ -165,7 +267,7 @@ function GenerateForm({ onGenerate, loading }) {
           </div>
         </div>
 
-        <button onClick={handleSubmit} disabled={loading || !careerGoal}
+        <button onClick={handleSubmit} disabled={loading || !careerGoal.trim() || !educationLevel}
           className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-2xl font-bold text-base hover:from-blue-700 hover:to-indigo-700 disabled:opacity-40 transition-all shadow-xl shadow-blue-500/25 hover:shadow-2xl hover:-translate-y-0.5 flex items-center justify-center gap-3">
           {loading ? (
             <>

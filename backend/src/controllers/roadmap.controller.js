@@ -3,6 +3,7 @@ import Roadmap from '../models/Roadmap.js';
 import Career from '../models/Career.js';
 import StudentProfile from '../models/StudentProfile.js';
 import { logActivity } from './activity.controller.js';
+import { geminiCompleteAttempt, hasUsableGeminiKey } from '../utils/geminiPool.js';
 
 // ═══ CAREER ROADMAPS — Har career ke liye alag roadmap ═══
 // Yahan har career ke liye steps define hain — ye personalize hote hain user ki profile ke according
@@ -467,15 +468,104 @@ Average earnings:
   },
 
   // ═══ DEFAULT ROADMAP ═══
-  // Agar career ka specific roadmap nahi hai to ye generic roadmap use hoga
+  // Agar career ka specific roadmap nahi hai to user ke goal + profile ke hisaab se dynamic roadmap banao
   default: (profile) => {
+    const goal = profile.careerGoal || 'Your Chosen Career';
+    const level = profile.educationLevel || 'your current level';
+    const streamInfo = profile.stream ? ` (Stream/Subjects: ${profile.stream})` : '';
+    const interestList = (profile.interests || []).length ? profile.interests.join(', ') : '';
+    const isFree = !profile.budget || profile.budget === 'low' || profile.budget === 'medium';
+
     return [
-      { title: 'Define Your Career Goal', description: 'Clearly define what you want to achieve. Write it down — a goal without a plan is just a wish.', type: 'profile', category: 'learning', difficulty: 'easy', estimatedDuration: '1 day', resources: [], tips: 'Be specific: "I want to become a Software Engineer at a product company" is better than "I want a good job".', whyThis: 'Clarity of purpose drives every decision you make.', order: 1 },
-      { title: 'Research Your Field', description: 'Understand what skills, education, and experience are needed for your chosen career.', type: 'education', category: 'learning', difficulty: 'easy', estimatedDuration: '1 week', resources: [{ title: 'LinkedIn', url: 'https://linkedin.com', type: 'platform' }], tips: 'Talk to people already in the field. Read job descriptions to understand requirements.', whyThis: 'Research helps you plan effectively and avoid wasting time on wrong paths.', order: 2 },
-      { title: 'Build Required Skills', description: 'Identify and learn the core skills needed for your career.', type: 'skill', category: 'learning', difficulty: 'medium', estimatedDuration: '3-6 months', resources: [], tips: 'Focus on 2-3 core skills rather than trying to learn everything.', whyThis: 'Skills are what employers pay for. Build them systematically.', order: 3 },
-      { title: 'Gain Practical Experience', description: 'Apply what you learn through projects, internships, or volunteering.', type: 'project', category: 'project', difficulty: 'medium', estimatedDuration: '2-3 months', resources: [], tips: 'Start small. Even a personal project counts as experience.', whyThis: 'Theory without practice is useless. Real experience builds real competence.', order: 4 },
-      { title: 'Build Your Network', description: 'Connect with professionals in your field through events, LinkedIn, and communities.', type: 'skill', category: 'practice', difficulty: 'easy', estimatedDuration: 'Ongoing', resources: [{ title: 'LinkedIn', url: 'https://linkedin.com', type: 'platform' }], tips: 'Don\'t just collect contacts — build genuine relationships.', whyThis: '80% of jobs are filled through networking. Your network is your net worth.', order: 5 },
-      { title: 'Apply & Interview', description: 'Start applying for roles. Prepare for interviews with mock practice.', type: 'application', category: 'application', difficulty: 'medium', estimatedDuration: '2-3 months', resources: [], tips: 'Apply to 10+ places daily. Every rejection teaches you something.', whyThis: 'Persistence is the key. Most successful people faced many rejections first.', order: 6 },
+      {
+        title: `Understand the Path to ${goal}`,
+        description: `Starting from ${level}${streamInfo}, map out the exact qualifications, entrance exams, and eligibility required to become a ${goal}.`,
+        type: 'profile',
+        category: 'learning',
+        difficulty: 'easy',
+        estimatedDuration: '1 week',
+        resources: [
+          { title: 'National Career Service (India)', url: 'https://www.ncs.gov.in', type: 'free' },
+        ],
+        tips: `Write down your target milestone for becoming a ${goal} and talk to 1-2 seniors or mentors in this field.`,
+        whyThis: `Starting with clarity from ${level} prevents wasted effort and keeps you on the right track.`,
+        order: 1,
+      },
+      {
+        title: `Build Strong Foundations for ${goal}`,
+        description: `Focus on the core school/college subjects${streamInfo} and foundational knowledge needed for ${goal}.${interestList ? ` Connect your interests (${interestList}) with your daily study.` : ''}`,
+        type: 'education',
+        category: 'learning',
+        difficulty: 'easy',
+        estimatedDuration: '1-2 months',
+        resources: isFree
+          ? [
+              { title: 'SWAYAM Free Courses', url: 'https://swayam.gov.in', type: 'free' },
+              { title: 'DIKSHA / NCERT Portal', url: 'https://diksha.gov.in', type: 'free' },
+            ]
+          : [
+              { title: 'Coursera Guided Courses', url: 'https://coursera.org', type: 'paid' },
+            ],
+        tips: 'Dedicate 1-2 hours daily to building rock-solid fundamentals before jumping to advanced topics.',
+        whyThis: 'Strong fundamentals make competitive exams and advanced skills much easier.',
+        order: 2,
+      },
+      {
+        title: `Master Core Skills for ${goal}`,
+        description: `Identify and practice the top 3-4 practical skills required to succeed as a ${goal}.`,
+        type: 'skill',
+        category: 'learning',
+        difficulty: 'medium',
+        estimatedDuration: '2-3 months',
+        resources: [
+          { title: 'YouTube Learning Playlists', url: 'https://youtube.com', type: 'youtube' },
+        ],
+        tips: 'Learn by doing — take notes, solve practice sets, and track weekly progress.',
+        whyThis: `Practical skills separate top ${goal} candidates from average applicants.`,
+        order: 3,
+      },
+      {
+        title: 'Entrance Exams, Certifications & Eligibility',
+        description: `Prepare for key entrance tests, certifications, or degree admissions required for ${goal} after ${level}.`,
+        type: 'course',
+        category: 'practice',
+        difficulty: 'medium',
+        estimatedDuration: '2-4 months',
+        resources: [
+          { title: 'National Testing Agency (NTA)', url: 'https://nta.ac.in', type: 'free' },
+        ],
+        tips: 'Solve previous 5 years question papers and take timed mock tests every week.',
+        whyThis: 'Good exam/certification scores open doors to the best colleges and opportunities.',
+        order: 4,
+      },
+      {
+        title: `Real-World Projects & Practical Experience`,
+        description: `Apply what you learned for ${goal} through hands-on projects, competitions, internships, or volunteering.`,
+        type: 'project',
+        category: 'project',
+        difficulty: 'medium',
+        estimatedDuration: '2-3 months',
+        resources: [
+          { title: 'Internshala', url: 'https://internshala.com', type: 'platform' },
+        ],
+        tips: 'Document every project or achievement in a portfolio or resume.',
+        whyThis: 'Real-world experience builds confidence and makes your profile stand out.',
+        order: 5,
+      },
+      {
+        title: `Build Portfolio, Network & Apply`,
+        description: `Create a strong resume, connect with mentors/professionals in ${goal}, and apply for top colleges, scholarships, or entry roles.`,
+        type: 'application',
+        category: 'application',
+        difficulty: 'medium',
+        estimatedDuration: '1-2 months',
+        resources: [
+          { title: 'LinkedIn', url: 'https://linkedin.com', type: 'platform' },
+        ],
+        tips: 'Practice mock interviews and get your resume reviewed by a mentor.',
+        whyThis: 'Consistent applications and networking turn your preparation into real results.',
+        order: 6,
+      },
     ];
   },
 };
@@ -743,42 +833,147 @@ export const updateNodeProgress = async (req, res, next) => {
   }
 };
 
+// AI-powered personalized roadmap generator (Gemini) — 6.5s timeout, fallback safe
+async function generateAIRoadmapNodes({ careerGoal, educationLevel, stream, skills, interests, timeline, budget }) {
+  if (!hasUsableGeminiKey() || !careerGoal) return null;
+
+  const prompt = `Create a practical, step-by-step career roadmap for an Indian student.
+Student Info:
+- Career Goal (what they want to become): ${careerGoal}
+- Current Class / Education Level: ${educationLevel || 'Not specified'}
+- Current Stream / Subjects: ${stream || 'Not specified'}
+- Current Skills: ${(skills || []).join(', ') || 'Beginner'}
+- Interests / Strengths: ${(interests || []).join(', ') || 'Not specified'}
+- Preferred Pace (Timeline): ${timeline || 'moderate'}
+- Budget: ${budget || 'medium'}
+
+Return ONLY a valid JSON array of 7 to 9 objects (no markdown, no explanation). Each object must have:
+{
+  "title": "Short clear step title",
+  "description": "2-3 sentences tailored to the student's current class/stream and goal",
+  "type": "one of: setup, education, course, project, skill, interview, application, milestone",
+  "category": "one of: learning, project, practice, interview, application, milestone",
+  "difficulty": "one of: easy, medium, hard",
+  "estimatedDuration": "e.g. 2 weeks or 1-2 months",
+  "resources": [{"title": "Resource Name", "url": "https://...", "type": "free or paid or youtube"}],
+  "tips": "1 practical pro tip for the student",
+  "whyThis": "1 sentence on why this step matters"
+}`;
+
+  try {
+    const res = await geminiCompleteAttempt({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { temperature: 0.6, maxOutputTokens: 2048 },
+      timeoutMs: 6500,
+    });
+    if (!res.ok || !res.text) return null;
+
+    const jsonMatch = res.text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed) || parsed.length < 3) return null;
+
+    const validCategories = new Set(['learning', 'project', 'practice', 'interview', 'application', 'milestone']);
+    const validDiffs = new Set(['easy', 'medium', 'hard']);
+    const validResTypes = new Set(['free', 'paid', 'youtube', 'article', 'book', 'platform']);
+
+    return parsed.slice(0, 10).map((item, idx) => ({
+      title: String(item.title || `Step ${idx + 1}`).trim(),
+      description: String(item.description || '').trim(),
+      type: String(item.type || 'general').trim(),
+      category: validCategories.has(item.category) ? item.category : 'learning',
+      difficulty: validDiffs.has(item.difficulty) ? item.difficulty : 'medium',
+      estimatedDuration: String(item.estimatedDuration || '2-4 weeks').trim(),
+      resources: Array.isArray(item.resources)
+        ? item.resources
+            .filter((r) => r && r.title)
+            .slice(0, 3)
+            .map((r) => ({
+              title: String(r.title).trim(),
+              url: String(r.url || '').trim(),
+              type: validResTypes.has(r.type) ? r.type : 'free',
+            }))
+        : [],
+      tips: String(item.tips || '').trim(),
+      whyThis: String(item.whyThis || '').trim(),
+      status: 'pending',
+      progress: 0,
+      order: idx + 1,
+    }));
+  } catch {
+    return null;
+  }
+}
+
 // ═══ generateFromForm — Form se roadmap banao ═══
-// POST /roadmap/generate — user career goal, timeline, budget choose karta hai
+// POST /roadmap/generate — student apni info aur career goal dalta hai
 // Backend uske hisaab se personalized roadmap generate karta hai
 export const generateFromForm = async (req, res, next) => {
   try {
-    const { careerGoal, timeline, budget, specificInterests } = req.body;
+    const {
+      careerGoal,
+      educationLevel,
+      currentClass,
+      stream,
+      skills,
+      interests,
+      specificInterests,
+      timeline,
+      budget,
+    } = req.body;
+
+    const cleanGoal = String(careerGoal || '').trim();
+    if (!cleanGoal) {
+      return res.status(400).json({ success: false, message: 'Please enter what you want to become (career goal).' });
+    }
 
     // User ka profile lao
     const profile = await getUserProfile(req.user._id);
 
-    // Career slug determine karo — form se ya profile se
-    let careerSlug = 'default';
-    if (careerGoal) {
-      careerSlug = careerGoal.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
-    } else if (profile?.interests?.length > 0) {
-      careerSlug = getSuggestedCareer(profile.interests);
-    }
+    const normalizeList = (val) => {
+      if (Array.isArray(val)) return val.map((v) => String(v).trim()).filter(Boolean);
+      if (typeof val === 'string') return val.split(',').map((v) => v.trim()).filter(Boolean);
+      return [];
+    };
+
+    const resolvedEducation = String(educationLevel || currentClass || profile?.educationLevel || '').trim();
+    const resolvedStream = String(stream || profile?.stream || '').trim();
+    const resolvedSkills = normalizeList(skills).length > 0
+      ? normalizeList(skills)
+      : (profile?.skills || []).map((s) => s.name || s).filter(Boolean);
+    const resolvedInterests = normalizeList(specificInterests || interests).length > 0
+      ? normalizeList(specificInterests || interests)
+      : (profile?.interests || []);
+
+    const careerSlug = cleanGoal.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'default';
 
     const profileData = {
-      educationLevel: profile?.educationLevel || '',
-      skills: (profile?.skills || []).map(s => s.name || s),
-      interests: specificInterests || profile?.interests || [],
-      budget: budget || profile?.budget || 'low',
+      careerGoal: cleanGoal,
+      educationLevel: resolvedEducation,
+      stream: resolvedStream,
+      skills: resolvedSkills,
+      interests: resolvedInterests,
+      budget: budget || profile?.budget || 'medium',
       timeline: timeline || 'moderate',
     };
 
-    let careerDoc = await Career.findOne({ slug: careerSlug });
-    if (!careerDoc) careerDoc = await Career.findOne({ isActive: true });
+    // Career doc sirf tab attach karo jab exact slug match ho (unrelated career fallback mat lagao)
+    const careerDoc = await Career.findOne({ slug: careerSlug });
 
-    const nodes = generatePersonalizedNodes(careerSlug, profileData);
-
-    // Timeline ke hisaab se duration adjust karo
-    if (timeline === 'fast') {
-      nodes.forEach(n => { if (n.estimatedDuration) n.estimatedDuration = n.estimatedDuration.replace(/(\d+)/, (m) => Math.max(1, Math.floor(parseInt(m) * 0.6))); });
-    } else if (timeline === 'relaxed') {
-      nodes.forEach(n => { if (n.estimatedDuration) n.estimatedDuration = n.estimatedDuration.replace(/(\d+)/, (m) => Math.ceil(parseInt(m) * 1.5)); });
+    // Pehle AI se student ke exact goal + info ke hisaab se roadmap banao; fail ho to template fallback
+    let nodes = await generateAIRoadmapNodes(profileData);
+    if (!nodes) {
+      nodes = generatePersonalizedNodes(careerSlug, profileData);
+      // Timeline ke hisaab se duration adjust karo
+      if (timeline === 'fast') {
+        nodes.forEach((n) => {
+          if (n.estimatedDuration) n.estimatedDuration = n.estimatedDuration.replace(/(\d+)/, (m) => Math.max(1, Math.floor(parseInt(m, 10) * 0.6)));
+        });
+      } else if (timeline === 'relaxed') {
+        nodes.forEach((n) => {
+          if (n.estimatedDuration) n.estimatedDuration = n.estimatedDuration.replace(/(\d+)/, (m) => Math.ceil(parseInt(m, 10) * 1.5));
+        });
+      }
     }
 
     const milestones = [
@@ -787,10 +982,11 @@ export const generateFromForm = async (req, res, next) => {
     ];
 
     const careerTitles = {
-      'software-engineer': 'Software Engineer', 'data-scientist': 'Data Scientist',
-      'doctor': 'Doctor', 'default': careerGoal || 'Your Career',
+      'software-engineer': 'Software Engineer',
+      'data-scientist': 'Data Scientist',
+      'doctor': 'Doctor',
     };
-    const careerTitle = careerDoc?.title || careerTitles[careerSlug] || careerGoal || 'Your Career';
+    const careerTitle = careerDoc?.title || careerTitles[careerSlug] || cleanGoal;
 
     await Roadmap.deleteMany({ student: req.user._id });
 
@@ -798,11 +994,25 @@ export const generateFromForm = async (req, res, next) => {
       student: req.user._id,
       career: careerDoc?._id || null,
       title: `Path to ${careerTitle}`,
-      description: `Your personalized ${timeline || 'moderate'}-paced roadmap to become a ${careerTitle}`,
-      nodes, milestones, overallProgress: 0, userProfile: profileData,
+      description: `Personalized ${timeline || 'moderate'}-paced roadmap to become a ${careerTitle}${resolvedEducation ? ` (from ${resolvedEducation})` : ''}`,
+      nodes,
+      milestones,
+      overallProgress: 0,
+      userProfile: {
+        educationLevel: resolvedEducation,
+        skills: resolvedSkills,
+        interests: resolvedInterests,
+        budget: profileData.budget,
+      },
     });
 
-    logActivity(req.user._id, 'Generated roadmap from form', 'roadmap', { career: careerTitle, timeline, budget, steps: nodes.length });
+    logActivity(req.user._id, 'Generated roadmap from form', 'roadmap', {
+      career: careerTitle,
+      educationLevel: resolvedEducation,
+      timeline,
+      budget: profileData.budget,
+      steps: nodes.length,
+    });
     res.status(201).json({ success: true, message: 'Roadmap generated successfully', data: { roadmap } });
   } catch (error) { next(error); }
 };

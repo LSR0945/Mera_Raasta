@@ -128,6 +128,10 @@ export default function VerifyEmailPage() {
     setSending(true);
     try {
       const { data } = await authAPI.resendVerification(email.trim());
+      if (data?.data?.verified && data?.data?.accessToken) {
+        handleSuccess(data.data.accessToken, data.message || 'Account verified!');
+        return;
+      }
       toast.success(data.message || 'Verification link dobara bhej diya gaya hai.');
       setStatus('idle');
       setMessage('');

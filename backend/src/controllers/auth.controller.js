@@ -72,9 +72,9 @@ export const register = async (req, res, next) => {
 
     logActivity(user._id, 'Account created (OTP verification pending)', 'system', { role, name });
 
-    // Production me agar RESEND_API_KEY nahi hai to Render SMTP block karta hai — instant auto-verify + login.
-    const canSendEmailInProd = config.nodeEnv !== 'production' || Boolean(config.resendApiKey);
-    const { sent } = canSendEmailInProd ? await issueOtp(user) : { sent: false };
+    // Render/production me agar RESEND_API_KEY nahi hai to SMTP block hota hai — instant auto-verify + login.
+    const canSendEmail = Boolean(config.resendApiKey) || (!process.env.RENDER && config.nodeEnv !== 'production');
+    const { sent } = canSendEmail ? await issueOtp(user) : { sent: false };
 
     if (!sent) {
       const tokens = generateTokens(user._id);
@@ -198,18 +198,28 @@ export const resendVerification = async (req, res, next) => {
     }
     if (user.isEmailVerified) return next(new AppError('Email is already verified. Please login.', 400));
 
-    const canSendEmailInProd = config.nodeEnv !== 'production' || Boolean(config.resendApiKey);
-    const { sent } = canSendEmailInProd ? await issueOtp(user) : { sent: false };
+    const canSendEmail = Boolean(config.resendApiKey) || (!process.env.RENDER && config.nodeEnv !== 'production');
+    const { sent } = canSendEmail ? await issueOtp(user) : { sent: false };
     if (!sent) {
-      // Email service unavailable (e.g. Render SMTP block) — auto-verify so user isn't stuck
+      // Email service unavailable (e.g. Render SMTP block) — auto-verify + return token so user isn't stuck
+      const tokens = generateTokens(user._id);
       await User.updateOne(
         { _id: user._id },
-        { $set: { isEmailVerified: true }, $unset: { emailVerificationOtp: 1, emailVerificationOtpExpires: 1 } }
+        {
+          $set: { isEmailVerified: true, refreshToken: tokens.refreshToken, lastLogin: new Date() },
+          $unset: { emailVerificationOtp: 1, emailVerificationOtpExpires: 1 },
+        }
       );
+      res.cookie('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        secure: config.nodeEnv === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
       return res.status(200).json({
         success: true,
         message: 'Account verified! Logging you in...',
-        data: { verified: true },
+        data: { verified: true, accessToken: tokens.accessToken },
       });
     }
 

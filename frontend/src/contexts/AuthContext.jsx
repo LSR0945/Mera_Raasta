@@ -1,7 +1,7 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://onrender.com';
+const API_URL = import.meta.env.VITE_API_URL || 'https://mera-raasta-backend.onrender.com';
 
 export const AuthContext = createContext(null);
 

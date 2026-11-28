@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   server: {
     port: 5173,
-    proxy: { '/api': { target: process.env.VITE_API_URL || 'https://onrender.com', changeOrigin: true } },
+    proxy: { '/api': { target: process.env.VITE_API_URL || 'https://mera-raasta-backend.onrender.com', changeOrigin: true } },
   },
   build: { outDir: 'dist', sourcemap: false },
 });

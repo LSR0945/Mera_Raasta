@@ -40,7 +40,7 @@ const governmentSchema = new mongoose.Schema({
 governmentSchema.index({ name: 'text', description: 'text' });
 governmentSchema.index({ category: 1, deadline: 1 });
 
-export const Course = mongoose.model('Course', courseSchema);
-export const College = mongoose.model('College', collegeSchema);
-export const Scholarship = mongoose.model('Scholarship', scholarshipSchema);
-export const Government = mongoose.model('Government', governmentSchema);
+export const Course = mongoose.models.Course || mongoose.model('Course', courseSchema);
+export const College = mongoose.models.College || mongoose.model('College', collegeSchema);
+export const Scholarship = mongoose.models.Scholarship || mongoose.model('Scholarship', scholarshipSchema);
+export const Government = mongoose.models.Government || mongoose.model('Government', governmentSchema);

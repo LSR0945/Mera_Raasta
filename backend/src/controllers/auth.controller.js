@@ -72,18 +72,40 @@ export const register = async (req, res, next) => {
 
     logActivity(user._id, 'Account created (OTP verification pending)', 'system', { role, name });
 
-    // 6-digit OTP email bhejo. Fail ho to bhi account bana rehta hai — user resend kar sakta hai.
+    // 6-digit OTP email bhejo. Agar email service unavailable ho (e.g. Render SMTP block) to auto-verify + login.
     const { sent } = await issueOtp(user);
+
+    if (!sent) {
+      const tokens = generateTokens(user._id);
+      await User.findByIdAndUpdate(user._id, {
+        $set: { isEmailVerified: true, refreshToken: tokens.refreshToken, lastLogin: new Date() },
+        $unset: { emailVerificationOtp: 1, emailVerificationOtpExpires: 1 },
+      });
+      res.cookie('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        secure: config.nodeEnv === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+      return res.status(201).json({
+        success: true,
+        message: 'Account created successfully!',
+        data: {
+          user: { id: user._id, name: user.name, email: user.email, role: user.role },
+          accessToken: tokens.accessToken,
+          requiresVerification: false,
+          emailSent: false,
+        },
+      });
+    }
 
     res.status(201).json({
       success: true,
-      message: sent
-        ? 'Account created. 6-digit OTP sent to your email.'
-        : 'Account created, but OTP email could not be sent. Please use resend.',
+      message: 'Account created. 6-digit OTP sent to your email.',
       data: {
         user: { id: user._id, name: user.name, email: user.email, role: user.role },
         requiresVerification: true,
-        emailSent: sent,
+        emailSent: true,
       },
     });
   } catch (error) { next(error); }

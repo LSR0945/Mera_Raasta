@@ -28,7 +28,10 @@ export function AuthProvider({ children }) {
 
   const register = async ({ name, email, password, role }) => {
     const { data } = await axios.post(`${API_URL}/auth/register`, { name, email, password, role }, { withCredentials: true });
-    // Email verification ke bina login nahi hota — yahan token save NAHI karte.
+    if (data?.data?.accessToken && data?.data?.user) {
+      localStorage.setItem('accessToken', data.data.accessToken);
+      setUser(data.data.user);
+    }
     return data;
   };
 

@@ -63,11 +63,14 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       const result = await register({ name, email, password, role });
-      if (result?.data?.emailSent === false) {
+      if (result?.data?.requiresVerification === false && result?.data?.accessToken) {
+        toast.success('Account created successfully!');
+        navigate('/dashboard', { replace: true });
+      } else if (result?.data?.emailSent === false) {
         toast.error('Account created, but verification email could not be sent. Please resend.');
         navigate(`/verify-email?email=${encodeURIComponent(email)}&error=send`, { replace: true });
       } else {
-        toast.success('Account created! Verification link sent to your email.');
+        toast.success('Account created! 6-digit OTP sent to your email.');
         navigate(`/verify-email?email=${encodeURIComponent(email)}&sent=1`, { replace: true });
       }
     } catch (err) {

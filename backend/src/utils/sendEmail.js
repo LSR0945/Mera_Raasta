@@ -1,16 +1,23 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { config } from '../config/env.js';
 
 let transporter = null;
+let resendClient = null;
 
 export const resetTransporter = () => { transporter = null; };
 
-const getTransporter = async () => {
+const getResend = () => {
+  if (!config.resendApiKey) return null;
+  if (!resendClient) resendClient = new Resend(config.resendApiKey);
+  return resendClient;
+};
+
+const getTransporter = () => {
   if (transporter) return transporter;
 
   const host = config.smtpHost;
 
-  // Gmail ke liye sirf service use karo
   if (host.includes('gmail.com')) {
     transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -18,71 +25,65 @@ const getTransporter = async () => {
         user: config.smtpUser,
         pass: config.smtpPass ? String(config.smtpPass).replace(/\s+/g, '') : '',
       },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 25000,
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 8000,
     });
   } else {
     transporter = nodemailer.createTransport({
       host,
       port: Number(config.smtpPort),
-      secure: false,
+      secure: Number(config.smtpPort) === 465,
       auth: {
         user: config.smtpUser,
         pass: config.smtpPass ? String(config.smtpPass).replace(/\s+/g, '') : '',
       },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 25000,
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 8000,
     });
-  }
-
-  try {
-    await transporter.verify();
-    console.log('✅ SMTP verified OK:', host);
-  } catch (error) {
-    console.error('❌ SMTP FAILED:', error.message);
   }
 
   return transporter;
 };
 
 export const sendEmail = async ({ to, subject, html }) => {
-  const mail = {
-    from: config.smtpFrom || `"Mera Raasta" <${config.smtpUser}>`,
-    to,
-    subject,
-    html,
-  };
+  const from = config.smtpFrom || (config.smtpUser ? `"Mera Raasta" <${config.smtpUser}>` : 'Mera Raasta <onboarding@resend.dev>');
 
-  let lastError;
-  // Gmail kabhi-kabhi pehli connection par "Greeting never received" deta hai.
-  // Isliye 2 attempts: fail hone par transporter reset karke dobara try.
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const transport = await getTransporter();
-      if (!transport) {
-        console.error('❌ No transport available');
-        return null;
-      }
-
-      const info = await transport.sendMail(mail);
-      console.log('✅ EMAIL SENT TO:', to);
-      console.log('   Message ID:', info.messageId);
-
-      const previewUrl = nodemailer.getTestMessageUrl(info);
-      if (previewUrl) console.log('   Preview:', previewUrl);
-
-      return { ...info, previewUrl };
-    } catch (error) {
-      lastError = error;
-      console.error(`❌ EMAIL FAILED (attempt ${attempt}/2):`, error.message);
-      resetTransporter();
-      if (attempt < 2) await new Promise((r) => setTimeout(r, 1200));
+  // 1. Prefer Resend HTTP API (port 443, fast & never blocked on Render)
+  const resend = getResend();
+  if (resend) {
+    const { data, error } = await resend.emails.send({
+      from: config.smtpFrom || 'Mera Raasta <onboarding@resend.dev>',
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      html,
+    });
+    if (error) {
+      console.error('❌ RESEND FAILED:', error.message);
+      throw new Error(error.message);
     }
+    console.log('✅ EMAIL SENT (Resend) TO:', to, 'ID:', data?.id);
+    return data;
   }
 
-  throw lastError;
+  // 2. Fast-fail if SMTP credentials are missing
+  if (!config.smtpUser || !config.smtpPass) {
+    throw new Error('Email service not configured (set RESEND_API_KEY or SMTP credentials)');
+  }
+
+  // 3. Fallback to SMTP with short timeouts so registration never hangs
+  try {
+    const transport = getTransporter();
+    const info = await transport.sendMail({ from, to, subject, html });
+    console.log('✅ EMAIL SENT (SMTP) TO:', to, 'Message ID:', info.messageId);
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    return { ...info, previewUrl };
+  } catch (error) {
+    console.error('❌ EMAIL FAILED (SMTP):', error.message);
+    resetTransporter();
+    throw error;
+  }
 };
 
 /* ═══ Welcome Email Template ═══ */

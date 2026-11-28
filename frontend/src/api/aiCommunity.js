@@ -1,9 +1,9 @@
-import api from './axios';
+import api, { API_URL } from './axios';
 
 export const aiAPI = {
   chat: (data) => api.post('/ai/chat', data),
   chatStream: async function*(data) {
-    const response = await fetch('/api/v1/ai/chat/stream', {
+    const response = await fetch(`${API_URL}/ai/chat/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

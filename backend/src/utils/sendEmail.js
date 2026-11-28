@@ -7,9 +7,9 @@ let resendClient = null;
 
 export const resetTransporter = () => { transporter = null; };
 
-// HTTP-based email provider configured hai ya nahi (Render par SMTP blocked hai)
+// Email provider (HTTP API ya SMTP) configured hai ya nahi
 export const isEmailConfigured = () =>
-  Boolean(config.resendApiKey || config.brevoApiKey || config.sendgridApiKey || config.gasEmailUrl);
+  Boolean(config.resendApiKey || config.brevoApiKey || config.sendgridApiKey || config.gasEmailUrl || (config.smtpUser && config.smtpPass));
 
 const getResend = () => {
   if (!config.resendApiKey) return null;
@@ -24,7 +24,7 @@ const parseFrom = () => {
   return { name: 'Mera Raasta', email: (match ? match[1] : raw).trim() };
 };
 
-// HTTPS POST helper — har request par timeout, taaki Render par kabhi hang na ho
+// HTTPS POST helper — har request par timeout, taaki serverless me hang na ho
 const postJson = async (url, payload, headers = {}, timeoutMs = 5000) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -47,29 +47,35 @@ const postJson = async (url, payload, headers = {}, timeoutMs = 5000) => {
 };
 
 const getTransporter = () => {
-  if (transporter) return transporter;
+  // Serverless (Vercel) me stale socket/pool avoid karne ke liye fresh short-lived transport banao
+  if (!process.env.VERCEL && transporter) return transporter;
 
-  const host = config.smtpHost;
-  // Gmail SMTP ko 8s timeout do — slow network par bhi hang na ho
-  const timeouts = { connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000 };
+  const host = config.smtpHost || 'smtp.gmail.com';
+  const port = Number(config.smtpPort) || 587;
+  // Short timeouts, pool: false — serverless function jaldi close ho sake
+  const timeouts = {
+    pool: false,
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 8000,
+  };
   const auth = {
     user: config.smtpUser,
     pass: config.smtpPass ? String(config.smtpPass).replace(/\s+/g, '') : '',
   };
 
-  if (host.includes('gmail.com')) {
-    transporter = nodemailer.createTransport({ service: 'gmail', auth, ...timeouts });
-  } else {
-    transporter = nodemailer.createTransport({
-      host,
-      port: Number(config.smtpPort),
-      secure: Number(config.smtpPort) === 465,
-      auth,
-      ...timeouts,
-    });
-  }
+  const created = host.includes('gmail.com')
+    ? nodemailer.createTransport({ service: 'gmail', auth, ...timeouts })
+    : nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth,
+        ...timeouts,
+      });
 
-  return transporter;
+  if (!process.env.VERCEL) transporter = created;
+  return created;
 };
 
 export const sendEmail = async ({ to, subject, html }) => {
@@ -135,7 +141,7 @@ export const sendEmail = async ({ to, subject, html }) => {
     });
   }
 
-  // 4. Google Apps Script Gmail relay (Render free ke liye best — koi signup nahi, Gmail se send)
+  // 4. Google Apps Script Gmail relay (optional HTTP fallback)
   if (config.gasEmailUrl) {
     providers.push({
       name: 'Gmail relay',
@@ -155,27 +161,25 @@ export const sendEmail = async ({ to, subject, html }) => {
     });
   }
 
-  // 5. SMTP — Render free par ports 25/465/587 blocked hain, isliye wahan try hi mat karo
-  if (!process.env.RENDER) {
-    if (!config.smtpUser || !config.smtpPass) {
-      if (!providers.length) {
-        throw new Error('Email service not configured (set GAS_EMAIL_URL, BREVO_API_KEY, RESEND_API_KEY, or SMTP credentials)');
-      }
-    } else {
-      providers.push({
-        name: 'SMTP',
-        send: async () => {
-          const transport = getTransporter();
+  // 5. Gmail / Nodemailer SMTP (Vercel serverless aur local dono par chalta hai)
+  if (config.smtpUser && config.smtpPass) {
+    providers.push({
+      name: 'SMTP',
+      send: async () => {
+        const transport = getTransporter();
+        try {
           const info = await transport.sendMail({ from: fromHeader, to: recipients, subject, html });
           const previewUrl = nodemailer.getTestMessageUrl(info);
           return { ...info, previewUrl };
-        },
-      });
-    }
+        } finally {
+          if (process.env.VERCEL) transport.close();
+        }
+      },
+    });
   }
 
   if (!providers.length) {
-    throw new Error('Render par SMTP blocked hai. Set GAS_EMAIL_URL (recommended), BREVO_API_KEY, or RESEND_API_KEY.');
+    throw new Error('Email service not configured (set SMTP_USER/SMTP_PASS, or GAS_EMAIL_URL, BREVO_API_KEY, RESEND_API_KEY).');
   }
 
   // Har provider try karo — pehla successful provider jeet gaya

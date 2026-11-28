@@ -53,6 +53,17 @@ const start = async () => {
 };
 
 process.on('SIGINT', () => { if (server) server.close(() => process.exit(0)); });
-process.on('unhandledRejection', (reason) => { console.error('Unhandled Rejection:', reason); if (server) server.close(() => process.exit(1)); else process.exit(1); });
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+  if (!process.env.VERCEL) {
+    if (server) server.close(() => process.exit(1));
+    else process.exit(1);
+  }
+});
 
-start();
+// Vercel Serverless Function ke liye app.listen sirf local development me chalega
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  start();
+}
+
+export default app;

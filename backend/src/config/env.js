@@ -19,7 +19,7 @@ export const config = {
   smtpUser: process.env.SMTP_USER || '',
   smtpPass: process.env.SMTP_PASS || '',
   smtpFrom: process.env.SMTP_FROM || '',
-  // Email providers (sab HTTP API hain — Render free par SMTP blocked hai)
+  // Optional HTTP email providers (SMTP ke alawa)
   resendApiKey: process.env.RESEND_API_KEY || '',
   brevoApiKey: process.env.BREVO_API_KEY || '',
   sendgridApiKey: process.env.SENDGRID_API_KEY || '',

@@ -53,7 +53,7 @@ export const register = async (req, res, next) => {
       return next(new AppError('Email already in use', 400));
     }
 
-    const canSendEmail = isEmailConfigured() || (!process.env.RENDER && Boolean(config.smtpUser && config.smtpPass));
+    const canSendEmail = isEmailConfigured();
     const otp = canSendEmail ? makeOtp() : null;
     const otpFields = otp
       ? {
@@ -88,7 +88,7 @@ export const register = async (req, res, next) => {
 
     logActivity(user._id, 'Account created (OTP verification pending)', 'system', { role, name });
 
-    // Render free par SMTP ports blocked hain, isliye wahan sirf HTTP providers chalenge.
+    // Email bhej sakte hain? (Gmail SMTP ya HTTP provider configured ho)
     const { sent } = otp ? await sendOtpEmail(user, otp) : { sent: false };
 
     if (!sent) {
@@ -100,7 +100,7 @@ export const register = async (req, res, next) => {
       res.cookie('refreshToken', tokens.refreshToken, {
         httpOnly: true,
         secure: config.nodeEnv === 'production',
-        sameSite: 'strict',
+        sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
       return res.status(201).json({
@@ -142,7 +142,7 @@ export const verifyEmail = async (req, res, next) => {
     if (user.isEmailVerified) {
       const tokens = generateTokens(user._id);
       await User.findByIdAndUpdate(user._id, { refreshToken: tokens.refreshToken, lastLogin: new Date() });
-      res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+      res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: config.nodeEnv === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
       return res.status(200).json({
         success: true,
         message: 'Email already verified! Welcome to Mera Raasta.',
@@ -184,7 +184,7 @@ export const verifyEmail = async (req, res, next) => {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: config.nodeEnv === 'production',
-      sameSite: 'strict',
+      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -215,7 +215,7 @@ export const resendVerification = async (req, res, next) => {
 
     // Email bhej sakte hain? HTTP provider configured ho, ya local SMTP available ho.
     // Render free par SMTP ports blocked hain, isliye wahan sirf HTTP providers chalenge.
-    const canSendEmail = isEmailConfigured() || (!process.env.RENDER && Boolean(config.smtpUser && config.smtpPass));
+    const canSendEmail = isEmailConfigured();
     const { sent } = canSendEmail ? await issueOtp(user) : { sent: false };
     if (!sent) {
       // Email service unavailable (e.g. Render SMTP block) — auto-verify + return token so user isn't stuck
@@ -230,7 +230,7 @@ export const resendVerification = async (req, res, next) => {
       res.cookie('refreshToken', tokens.refreshToken, {
         httpOnly: true,
         secure: config.nodeEnv === 'production',
-        sameSite: 'strict',
+        sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
       return res.status(200).json({
@@ -265,7 +265,7 @@ export const checkVerificationStatus = async (req, res, next) => {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: config.nodeEnv === 'production',
-      sameSite: 'strict',
+      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -301,7 +301,7 @@ export const login = async (req, res, next) => {
     const { accessToken, refreshToken } = generateTokens(user._id);
     await User.findByIdAndUpdate(user._id, { refreshToken, lastLogin: new Date() });
     logActivity(user._id, 'Logged in', 'login', { email });
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: config.nodeEnv === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
     res.status(200).json({ success: true, message: 'Login successful', data: { user: { id: user._id, name: user.name, email: user.email, role: user.role }, accessToken } });
   } catch (error) { next(error); }
 };
@@ -316,7 +316,7 @@ export const refreshToken = async (req, res, next) => {
     if (!user || user.refreshToken !== token) return next(new AppError('Refresh token invalid', 401));
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
     await User.findByIdAndUpdate(user._id, { refreshToken: newRefreshToken });
-    res.cookie('refreshToken', newRefreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('refreshToken', newRefreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: config.nodeEnv === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
     res.status(200).json({ success: true, data: { accessToken } });
   } catch (error) { next(error); }
 };
@@ -358,7 +358,7 @@ export const changePassword = async (req, res, next) => {
     const { accessToken, refreshToken } = generateTokens(user._id);
     user.refreshToken = refreshToken;
     await user.save();
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: config.nodeEnv === 'production', sameSite: config.nodeEnv === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
     res.status(200).json({ success: true, message: 'Password changed successfully', data: { accessToken } });
   } catch (error) { next(error); }
 };

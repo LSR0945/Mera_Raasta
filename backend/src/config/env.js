@@ -19,5 +19,11 @@ export const config = {
   smtpUser: process.env.SMTP_USER || '',
   smtpPass: process.env.SMTP_PASS || '',
   smtpFrom: process.env.SMTP_FROM || '',
+  // Email providers (sab HTTP API hain — Render free par SMTP blocked hai)
   resendApiKey: process.env.RESEND_API_KEY || '',
+  brevoApiKey: process.env.BREVO_API_KEY || '',
+  sendgridApiKey: process.env.SENDGRID_API_KEY || '',
+  // Google Apps Script Gmail relay — zero signup, user ke Gmail se email jata hai
+  gasEmailUrl: process.env.GAS_EMAIL_URL || '',
+  gasEmailSecret: process.env.GAS_EMAIL_SECRET || '',
 };

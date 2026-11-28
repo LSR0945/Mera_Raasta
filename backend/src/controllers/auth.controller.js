@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import User from '../models/User.js';
 import { AppError, generateTokens, verifyRefreshToken } from '../utils/helpers.js';
-import { sendEmail, welcomeEmail, otpEmail, resetTransporter } from '../utils/sendEmail.js';
+import { sendEmail, welcomeEmail, otpEmail, resetTransporter, isEmailConfigured } from '../utils/sendEmail.js';
 import { config } from '../config/env.js';
 import { logActivity } from '../controllers/activity.controller.js';
 
@@ -53,12 +53,27 @@ export const register = async (req, res, next) => {
       return next(new AppError('Email already in use', 400));
     }
 
+    const canSendEmail = isEmailConfigured() || (!process.env.RENDER && Boolean(config.smtpUser && config.smtpPass));
+    const otp = canSendEmail ? makeOtp() : null;
+    const otpFields = otp
+      ? {
+          emailVerificationOtp: hashOtp(otp),
+          emailVerificationOtpExpires: new Date(Date.now() + OTP_TTL_MS),
+          emailVerificationAttempts: 0,
+        }
+      : {};
+
     let user;
     if (existingUser) {
-      // Unverified account hai to details update karke fresh OTP bhejo
+      // Unverified account hai to details + fresh OTP ek hi DB write me save karo
       existingUser.name = name;
       existingUser.password = password;
       if (role) existingUser.role = role;
+      if (otp) {
+        existingUser.emailVerificationOtp = otpFields.emailVerificationOtp;
+        existingUser.emailVerificationOtpExpires = otpFields.emailVerificationOtpExpires;
+        existingUser.emailVerificationAttempts = 0;
+      }
       user = await existingUser.save();
     } else {
       user = await User.create({
@@ -67,14 +82,14 @@ export const register = async (req, res, next) => {
         password,
         role,
         isEmailVerified: false,
+        ...otpFields,
       });
     }
 
     logActivity(user._id, 'Account created (OTP verification pending)', 'system', { role, name });
 
-    // Render/production me agar RESEND_API_KEY nahi hai to SMTP block hota hai — instant auto-verify + login.
-    const canSendEmail = Boolean(config.resendApiKey) || (!process.env.RENDER && config.nodeEnv !== 'production');
-    const { sent } = canSendEmail ? await issueOtp(user) : { sent: false };
+    // Render free par SMTP ports blocked hain, isliye wahan sirf HTTP providers chalenge.
+    const { sent } = otp ? await sendOtpEmail(user, otp) : { sent: false };
 
     if (!sent) {
       const tokens = generateTokens(user._id);
@@ -198,7 +213,9 @@ export const resendVerification = async (req, res, next) => {
     }
     if (user.isEmailVerified) return next(new AppError('Email is already verified. Please login.', 400));
 
-    const canSendEmail = Boolean(config.resendApiKey) || (!process.env.RENDER && config.nodeEnv !== 'production');
+    // Email bhej sakte hain? HTTP provider configured ho, ya local SMTP available ho.
+    // Render free par SMTP ports blocked hain, isliye wahan sirf HTTP providers chalenge.
+    const canSendEmail = isEmailConfigured() || (!process.env.RENDER && Boolean(config.smtpUser && config.smtpPass));
     const { sent } = canSendEmail ? await issueOtp(user) : { sent: false };
     if (!sent) {
       // Email service unavailable (e.g. Render SMTP block) — auto-verify + return token so user isn't stuck

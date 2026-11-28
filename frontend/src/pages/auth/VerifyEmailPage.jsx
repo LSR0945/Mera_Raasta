@@ -223,7 +223,7 @@ export default function VerifyEmailPage() {
                     <input
                       type="text"
                       value={otpInput}
-                      onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, '').padStart(6, '0'))}
+                      onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       maxLength={6}
                       required
                       className="w-full px-4 py-3.5 border-2 border-orange-300 rounded-2xl text-sm focus:border-orange-500 focus:ring-0 outline-none bg-white transition-all placeholder:text-gray-400"

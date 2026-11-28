@@ -7,40 +7,65 @@ let resendClient = null;
 
 export const resetTransporter = () => { transporter = null; };
 
+// HTTP-based email provider configured hai ya nahi (Render par SMTP blocked hai)
+export const isEmailConfigured = () =>
+  Boolean(config.resendApiKey || config.brevoApiKey || config.sendgridApiKey || config.gasEmailUrl);
+
 const getResend = () => {
   if (!config.resendApiKey) return null;
   if (!resendClient) resendClient = new Resend(config.resendApiKey);
   return resendClient;
 };
 
+// `"Mera Raasta" <satishrajput207001@gmail.com>` jaise string se email + name nikalo
+const parseFrom = () => {
+  const raw = String(config.smtpFrom || config.smtpUser || 'onboarding@resend.dev').trim();
+  const match = raw.match(/<([^>]+)>/);
+  return { name: 'Mera Raasta', email: (match ? match[1] : raw).trim() };
+};
+
+// HTTPS POST helper — har request par timeout, taaki Render par kabhi hang na ho
+const postJson = async (url, payload, headers = {}, timeoutMs = 5000) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
+    return text;
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error(`Request timeout after ${timeoutMs}ms`);
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 const getTransporter = () => {
   if (transporter) return transporter;
 
   const host = config.smtpHost;
+  // Gmail SMTP ko 8s timeout do — slow network par bhi hang na ho
+  const timeouts = { connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000 };
+  const auth = {
+    user: config.smtpUser,
+    pass: config.smtpPass ? String(config.smtpPass).replace(/\s+/g, '') : '',
+  };
 
   if (host.includes('gmail.com')) {
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: config.smtpUser,
-        pass: config.smtpPass ? String(config.smtpPass).replace(/\s+/g, '') : '',
-      },
-      connectionTimeout: 3000,
-      greetingTimeout: 3000,
-      socketTimeout: 3500,
-    });
+    transporter = nodemailer.createTransport({ service: 'gmail', auth, ...timeouts });
   } else {
     transporter = nodemailer.createTransport({
       host,
       port: Number(config.smtpPort),
       secure: Number(config.smtpPort) === 465,
-      auth: {
-        user: config.smtpUser,
-        pass: config.smtpPass ? String(config.smtpPass).replace(/\s+/g, '') : '',
-      },
-      connectionTimeout: 3000,
-      greetingTimeout: 3000,
-      socketTimeout: 3500,
+      auth,
+      ...timeouts,
     });
   }
 
@@ -48,45 +73,126 @@ const getTransporter = () => {
 };
 
 export const sendEmail = async ({ to, subject, html }) => {
-  const from = config.smtpFrom || (config.smtpUser ? `"Mera Raasta" <${config.smtpUser}>` : 'Mera Raasta <onboarding@resend.dev>');
+  const recipients = (Array.isArray(to) ? to : [to]).map((e) => String(e).trim()).filter(Boolean);
+  if (!recipients.length) throw new Error('Email recipient missing');
 
-  // 1. Prefer Resend HTTP API (port 443, fast & never blocked on Render)
+  const from = parseFrom();
+  const fromHeader = config.smtpFrom || `"Mera Raasta" <${from.email}>`;
+
+  // Saare configured providers — ek fail ho to agla try hota hai
+  const providers = [];
+
+  // 1. Resend (HTTP API — port 443)
   const resend = getResend();
   if (resend) {
-    const { data, error } = await resend.emails.send({
-      from: config.smtpFrom || 'Mera Raasta <onboarding@resend.dev>',
-      to: Array.isArray(to) ? to : [to],
-      subject,
-      html,
+    // Resend free tier par @gmail.com/@yahoo.com sender allowed nahi hai — onboarding@resend.dev fallback use karo
+    const isFreeWebmail = /@(gmail|yahoo|outlook|hotmail)\.com$/i.test(from.email);
+    const resendFrom = isFreeWebmail ? 'Mera Raasta <onboarding@resend.dev>' : fromHeader;
+    providers.push({
+      name: 'Resend',
+      send: async () => {
+        const { data, error } = await resend.emails.send({
+          from: resendFrom,
+          to: recipients,
+          subject,
+          html,
+        });
+        if (error) throw new Error(error.message);
+        return data;
+      },
     });
-    if (error) {
-      console.error('❌ RESEND FAILED:', error.message);
-      throw new Error(error.message);
+  }
+
+  // 2. Brevo (HTTP API — free 300 emails/day, sender email verify karna hota hai)
+  if (config.brevoApiKey) {
+    providers.push({
+      name: 'Brevo',
+      send: async () => {
+        await postJson('https://api.brevo.com/v3/smtp/email', {
+          sender: from,
+          to: recipients.map((email) => ({ email })),
+          subject,
+          htmlContent: html,
+        }, { 'api-key': config.brevoApiKey, accept: 'application/json' });
+        return { provider: 'brevo' };
+      },
+    });
+  }
+
+  // 3. SendGrid (HTTP API — free 100 emails/day)
+  if (config.sendgridApiKey) {
+    providers.push({
+      name: 'SendGrid',
+      send: async () => {
+        await postJson('https://api.sendgrid.com/v3/mail/send', {
+          personalizations: [{ to: recipients.map((email) => ({ email })) }],
+          from,
+          subject,
+          content: [{ type: 'text/html', value: html }],
+        }, { Authorization: `Bearer ${config.sendgridApiKey}` });
+        return { provider: 'sendgrid' };
+      },
+    });
+  }
+
+  // 4. Google Apps Script Gmail relay (Render free ke liye best — koi signup nahi, Gmail se send)
+  if (config.gasEmailUrl) {
+    providers.push({
+      name: 'Gmail relay',
+      send: async () => {
+        const text = await postJson(config.gasEmailUrl, {
+          secret: config.gasEmailSecret,
+          to: recipients.join(','),
+          subject,
+          html,
+          fromName: from.name,
+        }, {}, 5000);
+        let parsed = {};
+        try { parsed = JSON.parse(text); } catch { /* Apps Script kabhi plain text bhi bhejta hai */ }
+        if (parsed && parsed.success === false) throw new Error(parsed.error || 'Gmail relay failed');
+        return { provider: 'gas' };
+      },
+    });
+  }
+
+  // 5. SMTP — Render free par ports 25/465/587 blocked hain, isliye wahan try hi mat karo
+  if (!process.env.RENDER) {
+    if (!config.smtpUser || !config.smtpPass) {
+      if (!providers.length) {
+        throw new Error('Email service not configured (set GAS_EMAIL_URL, BREVO_API_KEY, RESEND_API_KEY, or SMTP credentials)');
+      }
+    } else {
+      providers.push({
+        name: 'SMTP',
+        send: async () => {
+          const transport = getTransporter();
+          const info = await transport.sendMail({ from: fromHeader, to: recipients, subject, html });
+          const previewUrl = nodemailer.getTestMessageUrl(info);
+          return { ...info, previewUrl };
+        },
+      });
     }
-    console.log('✅ EMAIL SENT (Resend) TO:', to, 'ID:', data?.id);
-    return data;
   }
 
-  // 2. Fast-fail if SMTP credentials are missing
-  if (!config.smtpUser || !config.smtpPass) {
-    throw new Error('Email service not configured (set RESEND_API_KEY or SMTP credentials)');
+  if (!providers.length) {
+    throw new Error('Render par SMTP blocked hai. Set GAS_EMAIL_URL (recommended), BREVO_API_KEY, or RESEND_API_KEY.');
   }
 
-  // 3. Fallback to SMTP with hard 3.5s timeout so registration never hangs
-  try {
-    const transport = getTransporter();
-    const info = await Promise.race([
-      transport.sendMail({ from, to, subject, html }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout (3.5s)')), 3500)),
-    ]);
-    console.log('✅ EMAIL SENT (SMTP) TO:', to, 'Message ID:', info.messageId);
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    return { ...info, previewUrl };
-  } catch (error) {
-    console.error('❌ EMAIL FAILED (SMTP):', error.message);
-    resetTransporter();
-    throw error;
+  // Har provider try karo — pehla successful provider jeet gaya
+  let lastError;
+  for (const provider of providers) {
+    try {
+      const result = await provider.send();
+      console.log(`✅ EMAIL SENT (${provider.name}) TO:`, recipients.join(', '));
+      return result;
+    } catch (error) {
+      lastError = error;
+      console.error(`❌ EMAIL FAILED (${provider.name}):`, error.message);
+      if (provider.name === 'SMTP') resetTransporter();
+    }
   }
+
+  throw lastError;
 };
 
 /* ═══ Welcome Email Template ═══ */

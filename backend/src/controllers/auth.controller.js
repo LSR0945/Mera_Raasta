@@ -46,17 +46,29 @@ async function issueOtp(user) {
 
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, password, role } = req.body;
+    const email = String(req.body.email || '').trim().toLowerCase();
     const existingUser = await User.findOne({ email });
-    if (existingUser) return next(new AppError('Email already in use', 400));
+    if (existingUser && existingUser.isEmailVerified) {
+      return next(new AppError('Email already in use', 400));
+    }
 
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role,
-      isEmailVerified: false,
-    });
+    let user;
+    if (existingUser) {
+      // Unverified account hai to details update karke fresh OTP bhejo
+      existingUser.name = name;
+      existingUser.password = password;
+      if (role) existingUser.role = role;
+      user = await existingUser.save();
+    } else {
+      user = await User.create({
+        name,
+        email,
+        password,
+        role,
+        isEmailVerified: false,
+      });
+    }
 
     logActivity(user._id, 'Account created (OTP verification pending)', 'system', { role, name });
 

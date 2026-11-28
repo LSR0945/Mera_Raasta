@@ -25,9 +25,9 @@ const getTransporter = () => {
         user: config.smtpUser,
         pass: config.smtpPass ? String(config.smtpPass).replace(/\s+/g, '') : '',
       },
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 8000,
+      connectionTimeout: 3000,
+      greetingTimeout: 3000,
+      socketTimeout: 3500,
     });
   } else {
     transporter = nodemailer.createTransport({
@@ -38,9 +38,9 @@ const getTransporter = () => {
         user: config.smtpUser,
         pass: config.smtpPass ? String(config.smtpPass).replace(/\s+/g, '') : '',
       },
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 8000,
+      connectionTimeout: 3000,
+      greetingTimeout: 3000,
+      socketTimeout: 3500,
     });
   }
 
@@ -72,10 +72,13 @@ export const sendEmail = async ({ to, subject, html }) => {
     throw new Error('Email service not configured (set RESEND_API_KEY or SMTP credentials)');
   }
 
-  // 3. Fallback to SMTP with short timeouts so registration never hangs
+  // 3. Fallback to SMTP with hard 3.5s timeout so registration never hangs
   try {
     const transport = getTransporter();
-    const info = await transport.sendMail({ from, to, subject, html });
+    const info = await Promise.race([
+      transport.sendMail({ from, to, subject, html }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout (3.5s)')), 3500)),
+    ]);
     console.log('✅ EMAIL SENT (SMTP) TO:', to, 'Message ID:', info.messageId);
     const previewUrl = nodemailer.getTestMessageUrl(info);
     return { ...info, previewUrl };

@@ -72,8 +72,9 @@ export const register = async (req, res, next) => {
 
     logActivity(user._id, 'Account created (OTP verification pending)', 'system', { role, name });
 
-    // 6-digit OTP email bhejo. Agar email service unavailable ho (e.g. Render SMTP block) to auto-verify + login.
-    const { sent } = await issueOtp(user);
+    // Production me agar RESEND_API_KEY nahi hai to Render SMTP block karta hai — instant auto-verify + login.
+    const canSendEmailInProd = config.nodeEnv !== 'production' || Boolean(config.resendApiKey);
+    const { sent } = canSendEmailInProd ? await issueOtp(user) : { sent: false };
 
     if (!sent) {
       const tokens = generateTokens(user._id);
@@ -197,8 +198,20 @@ export const resendVerification = async (req, res, next) => {
     }
     if (user.isEmailVerified) return next(new AppError('Email is already verified. Please login.', 400));
 
-    const { sent } = await issueOtp(user);
-    if (!sent) return next(new AppError('Could not send OTP email. Please try again later.', 502));
+    const canSendEmailInProd = config.nodeEnv !== 'production' || Boolean(config.resendApiKey);
+    const { sent } = canSendEmailInProd ? await issueOtp(user) : { sent: false };
+    if (!sent) {
+      // Email service unavailable (e.g. Render SMTP block) — auto-verify so user isn't stuck
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { isEmailVerified: true }, $unset: { emailVerificationOtp: 1, emailVerificationOtpExpires: 1 } }
+      );
+      return res.status(200).json({
+        success: true,
+        message: 'Account verified! Logging you in...',
+        data: { verified: true },
+      });
+    }
 
     res.status(200).json({ success: true, message: 'OTP sent. Please check your email (and spam folder).' });
   } catch (error) { next(error); }
